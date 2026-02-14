@@ -1,0 +1,4 @@
+id,reference,name,category,quantity,price_buy,price,supplier
+1,HP-001,Ordinateur Portable HP,Informatique,15,65000.0,75000.0,HP Distribution
+2,LOG-MS-100,Souris Sans Fil Logitech,Accessoires,50,1200.0,1500.0,Logitech SARL
+3,KB-RGB-001,Clavier Mécanique RGB,Accessoires,30,4000.0,5000.0,Tech Import
