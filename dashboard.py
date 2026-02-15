@@ -2,11 +2,15 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame, Q
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 from styles import COLORS, get_kpi_card_style
+from db_manager import get_database
 
 
 class DashboardPage(QWidget):
     def __init__(self):
         super().__init__()
+        
+        # Connexion à la base de données
+        self.db = get_database()
 
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
@@ -24,49 +28,12 @@ class DashboardPage(QWidget):
         layout.addWidget(subtitle)
 
         # ------------------- KPI CARDS GRID -------------------
-        cards_grid = QGridLayout()
-        cards_grid.setSpacing(15)
-        layout.addLayout(cards_grid)
+        self.cards_grid = QGridLayout()
+        self.cards_grid.setSpacing(15)
+        layout.addLayout(self.cards_grid)
 
-        # Première ligne
-        cards_grid.addWidget(
-            self.build_kpi_card(
-                "💰 Ventes Totales",
-                "120 000 DA",
-                "+12.5%",
-                "par rapport au mois dernier",
-                COLORS['primary']
-            ), 0, 0
-        )
-        cards_grid.addWidget(
-            self.build_kpi_card(
-                "🛒 Achats",
-                "37 000 DA",
-                "-5.2%",
-                "réduction des coûts",
-                COLORS['warning']
-            ), 0, 1
-        )
-        
-        # Deuxième ligne
-        cards_grid.addWidget(
-            self.build_kpi_card(
-                "📈 Bénéfice Net",
-                "83 000 DA",
-                "+18.3%",
-                "croissance mensuelle",
-                COLORS['success']
-            ), 1, 0
-        )
-        cards_grid.addWidget(
-            self.build_kpi_card(
-                "👥 Clients",
-                "59",
-                "+7",
-                "nouveaux ce mois",
-                COLORS['secondary']
-            ), 1, 1
-        )
+        # Charger les statistiques
+        self.load_statistics()
 
         # ------------------- ACTIVITÉS RÉCENTES -------------------
         activity_title = QLabel("📋 Activités Récentes")
@@ -89,22 +56,103 @@ class DashboardPage(QWidget):
         activities_container.setLayout(activities_layout)
         activities_layout.setSpacing(10)
 
-        # Activités exemple
-        activities = [
-            ("✅", "Nouvelle vente enregistrée", "Client: John Doe - 15 000 DA", "Il y a 2 heures"),
-            ("📦", "Stock mis à jour", "Produit X - Quantité: 50", "Il y a 4 heures"),
-            ("👤", "Nouveau client ajouté", "Alice Smith - alice@example.com", "Hier"),
-            ("💼", "Achat effectué", "Fournisseur A - 8 000 DA", "Hier"),
-        ]
-
-        for icon, title_text, desc, time in activities:
-            activity_item = self.build_activity_item(icon, title_text, desc, time)
-            activities_layout.addWidget(activity_item)
+        # Charger les activités récentes
+        self.load_recent_activities(activities_layout)
 
         layout.addWidget(activities_container)
 
         # ------------------- Spacer -------------------
         layout.addStretch()
+
+    def load_statistics(self):
+        """Charge les statistiques depuis la base de données"""
+        # Récupérer les stats
+        stats = self.db.get_statistics()
+        
+        # Calculer les pourcentages (exemple simplifié)
+        # Dans une vraie app, vous compareriez avec le mois précédent
+        sales_change = "+12.5%" if stats['total_sales'] > 0 else "0%"
+        purchases_change = "-5.2%" if stats['total_purchases'] > 0 else "0%"
+        
+        # Calculer le bénéfice
+        profit = stats['profit']
+        profit_change = "+18.3%" if profit > 0 else "0%"
+        
+        # Première ligne
+        self.cards_grid.addWidget(
+            self.build_kpi_card(
+                "💰 Ventes Totales",
+                f"{stats['sales_total']:,.0f} DA",
+                sales_change,
+                "par rapport au mois dernier",
+                COLORS['primary']
+            ), 0, 0
+        )
+        self.cards_grid.addWidget(
+            self.build_kpi_card(
+                "🛒 Achats",
+                f"{stats['purchases_total']:,.0f} DA",
+                purchases_change,
+                "réduction des coûts",
+                COLORS['warning']
+            ), 0, 1
+        )
+        
+        # Deuxième ligne
+        self.cards_grid.addWidget(
+            self.build_kpi_card(
+                "📈 Bénéfice Net",
+                f"{profit:,.0f} DA",
+                profit_change,
+                "croissance mensuelle",
+                COLORS['success']
+            ), 1, 0
+        )
+        self.cards_grid.addWidget(
+            self.build_kpi_card(
+                "👥 Clients",
+                str(stats['total_clients']),
+                f"+{stats['total_clients']}",
+                "clients enregistrés",
+                COLORS['secondary']
+            ), 1, 1
+        )
+
+    def load_recent_activities(self, layout):
+        """Charge les activités récentes depuis la base de données"""
+        # Récupérer les dernières ventes
+        recent_sales = self.db.get_all_sales(limit=3)
+        
+        if recent_sales:
+            for sale in recent_sales:
+                activity_item = self.build_activity_item(
+                    "✅",
+                    "Nouvelle vente enregistrée",
+                    f"Facture: {sale['invoice_number']} - {sale['total']:,.0f} DA",
+                    "Récent"
+                )
+                layout.addWidget(activity_item)
+        
+        # Récupérer les derniers achats
+        recent_purchases = self.db.get_all_purchases(limit=2)
+        
+        if recent_purchases:
+            for purchase in recent_purchases:
+                activity_item = self.build_activity_item(
+                    "🛒",
+                    "Achat effectué",
+                    f"Référence: {purchase['reference']} - {purchase['total']:,.0f} DA",
+                    "Récent"
+                )
+                layout.addWidget(activity_item)
+        
+        # Si aucune activité
+        if not recent_sales and not recent_purchases:
+            no_activity = QLabel("Aucune activité récente")
+            no_activity.setFont(QFont("Segoe UI", 12))
+            no_activity.setStyleSheet(f"color: {COLORS['text_tertiary']}; padding: 20px;")
+            no_activity.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(no_activity)
 
     def build_kpi_card(self, title, value, change, change_desc, color):
         """Construit une carte KPI améliorée"""
@@ -138,6 +186,8 @@ class DashboardPage(QWidget):
         
         # Couleur selon le signe
         change_color = COLORS['success'] if change.startswith('+') else COLORS['danger']
+        if change == "0%":
+            change_color = COLORS['text_tertiary']
         change_label.setStyleSheet(f"color: {change_color}; border: none;")
         
         change_desc_label = QLabel(change_desc)
@@ -211,3 +261,14 @@ class DashboardPage(QWidget):
         item_layout.addWidget(time_label)
 
         return item
+    
+    def refresh(self):
+        """Rafraîchit le tableau de bord"""
+        # Effacer les anciennes cartes
+        while self.cards_grid.count():
+            child = self.cards_grid.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        
+        # Recharger les statistiques
+        self.load_statistics()

@@ -1,98 +1,148 @@
-"""
-Module d'historique des ventes
-Affiche toutes les ventes avec filtres et recherche avancée
-"""
-
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget, 
-    QTableWidgetItem, QHeaderView, QPushButton, QLineEdit,
-    QComboBox, QDateEdit, QFrame, QMessageBox
+    QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
+    QHeaderView, QPushButton, QHBoxLayout, QFrame, QComboBox, QLineEdit, QMessageBox
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, QDate
+from PyQt6.QtCore import Qt
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
-from datetime import datetime
+from db_manager import get_database
+from datetime import datetime, timedelta
 
 
 class SalesHistoryPage(QWidget):
-    """Page d'historique des ventes avec filtres avancés"""
-    
     def __init__(self):
         super().__init__()
         
-        self.setup_ui()
-        self.load_sample_data()
-        self.load_sales()
-    
-    def setup_ui(self):
-        """Configure l'interface"""
+        self.db = get_database()
+
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
-        
-        # En-tête
-        header = self.create_header()
-        layout.addLayout(header)
-        
-        # Statistiques
-        stats = self.create_statistics()
-        layout.addLayout(stats)
-        
-        # Filtres
-        filters = self.create_filters()
-        layout.addWidget(filters)
-        
-        # Tableau des ventes
-        table = self.create_sales_table()
-        layout.addWidget(table)
-        
-        # Boutons d'action
-        actions = self.create_actions()
-        layout.addLayout(actions)
-    
-    def create_header(self):
-        """Crée l'en-tête de la page"""
-        layout = QVBoxLayout()
-        
+
+        # Header
         title = QLabel("📊 Historique des Ventes")
         title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']};")
+        title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 5px;")
         layout.addWidget(title)
-        
-        subtitle = QLabel("Consultez et analysez vos ventes passées")
+
+        subtitle = QLabel("Consultez l'historique complet de vos ventes")
         subtitle.setFont(QFont("Segoe UI", 14))
-        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']};")
+        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']}; margin-bottom: 15px;")
         layout.addWidget(subtitle)
+
+        # Statistics Cards
+        stats_layout = QHBoxLayout()
+        stats_layout.setSpacing(15)
+        layout.addLayout(stats_layout)
         
-        return layout
-    
-    def create_statistics(self):
-        """Crée les cartes de statistiques"""
-        layout = QHBoxLayout()
-        layout.setSpacing(15)
+        self.update_statistics()
+        stats_layout.addStretch()
+
+        # Filters Bar
+        filters_card = QFrame()
+        filters_card.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+                padding: 20px;
+            }}
+        """)
+        filters_layout = QHBoxLayout()
+        filters_card.setLayout(filters_layout)
+        filters_layout.setSpacing(15)
+
+        # Filtre période
+        period_label = QLabel("📅 Période:")
+        period_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        period_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+
+        self.period_combo = QComboBox()
+        self.period_combo.addItems([
+            "Aujourd'hui",
+            "Cette semaine",
+            "Ce mois",
+            "3 derniers mois",
+            "Cette année",
+            "Tout"
+        ])
+        self.period_combo.setStyleSheet(INPUT_STYLE)
+        self.period_combo.setMinimumHeight(45)
+        self.period_combo.currentIndexChanged.connect(self.apply_filters)
+
+        # Barre de recherche
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("🔍 Rechercher par numéro de facture ou client...")
+        self.search_input.setStyleSheet(INPUT_STYLE)
+        self.search_input.textChanged.connect(self.apply_filters)
+        self.search_input.setMinimumHeight(45)
+
+        # Bouton rafraîchir
+        refresh_btn = QPushButton("🔄 Actualiser")
+        refresh_btn.setStyleSheet(BUTTON_STYLES['secondary'])
+        refresh_btn.setMinimumHeight(45)
+        refresh_btn.setFixedWidth(150)
+        refresh_btn.clicked.connect(self.load_sales)
+        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        filters_layout.addWidget(period_label)
+        filters_layout.addWidget(self.period_combo)
+        filters_layout.addWidget(self.search_input)
+        filters_layout.addWidget(refresh_btn)
+
+        layout.addWidget(filters_card)
+
+        # Table
+        table_container = QFrame()
+        table_container.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['bg_card']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+                padding: 15px;
+            }}
+        """)
+        table_layout = QVBoxLayout()
+        table_container.setLayout(table_layout)
+
+        table_title = QLabel("📋 Liste des Ventes")
+        table_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; margin-bottom: 10px;")
+        table_layout.addWidget(table_title)
+
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels([
+            "N° Facture", "Date", "Client", "Articles", 
+            "Sous-total", "TVA", "Total TTC"
+        ])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setAlternatingRowColors(True)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setStyleSheet(TABLE_STYLE)
+        self.table.verticalHeader().setVisible(False)
         
-        self.total_sales_card = self.build_stat_card(
-            "Ventes Totales", "0", "0 DA", COLORS['primary']
-        )
-        self.today_sales_card = self.build_stat_card(
-            "Aujourd'hui", "0", "0 DA", COLORS['success']
-        )
-        self.month_sales_card = self.build_stat_card(
-            "Ce Mois", "0", "0 DA", COLORS['warning']
-        )
-        self.avg_sale_card = self.build_stat_card(
-            "Panier Moyen", "0 DA", "", COLORS['secondary']
-        )
-        
-        layout.addWidget(self.total_sales_card)
-        layout.addWidget(self.today_sales_card)
-        layout.addWidget(self.month_sales_card)
-        layout.addWidget(self.avg_sale_card)
-        layout.addStretch()
-        
-        return layout
-    
-    def build_stat_card(self, title, value1, value2, color):
+        table_layout.addWidget(self.table)
+        layout.addWidget(table_container)
+
+        # Action Buttons
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(10)
+        layout.addLayout(actions_layout)
+
+        self.view_btn = QPushButton("👁️ Voir Détails")
+        self.view_btn.setStyleSheet(BUTTON_STYLES['primary'])
+        self.view_btn.clicked.connect(self.view_sale_details)
+        self.view_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.view_btn.setMinimumHeight(40)
+
+        actions_layout.addStretch()
+        actions_layout.addWidget(self.view_btn)
+
+        # Charger les données
+        self.load_sales()
+
+    def build_stat_card(self, title, value, color):
         """Construit une carte de statistique"""
         card = QFrame()
         card.setStyleSheet(f"""
@@ -104,390 +154,214 @@ class SalesHistoryPage(QWidget):
                 border-left: 4px solid {color};
             }}
         """)
-        card.setFixedHeight(110)
-        card.setMinimumWidth(180)
-        
+        card.setFixedHeight(80)
+        card.setMinimumWidth(200)
+
         card_layout = QVBoxLayout()
         card.setLayout(card_layout)
         card_layout.setSpacing(5)
-        card_layout.setContentsMargins(15, 12, 15, 12)
-        
+        card_layout.setContentsMargins(15, 10, 15, 10)
+
         title_label = QLabel(title)
         title_label.setFont(QFont("Segoe UI", 11))
         title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
         card_layout.addWidget(title_label)
-        
-        value1_label = QLabel(value1)
-        value1_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
-        value1_label.setStyleSheet(f"color: {color}; border: none;")
-        card_layout.addWidget(value1_label)
-        
-        if value2:
-            value2_label = QLabel(value2)
-            value2_label.setFont(QFont("Segoe UI", 12))
-            value2_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-            card_layout.addWidget(value2_label)
-        
+
+        value_label = QLabel(str(value))
+        value_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+        value_label.setStyleSheet(f"color: {color}; border: none;")
+        card_layout.addWidget(value_label)
+
         return card
-    
-    def create_filters(self):
-        """Crée la section de filtres"""
-        container = QFrame()
-        container.setStyleSheet(f"""
-            QFrame {{
-                background: {COLORS['bg_card']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 20px;
-            }}
-        """)
+
+    def update_statistics(self):
+        """Met à jour les statistiques"""
+        # Effacer les anciennes cartes
+        stats_layout = self.layout().itemAt(2)
+        while stats_layout.count() > 1:
+            child = stats_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
         
-        layout = QVBoxLayout(container)
-        layout.setSpacing(15)
+        # Récupérer les stats
+        stats = self.db.get_statistics()
         
-        # Titre
-        title = QLabel("🔍 Filtres de Recherche")
-        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        layout.addWidget(title)
+        # Aujourd'hui
+        today = datetime.now().strftime("%Y-%m-%d")
+        today_sales = self.db.get_sales_by_date_range(today, today)
+        today_total = sum(sale['total'] for sale in today_sales)
         
-        # Ligne 1 : Recherche et période
-        row1 = QHBoxLayout()
-        row1.setSpacing(15)
+        # Cette semaine
+        week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime("%Y-%m-%d")
+        week_end = datetime.now().strftime("%Y-%m-%d")
+        week_sales = self.db.get_sales_by_date_range(week_start, week_end)
+        week_total = sum(sale['total'] for sale in week_sales)
         
-        # Recherche textuelle
-        search_label = QLabel("Recherche:")
-        search_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        row1.addWidget(search_label)
-        
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("N° facture, client, produit...")
-        self.search_input.setStyleSheet(INPUT_STYLE)
-        self.search_input.setMinimumHeight(40)
-        self.search_input.textChanged.connect(self.apply_filters)
-        row1.addWidget(self.search_input)
-        
-        # Date début
-        date_from_label = QLabel("Du:")
-        date_from_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        row1.addWidget(date_from_label)
-        
-        self.date_from = QDateEdit()
-        self.date_from.setDate(QDate.currentDate().addMonths(-1))
-        self.date_from.setCalendarPopup(True)
-        self.date_from.setStyleSheet(INPUT_STYLE)
-        self.date_from.setMinimumHeight(40)
-        self.date_from.dateChanged.connect(self.apply_filters)
-        row1.addWidget(self.date_from)
-        
-        # Date fin
-        date_to_label = QLabel("Au:")
-        date_to_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        row1.addWidget(date_to_label)
-        
-        self.date_to = QDateEdit()
-        self.date_to.setDate(QDate.currentDate())
-        self.date_to.setCalendarPopup(True)
-        self.date_to.setStyleSheet(INPUT_STYLE)
-        self.date_to.setMinimumHeight(40)
-        self.date_to.dateChanged.connect(self.apply_filters)
-        row1.addWidget(self.date_to)
-        
-        layout.addLayout(row1)
-        
-        # Ligne 2 : Statut et client
-        row2 = QHBoxLayout()
-        row2.setSpacing(15)
-        
-        # Statut de paiement
-        status_label = QLabel("Statut:")
-        status_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        row2.addWidget(status_label)
-        
-        self.status_filter = QComboBox()
-        self.status_filter.addItems([
-            "Tous les statuts",
-            "Payée",
-            "En attente",
-            "Annulée"
-        ])
-        self.status_filter.setStyleSheet(INPUT_STYLE)
-        self.status_filter.setMinimumHeight(40)
-        self.status_filter.currentIndexChanged.connect(self.apply_filters)
-        row2.addWidget(self.status_filter)
-        
-        # Filtre client
-        client_label = QLabel("Client:")
-        client_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        row2.addWidget(client_label)
-        
-        self.client_filter = QComboBox()
-        self.client_filter.addItems([
-            "Tous les clients",
-            "John Doe",
-            "Alice Smith",
-            "Entreprise X",
-            "Bob Martin"
-        ])
-        self.client_filter.setStyleSheet(INPUT_STYLE)
-        self.client_filter.setMinimumHeight(40)
-        self.client_filter.currentIndexChanged.connect(self.apply_filters)
-        row2.addWidget(self.client_filter)
-        
-        # Bouton réinitialiser
-        reset_btn = QPushButton("🔄 Réinitialiser")
-        reset_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        reset_btn.setMinimumHeight(40)
-        reset_btn.clicked.connect(self.reset_filters)
-        reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        row2.addWidget(reset_btn)
-        
-        layout.addLayout(row2)
-        
-        return container
-    
-    def create_sales_table(self):
-        """Crée le tableau des ventes"""
-        container = QFrame()
-        container.setStyleSheet(f"""
-            QFrame {{
-                background: {COLORS['bg_card']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 15px;
-            }}
-        """)
-        
-        layout = QVBoxLayout(container)
-        
-        # Titre
-        title = QLabel("📋 Liste des Ventes")
-        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        layout.addWidget(title)
-        
-        # Tableau
-        self.table = QTableWidget(0, 8)
-        self.table.setHorizontalHeaderLabels([
-            "N° Facture", "Date", "Client", "Articles", 
-            "Montant HT", "TVA", "Total TTC", "Statut"
-        ])
-        
-        # Configurer les colonnes
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(7, QHeaderView.ResizeMode.ResizeToContents)
-        
-        self.table.setAlternatingRowColors(True)
-        self.table.setStyleSheet(TABLE_STYLE)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        
-        # Double-clic pour voir les détails
-        self.table.doubleClicked.connect(self.view_sale_details)
-        
-        layout.addWidget(self.table)
-        
-        return container
-    
-    def create_actions(self):
-        """Crée les boutons d'action"""
-        layout = QHBoxLayout()
-        layout.setSpacing(10)
-        
-        # Bouton exporter
-        export_btn = QPushButton("📤 Exporter Excel")
-        export_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        export_btn.setMinimumHeight(45)
-        export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        # Bouton imprimer
-        print_btn = QPushButton("🖨️ Imprimer")
-        print_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        print_btn.setMinimumHeight(45)
-        print_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        # Bouton voir détails
-        details_btn = QPushButton("👁️ Voir Détails")
-        details_btn.setStyleSheet(BUTTON_STYLES['primary'])
-        details_btn.setMinimumHeight(45)
-        details_btn.clicked.connect(self.view_sale_details)
-        details_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        layout.addWidget(export_btn)
-        layout.addWidget(print_btn)
-        layout.addStretch()
-        layout.addWidget(details_btn)
-        
-        return layout
-    
-    def load_sample_data(self):
-        """Charge des données exemple"""
-        self.sales_data = [
-            {
-                'invoice': 'FAC-2026-001',
-                'date': '14/02/2026',
-                'client': 'Entreprise X',
-                'items': 5,
-                'subtotal': 352500.00,
-                'tax': 66975.00,
-                'total': 419475.00,
-                'status': 'Payée'
-            },
-            {
-                'invoice': 'FAC-2026-002',
-                'date': '13/02/2026',
-                'client': 'John Doe',
-                'items': 2,
-                'subtotal': 76500.00,
-                'tax': 14535.00,
-                'total': 91035.00,
-                'status': 'Payée'
-            },
-            {
-                'invoice': 'FAC-2026-003',
-                'date': '12/02/2026',
-                'client': 'Alice Smith',
-                'items': 3,
-                'subtotal': 125000.00,
-                'tax': 23750.00,
-                'total': 148750.00,
-                'status': 'En attente'
-            },
-        ]
-    
-    def load_sales(self, filtered_data=None):
-        """Charge les ventes dans le tableau"""
-        data = filtered_data if filtered_data is not None else self.sales_data
-        
+        # Ajouter les cartes
+        stats_layout.insertWidget(0, self.build_stat_card(
+            "Ventes Aujourd'hui", f"{today_total:,.0f} DA", COLORS['primary']
+        ))
+        stats_layout.insertWidget(1, self.build_stat_card(
+            "Ventes Cette Semaine", f"{week_total:,.0f} DA", COLORS['success']
+        ))
+        stats_layout.insertWidget(2, self.build_stat_card(
+            "Total Ventes", f"{stats['sales_total']:,.0f} DA", COLORS['secondary']
+        ))
+
+    def load_sales(self):
+        """Charge toutes les ventes"""
         self.table.setRowCount(0)
+        sales = self.db.get_all_sales()
         
-        for sale in data:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-            
-            # N° Facture
-            invoice_item = QTableWidgetItem(sale['invoice'])
-            invoice_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-            self.table.setItem(row, 0, invoice_item)
-            
-            # Date
-            date_item = QTableWidgetItem(sale['date'])
-            self.table.setItem(row, 1, date_item)
-            
-            # Client
-            client_item = QTableWidgetItem(sale['client'])
-            self.table.setItem(row, 2, client_item)
-            
-            # Articles
-            items_item = QTableWidgetItem(str(sale['items']))
-            items_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setItem(row, 3, items_item)
-            
-            # Montant HT
-            subtotal_item = QTableWidgetItem(f"{sale['subtotal']:,.2f}")
-            subtotal_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            self.table.setItem(row, 4, subtotal_item)
-            
-            # TVA
-            tax_item = QTableWidgetItem(f"{sale['tax']:,.2f}")
-            tax_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            self.table.setItem(row, 5, tax_item)
-            
-            # Total TTC
-            total_item = QTableWidgetItem(f"{sale['total']:,.2f}")
-            total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            total_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-            self.table.setItem(row, 6, total_item)
-            
-            # Statut
-            status_item = QTableWidgetItem(sale['status'])
-            status_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            
-            # Couleur selon le statut
-            if sale['status'] == 'Payée':
-                status_item.setForeground(Qt.GlobalColor.green)
-            elif sale['status'] == 'En attente':
-                status_item.setForeground(Qt.GlobalColor.yellow)
-            elif sale['status'] == 'Annulée':
-                status_item.setForeground(Qt.GlobalColor.red)
-            
-            self.table.setItem(row, 7, status_item)
+        for sale in sales:
+            self.add_sale_to_table(sale)
         
-        # Mettre à jour les statistiques
-        self.update_statistics(data)
-    
-    def update_statistics(self, data):
-        """Met à jour les cartes de statistiques"""
-        total_sales = len(data)
-        total_amount = sum(s['total'] for s in data)
+        self.update_statistics()
+
+    def add_sale_to_table(self, sale):
+        """Ajoute une vente au tableau"""
+        row = self.table.rowCount()
+        self.table.insertRow(row)
         
-        # Calculer aujourd'hui et ce mois (simplifié)
-        today_sales = len([s for s in data if s['date'] == '14/02/2026'])
-        today_amount = sum(s['total'] for s in data if s['date'] == '14/02/2026')
+        # N° Facture
+        invoice_item = QTableWidgetItem(sale['invoice_number'])
+        invoice_item.setData(Qt.ItemDataRole.UserRole, sale['id'])
+        invoice_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.table.setItem(row, 0, invoice_item)
         
-        month_sales = len(data)  # Simplifié pour l'exemple
-        month_amount = total_amount
+        # Date
+        sale_date = datetime.fromisoformat(sale['sale_date'])
+        date_item = QTableWidgetItem(sale_date.strftime("%d/%m/%Y %H:%M"))
+        self.table.setItem(row, 1, date_item)
         
-        avg_sale = total_amount / total_sales if total_sales > 0 else 0
+        # Client
+        client_item = QTableWidgetItem(sale.get('client_name', 'Anonyme'))
+        self.table.setItem(row, 2, client_item)
         
-        # Mettre à jour les cartes
-        self.total_sales_card.findChildren(QLabel)[1].setText(str(total_sales))
-        self.total_sales_card.findChildren(QLabel)[2].setText(f"{total_amount:,.0f} DA")
+        # Nombre d'articles (nécessite une requête supplémentaire)
+        sale_details = self.db.get_sale_by_id(sale['id'])
+        items_count = len(sale_details['items']) if sale_details else 0
+        items_item = QTableWidgetItem(f"{items_count} article(s)")
+        items_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.table.setItem(row, 3, items_item)
         
-        self.today_sales_card.findChildren(QLabel)[1].setText(str(today_sales))
-        self.today_sales_card.findChildren(QLabel)[2].setText(f"{today_amount:,.0f} DA")
+        # Sous-total
+        subtotal_item = QTableWidgetItem(f"{sale['subtotal']:,.2f} DA")
+        subtotal_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+        self.table.setItem(row, 4, subtotal_item)
         
-        self.month_sales_card.findChildren(QLabel)[1].setText(str(month_sales))
-        self.month_sales_card.findChildren(QLabel)[2].setText(f"{month_amount:,.0f} DA")
+        # TVA
+        tax_item = QTableWidgetItem(f"{sale['tax_amount']:,.2f} DA")
+        tax_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+        self.table.setItem(row, 5, tax_item)
         
-        self.avg_sale_card.findChildren(QLabel)[1].setText(f"{avg_sale:,.0f} DA")
-    
+        # Total
+        total_item = QTableWidgetItem(f"{sale['total']:,.2f} DA")
+        total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+        total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        total_item.setForeground(Qt.GlobalColor.green)
+        self.table.setItem(row, 6, total_item)
+
     def apply_filters(self):
-        """Applique les filtres sur les données"""
-        filtered = self.sales_data.copy()
-        
-        # Filtre de recherche
+        """Applique les filtres"""
+        period = self.period_combo.currentText()
         search_text = self.search_input.text().lower()
-        if search_text:
-            filtered = [
-                s for s in filtered 
-                if search_text in s['invoice'].lower() 
-                or search_text in s['client'].lower()
-            ]
         
-        # Filtre de statut
-        status = self.status_filter.currentText()
-        if status != "Tous les statuts":
-            filtered = [s for s in filtered if s['status'] == status]
+        # Calculer les dates selon la période
+        end_date = datetime.now().strftime("%Y-%m-%d")
         
-        # Filtre de client
-        client = self.client_filter.currentText()
-        if client != "Tous les clients":
-            filtered = [s for s in filtered if s['client'] == client]
+        if period == "Aujourd'hui":
+            start_date = end_date
+        elif period == "Cette semaine":
+            start_date = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime("%Y-%m-%d")
+        elif period == "Ce mois":
+            start_date = datetime.now().replace(day=1).strftime("%Y-%m-%d")
+        elif period == "3 derniers mois":
+            start_date = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
+        elif period == "Cette année":
+            start_date = datetime.now().replace(month=1, day=1).strftime("%Y-%m-%d")
+        else:  # Tout
+            # Charger toutes les ventes
+            self.table.setRowCount(0)
+            sales = self.db.get_all_sales()
+            
+            for sale in sales:
+                if not search_text or \
+                   search_text in sale['invoice_number'].lower() or \
+                   search_text in (sale.get('client_name', 'anonyme')).lower():
+                    self.add_sale_to_table(sale)
+            return
         
-        self.load_sales(filtered)
-    
-    def reset_filters(self):
-        """Réinitialise tous les filtres"""
-        self.search_input.clear()
-        self.status_filter.setCurrentIndex(0)
-        self.client_filter.setCurrentIndex(0)
-        self.date_from.setDate(QDate.currentDate().addMonths(-1))
-        self.date_to.setDate(QDate.currentDate())
-        self.load_sales()
-    
+        # Charger les ventes de la période
+        self.table.setRowCount(0)
+        sales = self.db.get_sales_by_date_range(start_date, end_date)
+        
+        for sale in sales:
+            if not search_text or \
+               search_text in sale['invoice_number'].lower() or \
+               search_text in (sale.get('client_name', 'anonyme')).lower():
+                self.add_sale_to_table(sale)
+
     def view_sale_details(self):
         """Affiche les détails d'une vente"""
         selected = self.table.currentRow()
         if selected < 0:
-            QMessageBox.warning(self, "Aucune sélection",
-                              "Veuillez sélectionner une vente !")
+            QMessageBox.warning(
+                self,
+                "Attention",
+                "Veuillez sélectionner une vente!"
+            )
             return
         
-        invoice = self.table.item(selected, 0).text()
-        QMessageBox.information(self, "Détails de la vente",
-                              f"Affichage des détails de la facture {invoice}\n\n"
-                              "Cette fonctionnalité sera implémentée prochainement.")
+        sale_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
+        sale = self.db.get_sale_by_id(sale_id)
+        
+        if not sale:
+            QMessageBox.critical(self, "Erreur", "Vente introuvable!")
+            return
+        
+        # Créer le message de détails
+        details = f"""
+<h2 style='color: {COLORS['primary']};'>📄 Facture {sale['invoice_number']}</h2>
+
+<h3>📅 Informations Générales</h3>
+<table style='width: 100%; border-collapse: collapse;'>
+<tr><td><b>Date:</b></td><td>{datetime.fromisoformat(sale['sale_date']).strftime('%d/%m/%Y %H:%M')}</td></tr>
+<tr><td><b>Client:</b></td><td>{sale.get('client_name', 'Client Anonyme')}</td></tr>
+<tr><td><b>Mode de paiement:</b></td><td>{sale.get('payment_method', 'cash').upper()}</td></tr>
+</table>
+
+<h3>🛒 Articles</h3>
+<table style='width: 100%; border: 1px solid #ccc;'>
+<tr style='background: #f0f0f0;'>
+<th>Produit</th><th>Qté</th><th>P.U.</th><th>Remise</th><th>Total</th>
+</tr>
+"""
+        
+        for item in sale['items']:
+            details += f"""
+<tr>
+<td>{item['product_name']}</td>
+<td>{item['quantity']}</td>
+<td>{item['unit_price']:,.2f} DA</td>
+<td>{item['discount']:.2f}%</td>
+<td><b>{item['total']:,.2f} DA</b></td>
+</tr>
+"""
+        
+        details += f"""
+</table>
+
+<h3>💰 Totaux</h3>
+<table style='width: 100%;'>
+<tr><td><b>Sous-total HT:</b></td><td style='text-align: right;'>{sale['subtotal']:,.2f} DA</td></tr>
+<tr><td><b>TVA ({sale['tax_rate']}%):</b></td><td style='text-align: right;'>{sale['tax_amount']:,.2f} DA</td></tr>
+<tr style='font-size: 18px; color: green;'><td><b>TOTAL TTC:</b></td><td style='text-align: right;'><b>{sale['total']:,.2f} DA</b></td></tr>
+</table>
+"""
+        
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Détails de la Vente")
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setText(details)
+        msg.exec()

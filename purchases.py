@@ -1,15 +1,124 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
-    QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, QGridLayout
+    QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, QGridLayout, QMessageBox, QDialog, QLineEdit, QFormLayout
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
+from db_manager import get_database
+from datetime import datetime
+
+
+# ------------------ DIALOG POUR SÉLECTIONNER UN PRODUIT ------------------
+class ProductSelectorDialog(QDialog):
+    def __init__(self, products):
+        super().__init__()
+        
+        self.selected_product = None
+        self.products = products
+        
+        self.setWindowTitle("📦 Sélectionner un Produit")
+        self.setMinimumWidth(600)
+        self.setMinimumHeight(400)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {COLORS['bg_medium']};
+            }}
+            QLabel {{
+                color: {COLORS['text_primary']};
+            }}
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setSpacing(15)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Titre
+        title = QLabel("Sélectionnez un produit")
+        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        layout.addWidget(title)
+        
+        # Barre de recherche
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("🔍 Rechercher un produit...")
+        self.search_input.setStyleSheet(INPUT_STYLE)
+        self.search_input.textChanged.connect(self.filter_products)
+        layout.addWidget(self.search_input)
+        
+        # Table des produits
+        self.table = QTableWidget(0, 4)
+        self.table.setHorizontalHeaderLabels(["Référence", "Nom", "Prix Achat", "Stock"])
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setStyleSheet(TABLE_STYLE)
+        self.table.doubleClicked.connect(self.select_product)
+        layout.addWidget(self.table)
+        
+        # Boutons
+        btn_layout = QHBoxLayout()
+        
+        select_btn = QPushButton("✅ Sélectionner")
+        select_btn.setStyleSheet(BUTTON_STYLES['success'])
+        select_btn.clicked.connect(self.select_product)
+        select_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        cancel_btn = QPushButton("❌ Annuler")
+        cancel_btn.setStyleSheet(BUTTON_STYLES['secondary'])
+        cancel_btn.clicked.connect(self.reject)
+        cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(select_btn)
+        layout.addLayout(btn_layout)
+        
+        # Charger les produits
+        self.load_products(products)
+    
+    def load_products(self, products):
+        """Charge les produits dans la table"""
+        self.table.setRowCount(0)
+        for product in products:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            
+            ref_item = QTableWidgetItem(product['reference'])
+            ref_item.setData(Qt.ItemDataRole.UserRole, product)
+            
+            name_item = QTableWidgetItem(product['name'])
+            price_item = QTableWidgetItem(f"{product['purchase_price']:,.2f} DA")
+            stock_item = QTableWidgetItem(str(product['stock_quantity']))
+            
+            self.table.setItem(row, 0, ref_item)
+            self.table.setItem(row, 1, name_item)
+            self.table.setItem(row, 2, price_item)
+            self.table.setItem(row, 3, stock_item)
+    
+    def filter_products(self, text):
+        """Filtre les produits"""
+        for row in range(self.table.rowCount()):
+            show = False
+            for col in range(2):  # Recherche dans ref et nom
+                item = self.table.item(row, col)
+                if item and text.lower() in item.text().lower():
+                    show = True
+                    break
+            self.table.setRowHidden(row, not show)
+    
+    def select_product(self):
+        """Sélectionne le produit"""
+        selected = self.table.currentRow()
+        if selected >= 0:
+            self.selected_product = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
+            self.accept()
 
 
 class PurchasesPage(QWidget):
     def __init__(self):
         super().__init__()
+        
+        # Connexion à la base de données
+        self.db = get_database()
 
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
@@ -49,15 +158,10 @@ class PurchasesPage(QWidget):
         supplier_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
 
         self.supplier_combo = QComboBox()
-        self.supplier_combo.addItems([
-            "Sélectionner un fournisseur",
-            "Fournisseur A - Électronique",
-            "Fournisseur B - Informatique", 
-            "Fournisseur C - Mobilier"
-        ])
         self.supplier_combo.setStyleSheet(INPUT_STYLE)
         self.supplier_combo.setMinimumHeight(45)
         self.supplier_combo.setMinimumWidth(300)
+        self.load_suppliers()
 
         # Bouton ajouter article
         self.add_item_btn = QPushButton("➕ Ajouter Article")
@@ -127,17 +231,14 @@ class PurchasesPage(QWidget):
         summary_card.setLayout(summary_main_layout)
         summary_main_layout.setSpacing(15)
 
-        # Titre de la section
         summary_title = QLabel("💰 Résumé de l'Achat")
         summary_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         summary_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         summary_main_layout.addWidget(summary_title)
 
-        # Grille des montants
         amounts_grid = QGridLayout()
         amounts_grid.setSpacing(15)
 
-        # Sous-total
         subtotal_label_text = QLabel("Sous-total:")
         subtotal_label_text.setFont(QFont("Segoe UI", 13))
         subtotal_label_text.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
@@ -150,7 +251,6 @@ class PurchasesPage(QWidget):
         amounts_grid.addWidget(subtotal_label_text, 0, 0)
         amounts_grid.addWidget(self.subtotal_label, 0, 1)
 
-        # Taxe
         tax_label_text = QLabel("Taxe (10%):")
         tax_label_text.setFont(QFont("Segoe UI", 13))
         tax_label_text.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
@@ -163,13 +263,11 @@ class PurchasesPage(QWidget):
         amounts_grid.addWidget(tax_label_text, 1, 0)
         amounts_grid.addWidget(self.tax_label, 1, 1)
 
-        # Ligne de séparation
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setStyleSheet(f"background-color: {COLORS['border']}; border: none;")
         amounts_grid.addWidget(separator, 2, 0, 1, 2)
 
-        # Total
         total_label_text = QLabel("TOTAL:")
         total_label_text.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         total_label_text.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
@@ -184,7 +282,6 @@ class PurchasesPage(QWidget):
 
         summary_main_layout.addLayout(amounts_grid)
 
-        # Bouton sauvegarder
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         
@@ -192,69 +289,93 @@ class PurchasesPage(QWidget):
         self.save_btn.setStyleSheet(BUTTON_STYLES['success'])
         self.save_btn.setFixedSize(220, 50)
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.save_btn.clicked.connect(self.save_purchase)
         button_layout.addWidget(self.save_btn)
         
         summary_main_layout.addLayout(button_layout)
 
         layout.addWidget(summary_card)
 
-        # Connect item changes
         self.table.itemChanged.connect(self.update_totals)
 
-    # ------------------ AJOUTER ARTICLE ------------------
+    def load_suppliers(self):
+        """Charge les fournisseurs depuis la base de données"""
+        self.supplier_combo.clear()
+        self.supplier_combo.addItem("Sélectionner un fournisseur", None)
+        
+        suppliers = self.db.get_all_suppliers()
+        for supplier in suppliers:
+            self.supplier_combo.addItem(supplier['name'], supplier['id'])
+
     def add_item(self):
-        row = self.table.rowCount()
-        self.table.insertRow(row)
+        """Ajoute un article à l'achat"""
+        # Récupérer tous les produits
+        products = self.db.get_all_products()
+        
+        if not products:
+            QMessageBox.warning(
+                self,
+                "Attention",
+                "Aucun produit disponible!\n\nVeuillez d'abord ajouter des produits."
+            )
+            return
+        
+        # Ouvrir le sélecteur de produit
+        dialog = ProductSelectorDialog(products)
+        if dialog.exec() and dialog.selected_product:
+            product = dialog.selected_product
+            row = self.table.rowCount()
+            self.table.insertRow(row)
 
-        # Product Name
-        product_item = QTableWidgetItem("Produit X")
-        self.table.setItem(row, 0, product_item)
+            # Produit
+            product_item = QTableWidgetItem(f"{product['reference']} - {product['name']}")
+            product_item.setData(Qt.ItemDataRole.UserRole, product['id'])
+            self.table.setItem(row, 0, product_item)
 
-        # Quantity
-        qty_item = QTableWidgetItem("1")
-        qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.table.setItem(row, 1, qty_item)
+            # Quantité
+            qty_item = QTableWidgetItem("1")
+            qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.table.setItem(row, 1, qty_item)
 
-        # Price
-        price_item = QTableWidgetItem("1000.00")
-        price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-        self.table.setItem(row, 2, price_item)
+            # Prix
+            price_item = QTableWidgetItem(f"{product['purchase_price']:.2f}")
+            price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+            self.table.setItem(row, 2, price_item)
 
-        # Total
-        total_item = QTableWidgetItem("1000.00")
-        total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-        total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.table.setItem(row, 3, total_item)
+            # Total
+            total_item = QTableWidgetItem(f"{product['purchase_price']:.2f}")
+            total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+            total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+            self.table.setItem(row, 3, total_item)
 
-        # Remove Button
-        remove_btn = QPushButton("🗑️")
-        remove_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                color: {COLORS['danger']};
-                border: none;
-                font-size: 18px;
-            }}
-            QPushButton:hover {{
-                background: {COLORS['danger']};
-                color: white;
-                border-radius: 5px;
-            }}
-        """)
-        remove_btn.clicked.connect(lambda _, r=row: self.remove_item(r))
-        remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.table.setCellWidget(row, 4, remove_btn)
+            # Bouton Supprimer
+            remove_btn = QPushButton("🗑️")
+            remove_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: transparent;
+                    color: {COLORS['danger']};
+                    border: none;
+                    font-size: 18px;
+                }}
+                QPushButton:hover {{
+                    background: {COLORS['danger']};
+                    color: white;
+                    border-radius: 5px;
+                }}
+            """)
+            remove_btn.clicked.connect(lambda _, r=row: self.remove_item(r))
+            remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.table.setCellWidget(row, 4, remove_btn)
 
-        # Update totals
-        self.update_totals()
+            self.update_totals()
 
-    # ------------------ SUPPRIMER ARTICLE ------------------
     def remove_item(self, row):
+        """Supprime un article"""
         self.table.removeRow(row)
         self.update_totals()
 
-    # ------------------ METTRE À JOUR TOTAUX ------------------
     def update_totals(self):
+        """Met à jour les totaux"""
         subtotal = 0
         
         for row in range(self.table.rowCount()):
@@ -266,7 +387,6 @@ class PurchasesPage(QWidget):
                 price = float(price_item.text()) if price_item else 0
                 total_row = qty * price
                 
-                # Update total column
                 self.table.itemChanged.disconnect(self.update_totals)
                 total_item = QTableWidgetItem(f"{total_row:,.2f}")
                 total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
@@ -278,9 +398,83 @@ class PurchasesPage(QWidget):
             except:
                 pass
 
-        tax = subtotal * 0.10  # 10% tax
+        tax = subtotal * 0.10
         total = subtotal + tax
 
         self.subtotal_label.setText(f"{subtotal:,.2f} DA")
         self.tax_label.setText(f"{tax:,.2f} DA")
         self.total_label.setText(f"{total:,.2f} DA")
+
+    def save_purchase(self):
+        """Enregistre l'achat dans la base de données"""
+        # Vérifications
+        if self.supplier_combo.currentIndex() == 0:
+            QMessageBox.warning(
+                self,
+                "Attention",
+                "Veuillez sélectionner un fournisseur!"
+            )
+            return
+        
+        if self.table.rowCount() == 0:
+            QMessageBox.warning(
+                self,
+                "Attention",
+                "Veuillez ajouter au moins un article!"
+            )
+            return
+        
+        # Récupérer le fournisseur
+        supplier_id = self.supplier_combo.currentData()
+        
+        # Préparer les articles
+        items = []
+        for row in range(self.table.rowCount()):
+            try:
+                product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+                quantity = int(float(self.table.item(row, 1).text()))
+                unit_price = float(self.table.item(row, 2).text())
+                
+                items.append({
+                    'product_id': product_id,
+                    'quantity': quantity,
+                    'unit_price': unit_price
+                })
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Erreur",
+                    f"Erreur dans les données de la ligne {row + 1}:\n{str(e)}"
+                )
+                return
+        
+        # Générer une référence unique
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        reference = f"ACH-{timestamp}"
+        
+        # Enregistrer l'achat
+        purchase_id = self.db.create_purchase(
+            reference=reference,
+            supplier_id=supplier_id,
+            items=items,
+            payment_method="cash",
+            tax_rate=10.0
+        )
+        
+        if purchase_id:
+            QMessageBox.information(
+                self,
+                "Succès",
+                f"Achat enregistré avec succès!\n\nRéférence: {reference}"
+            )
+            
+            # Réinitialiser le formulaire
+            self.table.setRowCount(0)
+            self.supplier_combo.setCurrentIndex(0)
+            self.update_totals()
+        else:
+            QMessageBox.critical(
+                self,
+                "Erreur",
+                "Impossible d'enregistrer l'achat!"
+            )

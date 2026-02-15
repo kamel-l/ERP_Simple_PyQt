@@ -25,6 +25,9 @@ from purchases import PurchasesPage
 from settings import SettingsPage
 from statistics import StatisticsPage
 from sales_history import SalesHistoryPage
+from PyQt6.QtGui import QAction
+from clean_erp_data import run_full_cleanup
+from db_manager import get_database
 
 
 class MainWindow(QMainWindow):
@@ -33,6 +36,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
+        self.db = get_database()
+        print("✅ Base de données initialisée")
         self.setWindowTitle("🏢 Système de Gestion ERP - Version Professionnelle")
         self.setMinimumSize(1400, 800)
         
@@ -70,6 +75,14 @@ class MainWindow(QMainWindow):
         self.add_page("history", SalesHistoryPage(), "📊 Historique")
         self.add_page("statistics", StatisticsPage(), "📈 Statistiques")
         self.add_page("settings", SettingsPage(), "⚙️ Paramètres")
+        # New ERP Cleanup Menu
+        cleanup_menu = self.menuBar().addMenu("ERP Tools")
+
+        clean_action = QAction("Nettoyer les données ERP", self)
+        clean_action.triggered.connect(self.run_erp_cleanup)
+
+        cleanup_menu.addAction(clean_action)
+
         
         main_layout.addWidget(self.stack)
         
@@ -349,7 +362,22 @@ class MainWindow(QMainWindow):
                         color: {COLORS['text_primary']};
                     }}
                 """)
-    
+    def run_erp_cleanup(self):
+        from clean_erp_data import run_full_cleanup
+        try:
+            run_full_cleanup()
+            QMessageBox.information(
+                self,
+                "Succès",
+                "Le nettoyage ERP a été effectué avec succès."
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Erreur",
+                f"Une erreur est survenue lors du nettoyage:\n{e}"
+            )
+
     def show_about(self):
         """Affiche la boîte de dialogue À propos"""
         about_text = """

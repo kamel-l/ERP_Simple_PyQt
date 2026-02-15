@@ -1,94 +1,42 @@
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGridLayout
-)
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame, QGridLayout
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 import pyqtgraph as pg
-import random
 from styles import COLORS, get_kpi_card_style
+from db_manager import get_database
+from datetime import datetime
+
 
 class StatisticsPage(QWidget):
     def __init__(self):
         super().__init__()
+        
+        self.db = get_database()
 
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        # ------------------- HEADER -------------------
-        header_layout = QVBoxLayout()
-        layout.addLayout(header_layout)
-
+        # Header
         title = QLabel("📈 Statistiques & Analyses")
         title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 5px;")
-        header_layout.addWidget(title)
+        layout.addWidget(title)
 
         subtitle = QLabel("Analysez les performances de votre entreprise")
         subtitle.setFont(QFont("Segoe UI", 14))
         subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']}; margin-bottom: 15px;")
-        header_layout.addWidget(subtitle)
+        layout.addWidget(subtitle)
 
-        # ------------------- KPI CARDS -------------------
+        # KPI Cards Grid
         kpi_grid = QGridLayout()
         kpi_grid.setSpacing(15)
         layout.addLayout(kpi_grid)
 
-        # Première ligne
-        kpi_grid.addWidget(
-            self.build_kpi_card(
-                "💰 Ventes Totales",
-                "120 000 DA",
-                "+12.5% vs mois dernier",
-                COLORS['primary']
-            ), 0, 0
-        )
-        kpi_grid.addWidget(
-            self.build_kpi_card(
-                "🛒 Achats Totaux",
-                "37 000 DA",
-                "-5.2% optimisation",
-                COLORS['warning']
-            ), 0, 1
-        )
-        kpi_grid.addWidget(
-            self.build_kpi_card(
-                "📈 Bénéfice Net",
-                "83 000 DA",
-                "+18.3% croissance",
-                COLORS['success']
-            ), 0, 2
-        )
+        # Charger les statistiques
+        self.load_kpi_cards(kpi_grid)
 
-        # Deuxième ligne
-        kpi_grid.addWidget(
-            self.build_kpi_card(
-                "👥 Clients Actifs",
-                "59",
-                "+7 nouveaux",
-                COLORS['secondary']
-            ), 1, 0
-        )
-        kpi_grid.addWidget(
-            self.build_kpi_card(
-                "📦 Valeur Stock",
-                "200 000 DA",
-                "1,250 articles",
-                COLORS['info']
-            ), 1, 1
-        )
-        kpi_grid.addWidget(
-            self.build_kpi_card(
-                "🎯 Objectif Mensuel",
-                "85%",
-                "17 000 DA restants",
-                COLORS['danger']
-            ), 1, 2
-        )
-
-        # ------------------- GRAPHIQUES -------------------
-        
-        # Section Ventes Mensuelles
+        # Graphique des ventes mensuelles
         sales_section = QVBoxLayout()
         sales_section.setSpacing(10)
         
@@ -115,7 +63,6 @@ class StatisticsPage(QWidget):
         self.sales_chart.showGrid(x=True, y=True, alpha=0.3)
         self.sales_chart.setMinimumHeight(250)
         
-        # Style de la grille
         self.sales_chart.getAxis('left').setPen(pg.mkPen(color=COLORS['border'], width=1))
         self.sales_chart.getAxis('bottom').setPen(pg.mkPen(color=COLORS['border'], width=1))
         self.sales_chart.getAxis('left').setTextPen(COLORS['text_tertiary'])
@@ -146,28 +93,189 @@ class StatisticsPage(QWidget):
         customers_layout.addWidget(self.customers_chart)
         charts_grid.addWidget(customers_container, 0, 0)
 
-        # Ventes vs Achats
-        comparison_container = self.create_chart_container("💰 Ventes vs Achats")
-        comparison_layout = QVBoxLayout()
-        comparison_container.setLayout(comparison_layout)
+        # Top Produits
+        products_container = self.create_chart_container("📦 Top 5 Produits")
+        products_layout = QVBoxLayout()
+        products_container.setLayout(products_layout)
         
-        self.comparison_chart = pg.PlotWidget()
-        self.comparison_chart.setBackground(COLORS['bg_dark'])
-        self.comparison_chart.showGrid(x=True, y=True, alpha=0.3)
-        self.comparison_chart.setMinimumHeight(220)
-        self.comparison_chart.getAxis('left').setPen(pg.mkPen(color=COLORS['border'], width=1))
-        self.comparison_chart.getAxis('bottom').setPen(pg.mkPen(color=COLORS['border'], width=1))
-        self.comparison_chart.getAxis('left').setTextPen(COLORS['text_tertiary'])
-        self.comparison_chart.getAxis('bottom').setTextPen(COLORS['text_tertiary'])
+        self.products_chart = pg.PlotWidget()
+        self.products_chart.setBackground(COLORS['bg_dark'])
+        self.products_chart.setMinimumHeight(220)
+        self.products_chart.getAxis('left').setPen(pg.mkPen(color=COLORS['border'], width=1))
+        self.products_chart.getAxis('bottom').setPen(pg.mkPen(color=COLORS['border'], width=1))
+        self.products_chart.getAxis('left').setTextPen(COLORS['text_tertiary'])
+        self.products_chart.getAxis('bottom').setTextPen(COLORS['text_tertiary'])
         
-        # Légende
-        self.comparison_chart.addLegend(offset=(10, 10))
-        
-        comparison_layout.addWidget(self.comparison_chart)
-        charts_grid.addWidget(comparison_container, 0, 1)
+        products_layout.addWidget(self.products_chart)
+        charts_grid.addWidget(products_container, 0, 1)
 
-        # ------------------- Charger Données Demo -------------------
-        self.load_demo_data()
+        # Charger les données
+        self.load_charts_data()
+
+    def load_kpi_cards(self, grid):
+        """Charge les cartes KPI depuis la base"""
+        stats = self.db.get_statistics()
+        
+        # Première ligne
+        grid.addWidget(
+            self.build_kpi_card(
+                "💰 Ventes Totales",
+                f"{stats['sales_total']:,.0f} DA",
+                f"+{stats['total_sales']} ventes",
+                "transactions enregistrées",
+                COLORS['primary']
+            ), 0, 0
+        )
+        grid.addWidget(
+            self.build_kpi_card(
+                "🛒 Achats Totaux",
+                f"{stats['purchases_total']:,.0f} DA",
+                f"{stats['total_purchases']} achats",
+                "fournisseurs",
+                COLORS['warning']
+            ), 0, 1
+        )
+        grid.addWidget(
+            self.build_kpi_card(
+                "📈 Bénéfice Net",
+                f"{stats['profit']:,.0f} DA",
+                f"{((stats['profit'] / stats['sales_total'] * 100) if stats['sales_total'] > 0 else 0):.1f}%",
+                "marge bénéficiaire",
+                COLORS['success']
+            ), 0, 2
+        )
+
+        # Deuxième ligne
+        grid.addWidget(
+            self.build_kpi_card(
+                "👥 Clients",
+                str(stats['total_clients']),
+                "clients",
+                "enregistrés",
+                COLORS['secondary']
+            ), 1, 0
+        )
+        grid.addWidget(
+            self.build_kpi_card(
+                "📦 Valeur Stock",
+                f"{stats['stock_value']:,.0f} DA",
+                f"{stats['total_products']} produits",
+                "en inventaire",
+                COLORS['info']
+            ), 1, 1
+        )
+        grid.addWidget(
+            self.build_kpi_card(
+                "⚠️ Stock Faible",
+                str(stats['low_stock_count']),
+                "produits",
+                "nécessitent réapprovisionnement",
+                COLORS['danger']
+            ), 1, 2
+        )
+
+    def load_charts_data(self):
+        """Charge les données des graphiques"""
+        current_year = datetime.now().year
+        
+        # Ventes mensuelles
+        monthly_sales = self.db.get_sales_by_month(current_year)
+        
+        months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", 
+                 "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+        
+        # Créer un dictionnaire avec tous les mois à 0
+        sales_data = {i+1: 0 for i in range(12)}
+        
+        # Remplir avec les vraies données
+        for sale in monthly_sales:
+            month_num = int(sale['month'])
+            sales_data[month_num] = sale['total']
+        
+        # Convertir en listes ordonnées
+        x_data = list(range(12))
+        y_data = [sales_data[i+1] for i in range(12)]
+        
+        # Tracer
+        self.sales_chart.clear()
+        self.sales_chart.plot(
+            x_data, 
+            y_data, 
+            pen=pg.mkPen(color=COLORS['primary'], width=3),
+            symbol='o',
+            symbolSize=8,
+            symbolBrush=COLORS['primary'],
+            name="Ventes"
+        )
+        
+        # Remplissage sous la courbe
+        fillBrush = pg.mkBrush(COLORS['primary'] + '40')
+        self.sales_chart.plot(
+            x_data,
+            y_data,
+            fillLevel=0,
+            fillBrush=fillBrush
+        )
+        
+        self.sales_chart.getAxis('bottom').setTicks([list(zip(range(12), months))])
+        
+        # Top Clients
+        top_clients = self.db.get_top_clients(limit=5)
+        
+        if top_clients:
+            client_names = [c['name'][:15] for c in top_clients]  # Limiter à 15 caractères
+            client_values = [c['total_amount'] for c in top_clients]
+            
+            self.customers_chart.clear()
+            colors = [COLORS['primary'], COLORS['secondary'], COLORS['success'], 
+                     COLORS['warning'], COLORS['info']]
+            
+            x = list(range(len(client_names)))
+            for i, (val, color) in enumerate(zip(client_values, colors)):
+                bg = pg.BarGraphItem(
+                    x=[i], 
+                    height=[val], 
+                    width=0.6, 
+                    brush=color
+                )
+                self.customers_chart.addItem(bg)
+            
+            self.customers_chart.getAxis('bottom').setTicks([list(zip(range(len(client_names)), client_names))])
+        else:
+            # Aucune donnée
+            self.customers_chart.clear()
+            text = pg.TextItem("Aucune donnée disponible", color=COLORS['text_tertiary'])
+            text.setPos(0.5, 0.5)
+            self.customers_chart.addItem(text)
+        
+        # Top Produits
+        top_products = self.db.get_top_products(limit=5)
+        
+        if top_products:
+            product_names = [p['name'][:15] for p in top_products]
+            product_values = [p['total_quantity'] for p in top_products]
+            
+            self.products_chart.clear()
+            colors = [COLORS['success'], COLORS['primary'], COLORS['secondary'], 
+                     COLORS['warning'], COLORS['info']]
+            
+            x = list(range(len(product_names)))
+            for i, (val, color) in enumerate(zip(product_values, colors)):
+                bg = pg.BarGraphItem(
+                    x=[i], 
+                    height=[val], 
+                    width=0.6, 
+                    brush=color
+                )
+                self.products_chart.addItem(bg)
+            
+            self.products_chart.getAxis('bottom').setTicks([list(zip(range(len(product_names)), product_names))])
+        else:
+            # Aucune donnée
+            self.products_chart.clear()
+            text = pg.TextItem("Aucune donnée disponible", color=COLORS['text_tertiary'])
+            text.setPos(0.5, 0.5)
+            self.products_chart.addItem(text)
 
     def create_chart_container(self, title):
         """Crée un conteneur stylisé pour un graphique"""
@@ -186,7 +294,6 @@ class StatisticsPage(QWidget):
         container.setLayout(main_layout)
         main_layout.setSpacing(10)
         
-        # Titre
         title_label = QLabel(title)
         title_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         title_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
@@ -194,7 +301,7 @@ class StatisticsPage(QWidget):
         
         return container
 
-    def build_kpi_card(self, title, value, description, color):
+    def build_kpi_card(self, title, value, change, change_desc, color):
         """Construit une carte KPI stylisée"""
         card = QFrame()
         card.setStyleSheet(get_kpi_card_style(color))
@@ -218,84 +325,34 @@ class StatisticsPage(QWidget):
         card_layout.addWidget(value_label)
 
         # Description
-        desc_label = QLabel(description)
+        change_layout = QHBoxLayout()
+        change_layout.setSpacing(5)
+        
+        change_label = QLabel(change)
+        change_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        change_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
+        
+        desc_label = QLabel(change_desc)
         desc_label.setFont(QFont("Segoe UI", 10))
         desc_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        card_layout.addWidget(desc_label)
+        
+        change_layout.addWidget(change_label)
+        change_layout.addWidget(desc_label)
+        change_layout.addStretch()
+        
+        card_layout.addLayout(change_layout)
 
         return card
 
-    # ------------------- CHARGER DONNÉES DEMO -------------------
-    def load_demo_data(self):
-        # Ventes Mensuelles
-        months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", 
-                 "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
-        sales = [random.randint(5000, 20000) for _ in range(12)]
+    def refresh(self):
+        """Rafraîchit toutes les données"""
+        # Effacer la grille KPI
+        kpi_grid = self.layout().itemAt(2)
+        while kpi_grid.count():
+            child = kpi_grid.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
         
-        # Ligne avec gradient
-        self.sales_chart.plot(
-            list(range(12)), 
-            sales, 
-            pen=pg.mkPen(color=COLORS['primary'], width=3),
-            symbol='o',
-            symbolSize=8,
-            symbolBrush=COLORS['primary'],
-            name="Ventes"
-        )
-        
-        # Remplissage sous la courbe
-        fillBrush = pg.mkBrush(COLORS['primary'] + '40')  # Transparence
-        self.sales_chart.plot(
-            list(range(12)),
-            sales,
-            fillLevel=0,
-            fillBrush=fillBrush
-        )
-        
-        self.sales_chart.getAxis('bottom').setTicks([list(zip(range(12), months))])
-
-        # Top Clients (Graphique à barres)
-        customers = ["John", "Alice", "Entreprise X", "Bob", "Marie"]
-        values = sorted([random.randint(1000, 10000) for _ in customers], reverse=True)
-        
-        # Créer des barres avec des couleurs dégradées
-        colors = [COLORS['primary'], COLORS['secondary'], COLORS['success'], 
-                 COLORS['warning'], COLORS['info']]
-        
-        x = list(range(len(customers)))
-        for i, (val, color) in enumerate(zip(values, colors)):
-            bg = pg.BarGraphItem(
-                x=[i], 
-                height=[val], 
-                width=0.6, 
-                brush=color
-            )
-            self.customers_chart.addItem(bg)
-        
-        self.customers_chart.getAxis('bottom').setTicks([list(zip(range(len(customers)), customers))])
-
-        # Ventes vs Achats (Comparaison)
-        sales_values = [random.randint(5000, 20000) for _ in range(12)]
-        purchase_values = [random.randint(3000, 15000) for _ in range(12)]
-        
-        self.comparison_chart.plot(
-            list(range(12)), 
-            sales_values, 
-            pen=pg.mkPen(color=COLORS['success'], width=3),
-            symbol='o',
-            symbolSize=6,
-            symbolBrush=COLORS['success'],
-            name="Ventes"
-        )
-        
-        self.comparison_chart.plot(
-            list(range(12)), 
-            purchase_values, 
-            pen=pg.mkPen(color=COLORS['danger'], width=3),
-            symbol='s',
-            symbolSize=6,
-            symbolBrush=COLORS['danger'],
-            name="Achats"
-        )
-        
-        self.comparison_chart.getAxis('bottom').setTicks([list(zip(range(12), months))])
+        # Recharger
+        self.load_kpi_cards(kpi_grid)
+        self.load_charts_data()

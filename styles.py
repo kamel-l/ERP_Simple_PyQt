@@ -5,29 +5,22 @@ Design moderne et professionnel
 
 # ==================== COULEURS ====================
 COLORS = {
-    # Couleurs principales
-    'primary': '#0A84FF',
-    'primary_dark': '#0066CC',
-    'secondary': '#5E5CE6',
-    'success': '#30D158',
-    'warning': '#FFD60A',
-    'danger': '#FF453A',
-    'info': '#64D2FF',
-    
-    # Couleurs de fond
-    'bg_dark': '#1C1C1E',
-    'bg_medium': '#2C2C2E',
-    'bg_light': '#3A3A3C',
-    'bg_card': '#2A2A2A',
-    
-    # Couleurs de texte
-    'text_primary': '#FFFFFF',
-    'text_secondary': '#EBEBF5',
-    'text_tertiary': '#AEAEB2',
-    
-    # Bordures
-    'border': '#38383A',
-    'border_light': '#48484A',
+    'primary': '#4F46E5',        # Indigo
+    'primary_dark': '#4338CA',
+    'secondary': '#06B6D4',      # Cyan
+    'success': '#22C55E',        # Vert
+    'warning': '#FBBF24',        # Jaune
+    'danger': '#EF4444',         # Rouge
+    'info': '#3B82F6',           # Bleu
+    'bg_dark': '#0F0F23',        # Indigo très sombre
+    'bg_medium': '#1A1A3E',
+    'bg_light': '#2E2E50',
+    'bg_card': '#1A1A3E',
+    'text_primary': '#EEF2FF',
+    'text_secondary': '#E0E7FF',
+    'text_tertiary': '#A5B4FC',
+    'border': '#3730A3',
+    'border_light': '#4338CA',
 }
 
 # ==================== STYLES DE BOUTONS ====================

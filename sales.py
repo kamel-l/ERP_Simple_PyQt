@@ -1,19 +1,22 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, QDialog,
-    QFormLayout, QLineEdit, QSpinBox, QDoubleSpinBox, QMessageBox
+    QFormLayout, QLineEdit, QSpinBox, QDoubleSpinBox, QMessageBox, QGridLayout
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
+from db_manager import get_database
+from datetime import datetime
 
 
 class AddProductDialog(QDialog):
     """Dialogue pour ajouter un produit à la facture"""
-    def __init__(self, available_products=None):
+    def __init__(self):
         super().__init__()
         
-        self.available_products = available_products or []
+        self.db = get_database()
+        self.selected_product = None
         
         self.setWindowTitle("🛒 Ajouter un Article à la Facture")
         self.setMinimumWidth(600)
@@ -79,16 +82,13 @@ class AddProductDialog(QDialog):
         self.product_combo.setStyleSheet(INPUT_STYLE)
         self.product_combo.setMinimumHeight(45)
         
-        # Remplir la combo avec les produits
-        self.product_combo.addItem("-- Sélectionner un produit --", None)
-        for product in self.available_products:
-            display_text = f"{product['name']} - {product['price']:,.2f} DA (Stock: {product['quantity']})"
-            self.product_combo.addItem(display_text, product)
+        # Charger les produits
+        self.load_products()
         
         self.product_combo.currentIndexChanged.connect(self.on_product_selected)
         form_layout.addRow(product_label, self.product_combo)
 
-        # Référence (affichage seulement)
+        # Référence
         ref_label = QLabel("Référence:")
         ref_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
@@ -103,7 +103,7 @@ class AddProductDialog(QDialog):
         """)
         form_layout.addRow(ref_label, self.reference_display)
 
-        # Prix unitaire (affichage seulement)
+        # Prix unitaire
         price_label = QLabel("Prix unitaire:")
         price_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
@@ -119,7 +119,7 @@ class AddProductDialog(QDialog):
         """)
         form_layout.addRow(price_label, self.price_display)
 
-        # Stock disponible (affichage)
+        # Stock disponible
         stock_label = QLabel("Stock disponible:")
         stock_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
@@ -154,7 +154,7 @@ class AddProductDialog(QDialog):
         self.quantity.valueChanged.connect(self.update_total)
         form_layout.addRow(qty_label, self.quantity)
 
-        # Remise (optionnel)
+        # Remise
         discount_label = QLabel("Remise (%):")
         discount_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
@@ -200,13 +200,7 @@ class AddProductDialog(QDialog):
 
         main_layout.addWidget(total_container)
 
-        # Note
-        note = QLabel("* Champs obligatoires")
-        note.setFont(QFont("Segoe UI", 10))
-        note.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-        main_layout.addWidget(note)
-
-        # Boutons d'action
+        # Boutons
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
         
@@ -216,10 +210,10 @@ class AddProductDialog(QDialog):
         cancel_btn.clicked.connect(self.reject)
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
-        add_btn = QPushButton("➕ Ajouter à la Facture")
+        add_btn = QPushButton("✅ Ajouter")
         add_btn.setStyleSheet(BUTTON_STYLES['success'])
         add_btn.setMinimumHeight(50)
-        add_btn.setFixedWidth(220)
+        add_btn.setFixedWidth(180)
         add_btn.clicked.connect(self.validate_and_accept)
         add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -229,138 +223,82 @@ class AddProductDialog(QDialog):
         
         main_layout.addLayout(btn_layout)
 
+    def load_products(self):
+        """Charge les produits depuis la base"""
+        self.product_combo.clear()
+        self.product_combo.addItem("-- Sélectionner un produit --", None)
+        
+        products = self.db.get_all_products()
+        for product in products:
+            if product['stock_quantity'] > 0:
+                display_text = f"{product['name']} - {product['selling_price']:,.2f} DA (Stock: {product['stock_quantity']})"
+                self.product_combo.addItem(display_text, product)
+
     def on_product_selected(self, index):
-        """Met à jour l'affichage quand un produit est sélectionné"""
+        """Quand un produit est sélectionné"""
         product = self.product_combo.currentData()
         
         if product:
-            # Afficher les informations du produit
-            self.reference_display.setText(product.get('reference', '-'))
-            self.price_display.setText(f"{product['price']:,.2f} DA")
-            self.stock_display.setText(str(product['quantity']))
-            
-            # Limiter la quantité au stock disponible
-            self.quantity.setMaximum(product['quantity'])
-            
-            # Colorer le stock en rouge si faible
-            if product['quantity'] < 10:
-                self.stock_display.setStyleSheet(f"""
-                    color: {COLORS['danger']}; 
-                    border: none;
-                    font-size: 16px;
-                    font-weight: bold;
-                    padding: 10px;
-                    background: {COLORS['bg_light']};
-                    border-radius: 5px;
-                """)
-            else:
-                self.stock_display.setStyleSheet(f"""
-                    color: {COLORS['success']}; 
-                    border: none;
-                    font-size: 16px;
-                    font-weight: bold;
-                    padding: 10px;
-                    background: {COLORS['bg_light']};
-                    border-radius: 5px;
-                """)
-            
-            # Mettre à jour le total
+            self.selected_product = product
+            self.reference_display.setText(product['reference'])
+            self.price_display.setText(f"{product['selling_price']:,.2f} DA")
+            self.stock_display.setText(str(product['stock_quantity']))
+            self.quantity.setMaximum(product['stock_quantity'])
             self.update_total()
         else:
-            # Réinitialiser l'affichage
+            self.selected_product = None
             self.reference_display.setText("-")
             self.price_display.setText("0.00 DA")
             self.stock_display.setText("0")
-            self.quantity.setMaximum(9999)
-            self.total_display.setText("0.00 DA")
 
     def update_total(self):
-        """Calcule et affiche le total"""
-        product = self.product_combo.currentData()
-        
-        if product:
+        """Met à jour le total"""
+        if self.selected_product:
             qty = self.quantity.value()
-            price = product['price']
+            price = self.selected_product['selling_price']
             discount = self.discount.value()
             
-            subtotal = qty * price
-            discount_amount = subtotal * (discount / 100)
-            total = subtotal - discount_amount
-            
+            total = qty * price * (1 - discount / 100)
             self.total_display.setText(f"{total:,.2f} DA")
-        else:
-            self.total_display.setText("0.00 DA")
 
     def validate_and_accept(self):
-        """Valide les données avant d'accepter"""
-        product = self.product_combo.currentData()
-        
-        if not product:
-            QMessageBox.warning(self, "Sélection requise", 
-                              "Veuillez sélectionner un produit !")
-            self.product_combo.setFocus()
+        """Valide et accepte"""
+        if not self.selected_product:
+            QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un produit!")
             return
         
-        qty = self.quantity.value()
-        if qty > product['quantity']:
-            QMessageBox.warning(self, "Stock insuffisant", 
-                              f"Stock disponible: {product['quantity']}\n"
-                              f"Quantité demandée: {qty}")
-            self.quantity.setFocus()
+        if self.quantity.value() > self.selected_product['stock_quantity']:
+            QMessageBox.warning(self, "Erreur", "Stock insuffisant!")
             return
         
-        if qty <= 0:
-            QMessageBox.warning(self, "Quantité invalide", 
-                              "La quantité doit être supérieure à 0 !")
-            self.quantity.setFocus()
-            return
-
         self.accept()
-
-    def get_item_data(self):
-        """Retourne les données de l'article"""
-        product = self.product_combo.currentData()
-        qty = self.quantity.value()
-        discount = self.discount.value()
-        
-        price = product['price']
-        subtotal = qty * price
-        discount_amount = subtotal * (discount / 100)
-        total = subtotal - discount_amount
-        
-        return {
-            "product_id": product['id'],
-            "product_name": product['name'],
-            "reference": product.get('reference', ''),
-            "quantity": qty,
-            "price": price,
-            "discount": discount,
-            "total": total
-        }
 
 
 class SalesPage(QWidget):
     def __init__(self):
         super().__init__()
+        
+        self.db = get_database()
+        self.cart_items = []  # Articles dans le panier
 
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        # ------------------- HEADER -------------------
+        # Header
         title = QLabel("💰 Point de Vente")
         title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 5px;")
         layout.addWidget(title)
 
-        subtitle = QLabel("Créez et gérez vos factures de vente")
+        subtitle = QLabel("Gestion des ventes et facturation")
         subtitle.setFont(QFont("Segoe UI", 14))
         subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']}; margin-bottom: 15px;")
         layout.addWidget(subtitle)
 
-        # ------------------- CUSTOMER SELECTION CARD -------------------
-        customer_card = QFrame()
-        customer_card.setStyleSheet(f"""
+        # Client Selection
+        client_card = QFrame()
+        client_card.setStyleSheet(f"""
             QFrame {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
@@ -369,26 +307,19 @@ class SalesPage(QWidget):
                 padding: 20px;
             }}
         """)
-        customer_layout = QHBoxLayout()
-        customer_card.setLayout(customer_layout)
-        customer_layout.setSpacing(15)
+        client_layout = QHBoxLayout()
+        client_card.setLayout(client_layout)
+        client_layout.setSpacing(15)
 
-        cust_label = QLabel("👤 Client:")
-        cust_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        cust_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        
-        self.customer_combo = QComboBox()
-        self.customer_combo.addItems([
-            "Sélectionner un client", 
-            "John Doe", 
-            "Alice Smith", 
-            "Entreprise X",
-            "Bob Martin",
-            "Client Comptant"
-        ])
-        self.customer_combo.setStyleSheet(INPUT_STYLE)
-        self.customer_combo.setMinimumHeight(45)
-        self.customer_combo.setMinimumWidth(300)
+        client_label = QLabel("👤 Client:")
+        client_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        client_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+
+        self.client_combo = QComboBox()
+        self.client_combo.setStyleSheet(INPUT_STYLE)
+        self.client_combo.setMinimumHeight(45)
+        self.client_combo.setMinimumWidth(300)
+        self.load_clients()
 
         # Bouton ajouter article
         self.add_item_btn = QPushButton("➕ Ajouter Article")
@@ -398,14 +329,14 @@ class SalesPage(QWidget):
         self.add_item_btn.clicked.connect(self.add_item)
         self.add_item_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        customer_layout.addWidget(cust_label)
-        customer_layout.addWidget(self.customer_combo)
-        customer_layout.addStretch()
-        customer_layout.addWidget(self.add_item_btn)
+        client_layout.addWidget(client_label)
+        client_layout.addWidget(self.client_combo)
+        client_layout.addStretch()
+        client_layout.addWidget(self.add_item_btn)
 
-        layout.addWidget(customer_card)
+        layout.addWidget(client_card)
 
-        # ------------------- INVOICE TABLE -------------------
+        # Cart Table
         table_container = QFrame()
         table_container.setStyleSheet(f"""
             QFrame {{
@@ -418,17 +349,24 @@ class SalesPage(QWidget):
         table_layout = QVBoxLayout()
         table_container.setLayout(table_layout)
 
-        table_title = QLabel("📋 Articles de la Facture")
+        table_title = QLabel("🛒 Panier")
         table_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; margin-bottom: 10px;")
         table_layout.addWidget(table_title)
 
         self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels([
-            "Produit", "Référence", "Quantité", "Prix Unit.", "Remise", "Total"
-        ])
+        self.table.setHorizontalHeaderLabels(["Produit", "Quantité", "Prix Unit.", "Remise", "Total", ""])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        self.table.setColumnWidth(1, 100)
+        self.table.setColumnWidth(2, 120)
+        self.table.setColumnWidth(3, 100)
+        self.table.setColumnWidth(4, 120)
+        self.table.setColumnWidth(5, 80)
         
         self.table.setAlternatingRowColors(True)
         self.table.setStyleSheet(TABLE_STYLE)
@@ -436,247 +374,259 @@ class SalesPage(QWidget):
         self.table.setMinimumHeight(300)
 
         table_layout.addWidget(self.table)
-        
-        # Boutons d'action sur le tableau
-        table_actions = QHBoxLayout()
-        
-        remove_btn = QPushButton("🗑️ Supprimer la ligne")
-        remove_btn.setStyleSheet(BUTTON_STYLES['danger'])
-        remove_btn.setMinimumHeight(40)
-        remove_btn.clicked.connect(self.remove_selected_item)
-        remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        clear_btn = QPushButton("🧹 Vider la facture")
-        clear_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        clear_btn.setMinimumHeight(40)
-        clear_btn.clicked.connect(self.clear_invoice)
-        clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        table_actions.addStretch()
-        table_actions.addWidget(clear_btn)
-        table_actions.addWidget(remove_btn)
-        
-        table_layout.addLayout(table_actions)
-        
         layout.addWidget(table_container)
 
-        # ------------------- SUMMARY CARD -------------------
+        # Summary Section
         summary_card = QFrame()
         summary_card.setStyleSheet(f"""
             QFrame {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 12px;
-                border: 2px solid {COLORS['primary']};
-                padding: 20px;
+                border: 2px solid {COLORS['success']};
+                padding: 25px;
             }}
         """)
-        summary_layout = QHBoxLayout()
-        summary_card.setLayout(summary_layout)
-        summary_layout.setSpacing(30)
+        summary_main_layout = QVBoxLayout()
+        summary_card.setLayout(summary_main_layout)
+        summary_main_layout.setSpacing(15)
 
-        # Informations à gauche
-        info_layout = QVBoxLayout()
-        info_layout.setSpacing(8)
-        
-        self.items_count_label = QLabel("Articles: 0")
-        self.items_count_label.setFont(QFont("Segoe UI", 12))
-        self.items_count_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        
-        date_label = QLabel("📅 Date: 14/02/2026")
-        date_label.setFont(QFont("Segoe UI", 12))
-        date_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        
-        info_layout.addWidget(self.items_count_label)
-        info_layout.addWidget(date_label)
-        summary_layout.addLayout(info_layout)
+        summary_title = QLabel("💰 Résumé de la Vente")
+        summary_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        summary_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+        summary_main_layout.addWidget(summary_title)
 
-        summary_layout.addStretch()
+        amounts_grid = QGridLayout()
+        amounts_grid.setSpacing(15)
 
-        # Total à droite
-        total_container = QVBoxLayout()
-        total_container.setSpacing(5)
+        # Sous-total
+        subtotal_label_text = QLabel("Sous-total HT:")
+        subtotal_label_text.setFont(QFont("Segoe UI", 13))
+        subtotal_label_text.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
         
-        total_title = QLabel("TOTAL À PAYER")
-        total_title.setFont(QFont("Segoe UI", 12))
-        total_title.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        total_title.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.subtotal_label = QLabel("0.00 DA")
+        self.subtotal_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        self.subtotal_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+        self.subtotal_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        
+        amounts_grid.addWidget(subtotal_label_text, 0, 0)
+        amounts_grid.addWidget(self.subtotal_label, 0, 1)
+
+        # TVA
+        tax_label_text = QLabel("TVA (19%):")
+        tax_label_text.setFont(QFont("Segoe UI", 13))
+        tax_label_text.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
+        
+        self.tax_label = QLabel("0.00 DA")
+        self.tax_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        self.tax_label.setStyleSheet(f"color: {COLORS['warning']}; border: none;")
+        self.tax_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        
+        amounts_grid.addWidget(tax_label_text, 1, 0)
+        amounts_grid.addWidget(self.tax_label, 1, 1)
+
+        # Ligne de séparation
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setStyleSheet(f"background-color: {COLORS['border']}; border: none;")
+        amounts_grid.addWidget(separator, 2, 0, 1, 2)
+
+        # Total
+        total_label_text = QLabel("TOTAL TTC:")
+        total_label_text.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        total_label_text.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
         self.total_label = QLabel("0.00 DA")
-        self.total_label.setFont(QFont("Segoe UI", 32, QFont.Weight.Bold))
+        self.total_label.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
         self.total_label.setStyleSheet(f"color: {COLORS['success']}; border: none;")
         self.total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
-        total_container.addWidget(total_title)
-        total_container.addWidget(self.total_label)
-        
-        summary_layout.addLayout(total_container)
+        amounts_grid.addWidget(total_label_text, 3, 0)
+        amounts_grid.addWidget(self.total_label, 3, 1)
 
-        # Bouton sauvegarder
-        self.save_btn = QPushButton("💾 Enregistrer\nFacture")
+        summary_main_layout.addLayout(amounts_grid)
+
+        # Boutons d'action
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+        
+        self.clear_btn = QPushButton("🗑️ Vider le Panier")
+        self.clear_btn.setStyleSheet(BUTTON_STYLES['secondary'])
+        self.clear_btn.setMinimumHeight(50)
+        self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.clear_btn.clicked.connect(self.clear_cart)
+        
+        self.save_btn = QPushButton("💾 Enregistrer la Vente")
         self.save_btn.setStyleSheet(BUTTON_STYLES['success'])
-        self.save_btn.setFixedSize(150, 80)
+        self.save_btn.setFixedSize(220, 50)
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.save_btn.clicked.connect(self.save_invoice)
-        summary_layout.addWidget(self.save_btn)
+        self.save_btn.clicked.connect(self.save_sale)
+        
+        button_layout.addWidget(self.clear_btn)
+        button_layout.addStretch()
+        button_layout.addWidget(self.save_btn)
+        
+        summary_main_layout.addLayout(button_layout)
 
         layout.addWidget(summary_card)
 
-        # ------------------- PRODUITS DISPONIBLES (Données exemple) -------------------
-        self.available_products = [
-            {"id": 1, "name": "Ordinateur Portable HP", "reference": "HP-001", "quantity": 15, "price": 75000.00},
-            {"id": 2, "name": "Souris Sans Fil Logitech", "reference": "LOG-MS-100", "quantity": 50, "price": 1500.00},
-            {"id": 3, "name": "Clavier Mécanique RGB", "reference": "KB-RGB-001", "quantity": 30, "price": 5000.00},
-            {"id": 4, "name": "Écran Dell 24 pouces", "reference": "DELL-002", "quantity": 25, "price": 35000.00},
-            {"id": 5, "name": "Webcam HD Logitech", "reference": "CAM-001", "quantity": 8, "price": 8000.00},
-            {"id": 6, "name": "Casque Audio Gaming", "reference": "AUDIO-001", "quantity": 20, "price": 6500.00},
-            {"id": 7, "name": "Tapis de Souris XXL", "reference": "PAD-001", "quantity": 45, "price": 2000.00},
-            {"id": 8, "name": "Hub USB 3.0", "reference": "USB-HUB-001", "quantity": 35, "price": 3500.00},
-        ]
-
-    # ------------------ AJOUTER ARTICLE ------------------
-    def add_item(self):
-        """Ouvre le dialogue pour ajouter un article"""
-        dialog = AddProductDialog(self.available_products)
+    def load_clients(self):
+        """Charge les clients"""
+        self.client_combo.clear()
+        self.client_combo.addItem("Client Anonyme", None)
         
-        if dialog.exec():
-            item_data = dialog.get_item_data()
+        clients = self.db.get_all_clients()
+        for client in clients:
+            self.client_combo.addItem(client['name'], client['id'])
+
+    def add_item(self):
+        """Ajoute un article au panier"""
+        dialog = AddProductDialog()
+        if dialog.exec() and dialog.selected_product:
+            product = dialog.selected_product
+            quantity = dialog.quantity.value()
+            discount = dialog.discount.value()
+            unit_price = product['selling_price']
+            total = quantity * unit_price * (1 - discount / 100)
             
-            # Ajouter l'article au tableau
+            # Ajouter au panier
+            self.cart_items.append({
+                'product_id': product['id'],
+                'product_name': product['name'],
+                'quantity': quantity,
+                'unit_price': unit_price,
+                'discount': discount,
+                'total': total
+            })
+            
+            # Ajouter à la table
             row = self.table.rowCount()
             self.table.insertRow(row)
             
             # Produit
-            product_item = QTableWidgetItem(item_data['product_name'])
+            product_item = QTableWidgetItem(product['name'])
             self.table.setItem(row, 0, product_item)
             
-            # Référence
-            ref_item = QTableWidgetItem(item_data['reference'])
-            self.table.setItem(row, 1, ref_item)
-            
             # Quantité
-            qty_item = QTableWidgetItem(str(item_data['quantity']))
+            qty_item = QTableWidgetItem(str(quantity))
             qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setItem(row, 2, qty_item)
+            self.table.setItem(row, 1, qty_item)
             
             # Prix unitaire
-            price_item = QTableWidgetItem(f"{item_data['price']:,.2f}")
+            price_item = QTableWidgetItem(f"{unit_price:,.2f}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            self.table.setItem(row, 3, price_item)
+            self.table.setItem(row, 2, price_item)
             
             # Remise
-            discount_item = QTableWidgetItem(f"{item_data['discount']:.1f}%")
+            discount_item = QTableWidgetItem(f"{discount:.2f}%")
             discount_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setItem(row, 4, discount_item)
+            self.table.setItem(row, 3, discount_item)
             
             # Total
-            total_item = QTableWidgetItem(f"{item_data['total']:,.2f}")
+            total_item = QTableWidgetItem(f"{total:,.2f}")
             total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-            self.table.setItem(row, 5, total_item)
+            self.table.setItem(row, 4, total_item)
             
-            # Mettre à jour le total
-            self.update_total()
+            # Bouton supprimer
+            remove_btn = QPushButton("🗑️")
+            remove_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: transparent;
+                    color: {COLORS['danger']};
+                    border: none;
+                    font-size: 18px;
+                }}
+                QPushButton:hover {{
+                    background: {COLORS['danger']};
+                    color: white;
+                    border-radius: 5px;
+                }}
+            """)
+            remove_btn.clicked.connect(lambda _, r=row: self.remove_item(r))
+            remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.table.setCellWidget(row, 5, remove_btn)
+            
+            self.update_totals()
 
-    # ------------------ SUPPRIMER ARTICLE ------------------
-    def remove_selected_item(self):
-        """Supprime l'article sélectionné"""
-        selected = self.table.currentRow()
-        if selected < 0:
-            QMessageBox.warning(self, "Aucune sélection", 
-                              "Veuillez sélectionner une ligne à supprimer !")
-            return
-        
-        # Confirmation
-        product_name = self.table.item(selected, 0).text()
-        reply = QMessageBox.question(
-            self, 
-            "Confirmation", 
-            f"Supprimer '{product_name}' de la facture ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply == QMessageBox.StandardButton.Yes:
-            self.table.removeRow(selected)
-            self.update_total()
+    def remove_item(self, row):
+        """Supprime un article"""
+        if row < len(self.cart_items):
+            del self.cart_items[row]
+        self.table.removeRow(row)
+        self.update_totals()
 
-    # ------------------ VIDER FACTURE ------------------
-    def clear_invoice(self):
-        """Vide toute la facture"""
-        if self.table.rowCount() == 0:
-            return
-        
-        reply = QMessageBox.question(
-            self, 
-            "Confirmation", 
-            "Voulez-vous vraiment vider toute la facture ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
-        if reply == QMessageBox.StandardButton.Yes:
-            self.table.setRowCount(0)
-            self.update_total()
-
-    # ------------------ METTRE À JOUR TOTAL ------------------
-    def update_total(self):
-        """Calcule et affiche le total de la facture"""
-        total = 0
-        items_count = self.table.rowCount()
-        
-        for row in range(items_count):
-            try:
-                total_item = self.table.item(row, 5)
-                if total_item:
-                    # Enlever les virgules et convertir
-                    total_text = total_item.text().replace(',', '')
-                    total += float(total_text)
-            except:
-                pass
-        
-        self.total_label.setText(f"{total:,.2f} DA")
-        self.items_count_label.setText(f"Articles: {items_count}")
-
-    # ------------------ SAUVEGARDER FACTURE ------------------
-    def save_invoice(self):
-        """Sauvegarde la facture"""
-        if self.table.rowCount() == 0:
-            QMessageBox.warning(self, "Facture vide", 
-                              "Ajoutez au moins un article avant d'enregistrer !")
-            return
-        
-        if self.customer_combo.currentIndex() == 0:
-            QMessageBox.warning(self, "Client requis", 
-                              "Veuillez sélectionner un client !")
-            return
-        
-        # Ici vous pourriez sauvegarder dans la base de données
-        # Pour l'instant, on affiche juste un message de confirmation
-        
-        customer = self.customer_combo.currentText()
-        items_count = self.table.rowCount()
-        total = self.total_label.text()
-        
-        message = f"""
-        ✅ Facture enregistrée avec succès !
-        
-        Client: {customer}
-        Nombre d'articles: {items_count}
-        Total: {total}
-        
-        La facture a été ajoutée au système.
-        """
-        
-        QMessageBox.information(self, "Succès", message)
-        
-        # Demander si on veut créer une nouvelle facture
+    def clear_cart(self):
+        """Vide le panier"""
         reply = QMessageBox.question(
             self,
-            "Nouvelle facture ?",
-            "Voulez-vous créer une nouvelle facture ?",
+            "Confirmation",
+            "Voulez-vous vraiment vider le panier?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
         if reply == QMessageBox.StandardButton.Yes:
+            self.cart_items = []
             self.table.setRowCount(0)
-            self.customer_combo.setCurrentIndex(0)
-            self.update_total()
+            self.update_totals()
+
+    def update_totals(self):
+        """Met à jour les totaux"""
+        subtotal = sum(item['total'] for item in self.cart_items)
+        tax = subtotal * 0.19  # TVA 19%
+        total = subtotal + tax
+        
+        self.subtotal_label.setText(f"{subtotal:,.2f} DA")
+        self.tax_label.setText(f"{tax:,.2f} DA")
+        self.total_label.setText(f"{total:,.2f} DA")
+
+    def save_sale(self):
+        """Enregistre la vente"""
+        if not self.cart_items:
+            QMessageBox.warning(self, "Attention", "Le panier est vide!")
+            return
+        
+        client_id = self.client_combo.currentData()
+        
+        # Générer un numéro de facture
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        invoice_number = f"FAC-{timestamp}"
+        
+        # Préparer les articles
+        items = []
+        for item in self.cart_items:
+            items.append({
+                'product_id': item['product_id'],
+                'quantity': item['quantity'],
+                'unit_price': item['unit_price'],
+                'discount': item['discount']
+            })
+        
+        # Enregistrer dans la base
+        sale_id = self.db.create_sale(
+            invoice_number=invoice_number,
+            client_id=client_id,
+            items=items,
+            payment_method="cash",
+            tax_rate=19.0,
+            discount=0
+        )
+        
+        if sale_id:
+            QMessageBox.information(
+                self,
+                "Succès",
+                f"Vente enregistrée avec succès!\n\nFacture N° {invoice_number}"
+            )
+            
+            # Réinitialiser
+            self.cart_items = []
+            self.table.setRowCount(0)
+            self.update_totals()
+            self.client_combo.setCurrentIndex(0)
+        else:
+            QMessageBox.critical(
+                self,
+                "Erreur",
+                "Impossible d'enregistrer la vente!"
+            )

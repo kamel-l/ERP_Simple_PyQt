@@ -1,16 +1,18 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
-    QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QFrame
+    QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QFrame, QMessageBox
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
+from db_manager import get_database
 
 # ------------------ DIALOG POUR AJOUTER / MODIFIER CLIENT ------------------
 class ClientDialog(QDialog):
-    def __init__(self, name="", phone="", email=""):
+    def __init__(self, name="", phone="", email="", address="", client_id=None):
         super().__init__()
 
+        self.client_id = client_id
         self.setWindowTitle("📝 Détails du Client")
         self.setMinimumWidth(500)
         self.setStyleSheet(f"""
@@ -29,7 +31,8 @@ class ClientDialog(QDialog):
         main_layout.setContentsMargins(25, 25, 25, 25)
 
         # Titre
-        title = QLabel("Informations du Client")
+        title_text = "Modifier le Client" if client_id else "Nouveau Client"
+        title = QLabel(title_text)
         title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 10px;")
         main_layout.addWidget(title)
@@ -47,10 +50,14 @@ class ClientDialog(QDialog):
         
         self.email_edit = QLineEdit(email)
         self.email_edit.setPlaceholderText("email@exemple.com")
+        
+        self.address_edit = QLineEdit(address)
+        self.address_edit.setPlaceholderText("Adresse du client")
 
         form.addRow("Nom:", self.name_edit)
         form.addRow("Téléphone:", self.phone_edit)
         form.addRow("Email:", self.email_edit)
+        form.addRow("Adresse:", self.address_edit)
 
         main_layout.addLayout(form)
 
@@ -79,6 +86,9 @@ class ClientDialog(QDialog):
 class ClientsPage(QWidget):
     def __init__(self):
         super().__init__()
+        
+        # Connexion à la base de données
+        self.db = get_database()
 
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
@@ -96,14 +106,13 @@ class ClientsPage(QWidget):
         layout.addWidget(subtitle)
 
         # ------------------- STATISTICS CARDS -------------------
-        stats_layout = QHBoxLayout()
-        stats_layout.setSpacing(15)
-        layout.addLayout(stats_layout)
+        self.stats_layout = QHBoxLayout()
+        self.stats_layout.setSpacing(15)
+        layout.addLayout(self.stats_layout)
 
-        stats_layout.addWidget(self.build_stat_card("Total Clients", "59", COLORS['primary']))
-        stats_layout.addWidget(self.build_stat_card("Nouveaux ce mois", "+7", COLORS['success']))
-        stats_layout.addWidget(self.build_stat_card("Clients actifs", "52", COLORS['secondary']))
-        stats_layout.addStretch()
+        # Les cartes seront créées dans load_statistics()
+        self.load_statistics()
+        self.stats_layout.addStretch()
 
         # ------------------- SEARCH & ACTIONS BAR -------------------
         search_layout = QHBoxLayout()
@@ -140,8 +149,8 @@ class ClientsPage(QWidget):
         table_layout = QVBoxLayout()
         table_container.setLayout(table_layout)
         
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["ID", "Nom", "Téléphone", "Email"])
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(["ID", "Nom", "Téléphone", "Email", "Adresse"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -172,14 +181,7 @@ class ClientsPage(QWidget):
         actions_layout.addWidget(self.edit_btn)
         actions_layout.addWidget(self.delete_btn)
 
-        # ------------------- DONNÉES EXEMPLE -------------------
-        self.clients_data = [
-            {"id": 1, "name": "John Doe", "phone": "0555123456", "email": "john@example.com"},
-            {"id": 2, "name": "Alice Smith", "phone": "0555987654", "email": "alice@example.com"},
-            {"id": 3, "name": "Entreprise X", "phone": "0555001122", "email": "contact@companyx.com"},
-            {"id": 4, "name": "Bob Martin", "phone": "0555445566", "email": "bob@example.com"},
-            {"id": 5, "name": "Marie Dupont", "phone": "0555778899", "email": "marie@example.com"},
-        ]
+        # Charger les données
         self.load_clients()
 
     def build_stat_card(self, title, value, color):
@@ -207,82 +209,225 @@ class ClientsPage(QWidget):
         title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
         card_layout.addWidget(title_label)
 
-        value_label = QLabel(value)
+        value_label = QLabel(str(value))
         value_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
         value_label.setStyleSheet(f"color: {color}; border: none;")
         card_layout.addWidget(value_label)
 
         return card
 
+    def load_statistics(self):
+        """Charge les statistiques depuis la base de données"""
+        # Effacer les anciennes cartes
+        while self.stats_layout.count():
+            child = self.stats_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        
+        # Récupérer les stats
+        stats = self.db.get_statistics()
+        
+        # Créer les cartes
+        self.stats_layout.addWidget(
+            self.build_stat_card("Total Clients", stats['total_clients'], COLORS['primary'])
+        )
+        self.stats_layout.addWidget(
+            self.build_stat_card("Clients actifs", stats['total_clients'], COLORS['success'])
+        )
+
     # ------------------ CHARGEMENT DES DONNÉES ------------------
     def load_clients(self):
+        """Charge tous les clients depuis la base de données"""
         self.table.setRowCount(0)
-        for client in self.clients_data:
+        clients = self.db.get_all_clients()
+        
+        for client in clients:
             row = self.table.rowCount()
             self.table.insertRow(row)
             
-            # Style pour chaque cellule
+            # ID
             id_item = QTableWidgetItem(str(client["id"]))
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            id_item.setData(Qt.ItemDataRole.UserRole, client["id"])  # Stocker l'ID
             
+            # Nom
             name_item = QTableWidgetItem(client["name"])
-            phone_item = QTableWidgetItem(client["phone"])
-            email_item = QTableWidgetItem(client["email"])
+            
+            # Téléphone
+            phone_item = QTableWidgetItem(client["phone"] or "")
+            
+            # Email
+            email_item = QTableWidgetItem(client["email"] or "")
+            
+            # Adresse
+            address_item = QTableWidgetItem(client["address"] or "")
             
             self.table.setItem(row, 0, id_item)
             self.table.setItem(row, 1, name_item)
             self.table.setItem(row, 2, phone_item)
             self.table.setItem(row, 3, email_item)
+            self.table.setItem(row, 4, address_item)
 
     # ------------------ RECHERCHE ------------------
     def filter_clients(self, text):
-        text = text.lower()
-        filtered = [c for c in self.clients_data 
-                   if text in c["name"].lower() or text in c["email"].lower()]
+        """Filtre les clients par nom ou email"""
+        if not text:
+            self.load_clients()
+            return
         
         self.table.setRowCount(0)
-        for client in filtered:
+        clients = self.db.search_clients(text)
+        
+        for client in clients:
             row = self.table.rowCount()
             self.table.insertRow(row)
             
             id_item = QTableWidgetItem(str(client["id"]))
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            id_item.setData(Qt.ItemDataRole.UserRole, client["id"])
             
             self.table.setItem(row, 0, id_item)
             self.table.setItem(row, 1, QTableWidgetItem(client["name"]))
-            self.table.setItem(row, 2, QTableWidgetItem(client["phone"]))
-            self.table.setItem(row, 3, QTableWidgetItem(client["email"]))
+            self.table.setItem(row, 2, QTableWidgetItem(client["phone"] or ""))
+            self.table.setItem(row, 3, QTableWidgetItem(client["email"] or ""))
+            self.table.setItem(row, 4, QTableWidgetItem(client["address"] or ""))
 
     # ------------------ AJOUTER CLIENT ------------------
     def add_client(self):
+        """Ajoute un nouveau client"""
         dialog = ClientDialog()
         if dialog.exec():
-            new_id = max([c["id"] for c in self.clients_data]) + 1 if self.clients_data else 1
-            self.clients_data.append({
-                "id": new_id,
-                "name": dialog.name_edit.text(),
-                "phone": dialog.phone_edit.text(),
-                "email": dialog.email_edit.text()
-            })
-            self.load_clients()
+            name = dialog.name_edit.text().strip()
+            phone = dialog.phone_edit.text().strip()
+            email = dialog.email_edit.text().strip()
+            address = dialog.address_edit.text().strip()
+            
+            if not name:
+                QMessageBox.warning(
+                    self,
+                    "Erreur",
+                    "Le nom du client est obligatoire!"
+                )
+                return
+            
+            client_id = self.db.add_client(name, phone, email, address)
+            
+            if client_id:
+                QMessageBox.information(
+                    self,
+                    "Succès",
+                    f"Client '{name}' ajouté avec succès!"
+                )
+                self.load_clients()
+                self.load_statistics()
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Erreur",
+                    "Impossible d'ajouter le client!"
+                )
 
     # ------------------ MODIFIER CLIENT ------------------
     def edit_client(self):
+        """Modifie un client existant"""
         selected = self.table.currentRow()
         if selected < 0:
+            QMessageBox.warning(
+                self,
+                "Attention",
+                "Veuillez sélectionner un client à modifier!"
+            )
             return
-        client = self.clients_data[selected]
-        dialog = ClientDialog(client["name"], client["phone"], client["email"])
+        
+        # Récupérer l'ID du client
+        client_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
+        
+        # Récupérer les données du client
+        client = self.db.get_client_by_id(client_id)
+        
+        if not client:
+            QMessageBox.critical(
+                self,
+                "Erreur",
+                "Client introuvable!"
+            )
+            return
+        
+        # Ouvrir le dialogue avec les données existantes
+        dialog = ClientDialog(
+            name=client["name"],
+            phone=client["phone"] or "",
+            email=client["email"] or "",
+            address=client["address"] or "",
+            client_id=client_id
+        )
+        
         if dialog.exec():
-            client["name"] = dialog.name_edit.text()
-            client["phone"] = dialog.phone_edit.text()
-            client["email"] = dialog.email_edit.text()
-            self.load_clients()
+            name = dialog.name_edit.text().strip()
+            phone = dialog.phone_edit.text().strip()
+            email = dialog.email_edit.text().strip()
+            address = dialog.address_edit.text().strip()
+            
+            if not name:
+                QMessageBox.warning(
+                    self,
+                    "Erreur",
+                    "Le nom du client est obligatoire!"
+                )
+                return
+            
+            if self.db.update_client(client_id, name, phone, email, address):
+                QMessageBox.information(
+                    self,
+                    "Succès",
+                    f"Client '{name}' modifié avec succès!"
+                )
+                self.load_clients()
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Erreur",
+                    "Impossible de modifier le client!"
+                )
 
     # ------------------ SUPPRIMER CLIENT ------------------
     def delete_client(self):
+        """Supprime un client"""
         selected = self.table.currentRow()
         if selected < 0:
+            QMessageBox.warning(
+                self,
+                "Attention",
+                "Veuillez sélectionner un client à supprimer!"
+            )
             return
-        del self.clients_data[selected]
-        self.load_clients()
+        
+        # Récupérer l'ID et le nom du client
+        client_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
+        client_name = self.table.item(selected, 1).text()
+        
+        # Confirmation
+        reply = QMessageBox.question(
+            self,
+            "Confirmation",
+            f"Voulez-vous vraiment supprimer le client '{client_name}'?\n\n"
+            "Cette action est irréversible!",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            if self.db.delete_client(client_id):
+                QMessageBox.information(
+                    self,
+                    "Succès",
+                    f"Client '{client_name}' supprimé avec succès!"
+                )
+                self.load_clients()
+                self.load_statistics()
+            else:
+                QMessageBox.critical(
+                    self,
+                    "Erreur",
+                    "Impossible de supprimer le client!"
+                )
