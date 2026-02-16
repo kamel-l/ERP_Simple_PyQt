@@ -73,7 +73,6 @@ class Database:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                reference TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 description TEXT,
                 category_id INTEGER,
@@ -141,7 +140,6 @@ class Database:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS purchases (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                reference TEXT UNIQUE NOT NULL,
                 supplier_id INTEGER,
                 purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 subtotal REAL NOT NULL,
@@ -177,7 +175,6 @@ class Database:
                 product_id INTEGER NOT NULL,
                 movement_type TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
-                reference TEXT,
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (product_id) REFERENCES products(id)
@@ -300,9 +297,9 @@ class Database:
         try:
             self.cursor.execute("""
                 INSERT INTO products 
-                (reference, name, description, category_id, purchase_price, 
+                (name, description, category_id, purchase_price, 
                  selling_price, stock_quantity, min_stock, barcode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (reference, name, description, category_id, purchase_price,
                   selling_price, stock_quantity, min_stock, barcode))
             self.conn.commit()

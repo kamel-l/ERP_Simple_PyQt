@@ -73,7 +73,6 @@ class Database:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                reference TEXT UNIQUE NOT NULL,
                 name TEXT NOT NULL,
                 description TEXT,
                 category_id INTEGER,
@@ -141,7 +140,6 @@ class Database:
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS purchases (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                reference TEXT UNIQUE NOT NULL,
                 supplier_id INTEGER,
                 purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 subtotal REAL NOT NULL,
@@ -177,7 +175,6 @@ class Database:
                 product_id INTEGER NOT NULL,
                 movement_type TEXT NOT NULL,
                 quantity INTEGER NOT NULL,
-                reference TEXT,
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (product_id) REFERENCES products(id)
@@ -293,17 +290,17 @@ class Database:
     
     # ==================== PRODUITS ====================
     
-    def add_product(self, reference, name, selling_price, category_id=None, 
+    def add_product(self, name, selling_price, category_id=None, 
                     description="", purchase_price=0, stock_quantity=0, 
                     min_stock=0, barcode=""):
         """Ajoute un nouveau produit"""
         try:
             self.cursor.execute("""
                 INSERT INTO products 
-                (reference, name, description, category_id, purchase_price, 
+                (name, description, category_id, purchase_price, 
                  selling_price, stock_quantity, min_stock, barcode)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (reference, name, description, category_id, purchase_price,
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (name, description, category_id, purchase_price,
                   selling_price, stock_quantity, min_stock, barcode))
             self.conn.commit()
             return self.cursor.lastrowid
@@ -332,29 +329,19 @@ class Database:
         row = self.cursor.fetchone()
         return dict(row) if row else None
     
-    def get_product_by_reference(self, reference):
-        """Récupère un produit par sa référence"""
-        self.cursor.execute("""
-            SELECT p.*, c.name as category_name
-            FROM products p
-            LEFT JOIN categories c ON p.category_id = c.id
-            WHERE p.reference = ?
-        """, (reference,))
-        row = self.cursor.fetchone()
-        return dict(row) if row else None
-    
-    def update_product(self, product_id, reference, name, selling_price, 
+
+    def update_product(self, product_id, name, selling_price, 
                       category_id=None, description="", purchase_price=0, 
                       stock_quantity=0, min_stock=0, barcode=""):
         """Met à jour un produit"""
         try:
             self.cursor.execute("""
                 UPDATE products 
-                SET reference = ?, name = ?, description = ?, category_id = ?,
+                SET name = ?, description = ?, category_id = ?,
                     purchase_price = ?, selling_price = ?, stock_quantity = ?,
                     min_stock = ?, barcode = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            """, (reference, name, description, category_id, purchase_price,
+            """, (name, description, category_id, purchase_price,
                   selling_price, stock_quantity, min_stock, barcode, product_id))
             self.conn.commit()
             return True
@@ -380,7 +367,6 @@ class Database:
             product_id: ID du produit
             quantity: Quantité (positive ou négative)
             movement_type: 'sale', 'purchase', 'adjustment', 'return'
-            reference: Référence de la transaction
             notes: Notes additionnelles
         """
         try:
@@ -395,9 +381,9 @@ class Database:
             # Enregistrer le mouvement de stock
             self.cursor.execute("""
                 INSERT INTO stock_movements 
-                (product_id, movement_type, quantity, reference, notes)
+                (product_id, movement_type, quantity, notes)
                 VALUES (?, ?, ?, ?, ?)
-            """, (product_id, movement_type, quantity, reference, notes))
+            """, (product_id, movement_type, quantity, notes))
             
             self.conn.commit()
             return True
@@ -407,14 +393,14 @@ class Database:
             return False
     
     def search_products(self, search_term):
-        """Recherche des produits par nom ou référence"""
+        """Recherche des produits par nom"""
         self.cursor.execute("""
             SELECT p.*, c.name as category_name
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
-            WHERE p.name LIKE ? OR p.reference LIKE ?
+            WHERE p.name LIKE ?
             ORDER BY p.name
-        """, (f"%{search_term}%", f"%{search_term}%"))
+        """, (f"%{search_term}%",))
         return [dict(row) for row in self.cursor.fetchall()]
     
     def get_low_stock_products(self):
@@ -544,7 +530,7 @@ class Database:
         
         # Articles de la vente
         self.cursor.execute("""
-            SELECT si.*, p.name as product_name, p.reference as product_reference
+            SELECT si.*, p.name as product_name
             FROM sale_items si
             JOIN products p ON si.product_id = p.id
             WHERE si.sale_id = ?
@@ -697,7 +683,6 @@ class Database:
         self.cursor.execute("""
             SELECT 
                 p.name,
-                p.reference,
                 SUM(si.quantity) as total_quantity,
                 SUM(si.total) as total_sales
             FROM sale_items si
@@ -842,15 +827,15 @@ class Database:
         
         # Produits
         products = [
-            ("HP-001", "Ordinateur Portable HP ProBook", 75000, 2, "Laptop professionnel", 60000, 10, 2, ""),
-            ("LOG-MS-100", "Souris Sans Fil Logitech", 1500, 2, "Souris ergonomique", 1000, 50, 10, ""),
-            ("SAM-001", "Écran Samsung 24 pouces", 25000, 1, "Écran Full HD", 18000, 15, 3, ""),
-            ("BUR-001", "Bureau Professionnel", 35000, 3, "Bureau en bois", 25000, 5, 1, ""),
-            ("CHAIR-001", "Chaise de Bureau", 15000, 3, "Chaise ergonomique", 10000, 20, 5, ""),
+            ("Ordinateur Portable HP ProBook", 75000, 2, "Laptop professionnel", 60000, 10, 2, ""),
+            ("Souris Sans Fil Logitech", 1500, 2, "Souris ergonomique", 1000, 50, 10, ""),
+            ("Écran Samsung 24 pouces", 25000, 1, "Écran Full HD", 18000, 15, 3, ""),
+            ("Bureau Professionnel", 35000, 3, "Bureau en bois", 25000, 5, 1, ""),
+            ("Chaise de Bureau", 15000, 3, "Chaise ergonomique", 10000, 20, 5, ""),
         ]
         
-        for ref, name, price, cat, desc, p_price, stock, min_s, barcode in products:
-            self.add_product(ref, name, price, cat, desc, p_price, stock, min_s, barcode)
+        for name, price, cat, desc, p_price, stock, min_s, barcode in products:
+            self.add_product(name, price, cat, desc, p_price, stock, min_s, barcode)
         
         print("✅ Données de test créées avec succès!")
 
@@ -896,7 +881,7 @@ if __name__ == "__main__":
     print("="*60)
     products = db.get_all_products()
     for product in products:
-        print(f"- {product['reference']}: {product['name']} - {product['selling_price']} DA (Stock: {product['stock_quantity']})")
+        print(f"- {product['name']} - {product['selling_price']} DA (Stock: {product['stock_quantity']})")
     
     # Fermer la connexion
     db.disconnect()
