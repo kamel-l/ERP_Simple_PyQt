@@ -787,57 +787,7 @@ class Database:
             self.conn.rollback()
             return False
     
-    # ==================== GÉNÉRATION DE DONNÉES DE TEST ====================
     
-    def populate_test_data(self):
-        """Remplit la base avec des données de test"""
-        print("📝 Création de données de test...")
-        
-        # Catégories
-        categories = [
-            ("Électronique", "Appareils électroniques"),
-            ("Informatique", "Matériel informatique"),
-            ("Mobilier", "Meubles de bureau"),
-            ("Fournitures", "Fournitures de bureau")
-        ]
-        
-        for name, desc in categories:
-            self.add_category(name, desc)
-        
-        # Clients
-        clients = [
-            ("John Doe", "0555123456", "john@example.com", "123 Rue Example, Alger", ""),
-            ("Alice Smith", "0555987654", "alice@example.com", "456 Avenue Commerce, Oran", ""),
-            ("Entreprise X", "0555001122", "contact@companyx.com", "789 Boulevard Business, Constantine", "123456789012345"),
-            ("Bob Martin", "0555445566", "bob@example.com", "321 Rue Test, Annaba", ""),
-            ("Marie Dupont", "0555778899", "marie@example.com", "654 Avenue Principal, Sétif", ""),
-        ]
-        
-        for name, phone, email, address, nif in clients:
-            self.add_client(name, phone, email, address, nif)
-        
-        # Fournisseurs
-        suppliers = [
-            ("Fournisseur A", "0555111222", "fournisseurA@example.com", "Adresse A", "111222333444555"),
-            ("Fournisseur B", "0555333444", "fournisseurB@example.com", "Adresse B", "555444333222111"),
-        ]
-        
-        for name, phone, email, address, nif in suppliers:
-            self.add_supplier(name, phone, email, address, nif)
-        
-        # Produits
-        products = [
-            ("Ordinateur Portable HP ProBook", 75000, 2, "Laptop professionnel", 60000, 10, 2, ""),
-            ("Souris Sans Fil Logitech", 1500, 2, "Souris ergonomique", 1000, 50, 10, ""),
-            ("Écran Samsung 24 pouces", 25000, 1, "Écran Full HD", 18000, 15, 3, ""),
-            ("Bureau Professionnel", 35000, 3, "Bureau en bois", 25000, 5, 1, ""),
-            ("Chaise de Bureau", 15000, 3, "Chaise ergonomique", 10000, 20, 5, ""),
-        ]
-        
-        for name, price, cat, desc, p_price, stock, min_s, barcode in products:
-            self.add_product(name, price, cat, desc, p_price, stock, min_s, barcode)
-        
-        print("✅ Données de test créées avec succès!")
 
 
 # ==================== SINGLETON ====================

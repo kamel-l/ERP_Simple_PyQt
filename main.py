@@ -30,6 +30,7 @@ from clean_erp_data import run_full_cleanup
 from db_manager import get_database
 
 
+
 class MainWindow(QMainWindow):
     """Fenêtre principale de l'application"""
     
@@ -43,6 +44,13 @@ class MainWindow(QMainWindow):
         
         # Appliquer le thème sombre
         # qdarktheme.setup_theme("dark")
+
+        # Créer les pages
+        self.clients_page = ClientsPage()
+        self.sales_page = SalesPage()
+        
+        # IMPORTANT : Connecter le signal
+        self.clients_page.client_added.connect(self.sales_page.load_clients)
         
         # Widget central
         central_widget = QWidget()
@@ -88,7 +96,14 @@ class MainWindow(QMainWindow):
         
         # Afficher le dashboard par défaut
         self.show_page("dashboard")
-    
+        # Créer les pages
+        clients_page = ClientsPage()
+        sales_page = SalesPage()
+
+        # AJOUTER CETTE LIGNE :
+        clients_page.client_added.connect(sales_page.load_clients)
+
+
     def add_page(self, key, page, title):
         """Ajoute une page au stack"""
         index = self.stack.count()

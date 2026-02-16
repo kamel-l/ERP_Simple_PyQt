@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QFrame, QMessageBox
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 
@@ -84,6 +84,9 @@ class ClientDialog(QDialog):
 
 # ------------------ PAGE CLIENTS ------------------
 class ClientsPage(QWidget):
+    # Signal émis quand un client est ajouté ou modifié
+    client_added = pyqtSignal()
+    
     def __init__(self):
         super().__init__()
         
@@ -320,6 +323,8 @@ class ClientsPage(QWidget):
                 )
                 self.load_clients()
                 self.load_statistics()
+                # Émettre le signal pour notifier les autres modules
+                self.client_added.emit()
             else:
                 QMessageBox.critical(
                     self,
@@ -327,6 +332,7 @@ class ClientsPage(QWidget):
                     "Impossible d'ajouter le client!"
                 )
 
+        
     # ------------------ MODIFIER CLIENT ------------------
     def edit_client(self):
         """Modifie un client existant"""
@@ -383,6 +389,8 @@ class ClientsPage(QWidget):
                     f"Client '{name}' modifié avec succès!"
                 )
                 self.load_clients()
+                # Émettre le signal pour notifier les autres modules
+                self.client_added.emit()
             else:
                 QMessageBox.critical(
                     self,
@@ -425,6 +433,8 @@ class ClientsPage(QWidget):
                 )
                 self.load_clients()
                 self.load_statistics()
+                # Émettre le signal pour notifier les autres modules
+                self.client_added.emit()
             else:
                 QMessageBox.critical(
                     self,
