@@ -532,12 +532,12 @@ class SalesPage(QWidget):
             
             # Bouton supprimer
             remove_btn = QPushButton("🗑️")
+            remove_btn.setFont(QFont("Segoe UI", 14))
             remove_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: transparent;
                     color: {COLORS['danger']};
                     border: none;
-                    font-size: 18px;
                 }}
                 QPushButton:hover {{
                     background: {COLORS['danger']};
