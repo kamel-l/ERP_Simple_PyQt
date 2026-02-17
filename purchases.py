@@ -50,8 +50,22 @@ class ProductSelectorDialog(QDialog):
         self.table.setHorizontalHeaderLabels(["Référence", "Nom", "Prix Achat", "Stock"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setStyleSheet(TABLE_STYLE)
         self.table.doubleClicked.connect(self.select_product)
+        self.table.setStyleSheet(TABLE_STYLE + f"""
+            QHeaderView::section {{
+                background-color: {COLORS['bg_light']};
+                color: {COLORS['text_primary']};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 8px;
+                border: none;
+                border-right: 1px solid {COLORS['border']};
+                border-bottom: 2px solid {COLORS['primary']};
+            }}
+            QHeaderView::section:last {{
+                border-right: none;
+            }}
+        """)
         layout.addWidget(self.table)
         
         # Boutons
@@ -184,15 +198,17 @@ class PurchasesPage(QWidget):
                 background: {COLORS['bg_card']};
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                padding: 15px;
+                padding: 0px;
             }}
         """)
         table_layout = QVBoxLayout()
+        table_layout.setContentsMargins(15, 15, 15, 15)
+        table_layout.setSpacing(10)
         table_container.setLayout(table_layout)
 
         table_title = QLabel("📦 Articles d'Achat")
         table_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; margin-bottom: 10px;")
+        table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         table_layout.addWidget(table_title)
 
         self.table = QTableWidget(0, 5)
@@ -208,9 +224,23 @@ class PurchasesPage(QWidget):
         self.table.setColumnWidth(4, 100)
         
         self.table.setAlternatingRowColors(True)
-        self.table.setStyleSheet(TABLE_STYLE)
         self.table.verticalHeader().setVisible(False)
         self.table.setMinimumHeight(300)
+        self.table.setStyleSheet(TABLE_STYLE + f"""
+            QHeaderView::section {{
+                background-color: {COLORS['bg_light']};
+                color: {COLORS['text_primary']};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 8px;
+                border: none;
+                border-right: 1px solid {COLORS['border']};
+                border-bottom: 2px solid {COLORS['primary']};
+            }}
+            QHeaderView::section:last {{
+                border-right: none;
+            }}
+        """)
 
         table_layout.addWidget(self.table)
         layout.addWidget(table_container)
