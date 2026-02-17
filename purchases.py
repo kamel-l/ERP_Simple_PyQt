@@ -82,14 +82,13 @@ class ProductSelectorDialog(QDialog):
             row = self.table.rowCount()
             self.table.insertRow(row)
             
-            ref_item = QTableWidgetItem(product['reference'])
-            ref_item.setData(Qt.ItemDataRole.UserRole, product)
+           
             
             name_item = QTableWidgetItem(product['name'])
             price_item = QTableWidgetItem(f"{product['purchase_price']:,.2f} DA")
             stock_item = QTableWidgetItem(str(product['stock_quantity']))
             
-            self.table.setItem(row, 0, ref_item)
+          
             self.table.setItem(row, 1, name_item)
             self.table.setItem(row, 2, price_item)
             self.table.setItem(row, 3, stock_item)
@@ -109,7 +108,7 @@ class ProductSelectorDialog(QDialog):
         """Sélectionne le produit"""
         selected = self.table.currentRow()
         if selected >= 0:
-            self.selected_product = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
+            self.selected_product = self.table.item(selected, 0)
             self.accept()
 
 
