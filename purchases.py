@@ -1,12 +1,154 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
-    QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, QGridLayout, QMessageBox, QDialog, QLineEdit, QFormLayout
+    QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, QGridLayout, QMessageBox, QDialog, QLineEdit, QFormLayout, QInputDialog
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
+
+
+# ------------------ DIALOG POUR CRÉER UN NOUVEAU PRODUIT ------------------
+class NewProductDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+        
+        self.setWindowTitle("📦 Nouveau Produit")
+        self.setMinimumWidth(500)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {COLORS['bg_medium']};
+            }}
+            QLabel {{
+                color: {COLORS['text_primary']};
+                font-size: 13px;
+            }}
+            {INPUT_STYLE}
+        """)
+        
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(20)
+        main_layout.setContentsMargins(25, 25, 25, 25)
+        
+        # En-tête
+        header = QFrame()
+        header.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {COLORS['primary']}, stop:1 {COLORS['secondary']});
+                border-radius: 10px;
+                padding: 0px;
+            }}
+        """)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(15, 15, 15, 15)
+        
+        title = QLabel("📦 Créer un Nouveau Produit")
+        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        title.setStyleSheet("color: white; border: none;")
+        header_layout.addWidget(title)
+        
+        subtitle = QLabel("Remplissez les informations du produit")
+        subtitle.setFont(QFont("Segoe UI", 10))
+        subtitle.setStyleSheet("color: rgba(255,255,255,0.8); border: none;")
+        header_layout.addWidget(subtitle)
+        main_layout.addWidget(header)
+        
+        # Formulaire
+        form_container = QFrame()
+        form_container.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['bg_card']};
+                border-radius: 10px;
+                padding: 0px;
+            }}
+        """)
+        form_layout = QFormLayout(form_container)
+        form_layout.setContentsMargins(20, 20, 20, 20)
+        form_layout.setSpacing(15)
+        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        
+        def make_label(text):
+            lbl = QLabel(text)
+            lbl.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+            return lbl
+        
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("Ex: Pantalon Jean")
+        self.name_edit.setMinimumHeight(45)
+        form_layout.addRow(make_label("Nom: *"), self.name_edit)
+        
+        self.purchase_price_edit = QLineEdit()
+        self.purchase_price_edit.setPlaceholderText("Ex: 1500")
+        self.purchase_price_edit.setMinimumHeight(45)
+        form_layout.addRow(make_label("Prix d'achat: *"), self.purchase_price_edit)
+        
+        self.selling_price_edit = QLineEdit()
+        self.selling_price_edit.setPlaceholderText("Ex: 2500")
+        self.selling_price_edit.setMinimumHeight(45)
+        form_layout.addRow(make_label("Prix de vente: *"), self.selling_price_edit)
+        
+        self.stock_edit = QLineEdit()
+        self.stock_edit.setPlaceholderText("Ex: 10")
+        self.stock_edit.setText("0")
+        self.stock_edit.setMinimumHeight(45)
+        form_layout.addRow(make_label("Stock initial:"), self.stock_edit)
+        
+        main_layout.addWidget(form_container)
+        
+        note = QLabel("* Champs obligatoires")
+        note.setFont(QFont("Segoe UI", 10))
+        note.setStyleSheet(f"color: {COLORS['text_tertiary']};")
+        main_layout.addWidget(note)
+        
+        # Boutons
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(10)
+        
+        cancel_btn = QPushButton("❌ Annuler")
+        cancel_btn.setStyleSheet(BUTTON_STYLES['secondary'])
+        cancel_btn.setMinimumHeight(50)
+        cancel_btn.clicked.connect(self.reject)
+        cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        save_btn = QPushButton("💾 Créer le Produit")
+        save_btn.setStyleSheet(BUTTON_STYLES['success'])
+        save_btn.setMinimumHeight(50)
+        save_btn.setFixedWidth(200)
+        save_btn.clicked.connect(self.validate_and_accept)
+        save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addStretch()
+        btn_layout.addWidget(save_btn)
+        main_layout.addLayout(btn_layout)
+    
+    def validate_and_accept(self):
+        """Valide et accepte le formulaire"""
+        if not self.name_edit.text().strip():
+            QMessageBox.warning(self, "Erreur", "Le nom du produit est obligatoire!")
+            return
+        
+        try:
+            float(self.purchase_price_edit.text())
+        except:
+            QMessageBox.warning(self, "Erreur", "Le prix d'achat doit être un nombre valide!")
+            return
+        
+        try:
+            float(self.selling_price_edit.text())
+        except:
+            QMessageBox.warning(self, "Erreur", "Le prix de vente doit être un nombre valide!")
+            return
+        
+        try:
+            int(self.stock_edit.text())
+        except:
+            QMessageBox.warning(self, "Erreur", "Le stock doit être un nombre entier!")
+            return
+        
+        self.accept()
 
 
 # ------------------ DIALOG POUR SÉLECTIONNER UN PRODUIT ------------------
@@ -16,10 +158,11 @@ class ProductSelectorDialog(QDialog):
         
         self.selected_product = None
         self.products = products
+        self.db = get_database()
         
         self.setWindowTitle("📦 Sélectionner un Produit")
-        self.setMinimumWidth(600)
-        self.setMinimumHeight(400)
+        self.setMinimumWidth(700)
+        self.setMinimumHeight(500)
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {COLORS['bg_medium']};
@@ -33,10 +176,24 @@ class ProductSelectorDialog(QDialog):
         layout.setSpacing(15)
         layout.setContentsMargins(20, 20, 20, 20)
         
-        # Titre
+        # Titre et bouton nouveau produit
+        header_layout = QHBoxLayout()
+        
         title = QLabel("Sélectionnez un produit")
         title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        layout.addWidget(title)
+        header_layout.addWidget(title)
+        
+        header_layout.addStretch()
+        
+        new_product_btn = QPushButton("➕ Nouveau Produit")
+        new_product_btn.setStyleSheet(BUTTON_STYLES['primary'])
+        new_product_btn.setMinimumHeight(40)
+        new_product_btn.setFixedWidth(180)
+        new_product_btn.clicked.connect(self.create_new_product)
+        new_product_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        header_layout.addWidget(new_product_btn)
+        
+        layout.addLayout(header_layout)
         
         # Barre de recherche
         self.search_input = QLineEdit()
@@ -510,6 +667,8 @@ class PurchasesPage(QWidget):
         # Récupérer tous les produits
         products = self.db.get_all_products()
         
+        
+        
         if not products:
             QMessageBox.warning(
                 self,
@@ -522,6 +681,9 @@ class PurchasesPage(QWidget):
         dialog = ProductSelectorDialog(products)
         if dialog.exec() and dialog.selected_product:
             product = dialog.selected_product
+            
+            
+            
             row = self.table.rowCount()
             self.table.insertRow(row)
 
@@ -530,18 +692,21 @@ class PurchasesPage(QWidget):
             product_item.setData(Qt.ItemDataRole.UserRole, product['id'])
             self.table.setItem(row, 0, product_item)
 
-            # Quantité
-            qty_item = QTableWidgetItem("1")
+            # Quantité (utiliser la quantité saisie)
+            qty_item = QTableWidgetItem(str(product.get('stock_quantity', 0)))
             qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            qty_item.setFlags(qty_item.flags() | Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 1, qty_item)
 
-            # Prix
+            # Prix (éditable)
             price_item = QTableWidgetItem(f"{product['purchase_price']:.2f}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+            price_item.setFlags(price_item.flags() | Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 2, price_item)
 
-            # Total
-            total_item = QTableWidgetItem(f"{product['purchase_price']:.2f}")
+            # Total (calculé avec la quantité saisie)
+            total = product['stock_quantity'] * product['purchase_price']
+            total_item = QTableWidgetItem(f"{total:,.2f}")
             total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
             self.table.setItem(row, 3, total_item)
