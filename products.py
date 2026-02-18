@@ -411,9 +411,7 @@ class ProductsPage(QWidget):
         self.table.insertRow(row)
         
         id_item = QTableWidgetItem(str(product["id"]))
-        id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         id_item.setData(Qt.ItemDataRole.UserRole, product["id"])
-        self.table.setItem(row, 0, id_item)
         
         name_item = QTableWidgetItem(product["name"])
         self.table.setItem(row, 1, name_item)
