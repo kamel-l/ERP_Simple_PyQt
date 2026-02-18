@@ -359,7 +359,7 @@ class Database:
             print(f"❌ Erreur lors de la suppression du produit: {e}")
             return False
     
-    def update_stock(self, product_id, quantity, movement_type, reference="", notes=""):
+    def update_stock(self, product_id, quantity, movement_type, notes=""):
         """
         Met à jour le stock d'un produit
         
@@ -485,7 +485,6 @@ class Database:
                     item['product_id'], 
                     -item['quantity'],
                     'sale',
-                    invoice_number,
                     f"Vente #{invoice_number}"
                 )
             
@@ -562,13 +561,13 @@ class Database:
             tax_amount = subtotal * (tax_rate / 100)
             total = subtotal + tax_amount
             
-            # Créer l'achat
+            # Créer l'achat (sans colonne reference — elle n'existe pas dans la table)
             self.cursor.execute("""
                 INSERT INTO purchases 
-                (reference, supplier_id, subtotal, tax_rate, tax_amount, 
+                (supplier_id, subtotal, tax_rate, tax_amount, 
                  total, payment_method, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (reference, supplier_id, subtotal, tax_rate, tax_amount,
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (supplier_id, subtotal, tax_rate, tax_amount,
                   total, payment_method, notes))
             
             purchase_id = self.cursor.lastrowid
@@ -584,12 +583,11 @@ class Database:
                 """, (purchase_id, item['product_id'], item['quantity'], 
                       item['unit_price'], item_total))
                 
-                # Augmenter le stock
+                # Augmenter le stock (4 arguments : product_id, quantity, type, notes)
                 self.update_stock(
                     item['product_id'], 
                     item['quantity'],
                     'purchase',
-                    reference,
                     f"Achat #{reference}"
                 )
             
@@ -859,7 +857,7 @@ if __name__ == "__main__":
     db = Database("test_erp.db")
     
     # Remplir avec des données de test
-    # db.populate_test_data()
+    db.populate_test_data()
     
     # Exemples d'utilisation
     print("\n" + "="*60)

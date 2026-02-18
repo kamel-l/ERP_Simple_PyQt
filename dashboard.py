@@ -141,7 +141,7 @@ class DashboardPage(QWidget):
                 activity_item = self.build_activity_item(
                     "🛒",
                     "Achat effectué",
-                    f"Référence: {purchase['reference']} - {purchase['total']:,.0f} DA",
+                    f"id: {purchase['id']} - {purchase['total']:,.0f} DA",
                     "Récent"
                 )
                 layout.addWidget(activity_item)

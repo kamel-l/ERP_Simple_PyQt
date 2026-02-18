@@ -44,7 +44,7 @@ class SettingsPage(QWidget):
                 border: 1px solid {COLORS['border']};
                 border-radius: 8px;
                 background: {COLORS['bg_card']};
-                padding: 15px;
+                padding: 0px;
             }}
             QTabBar::tab {{
                 background: {COLORS['bg_medium']};
@@ -70,6 +70,7 @@ class SettingsPage(QWidget):
         system_tab = QWidget()
         system_layout = QVBoxLayout()
         system_tab.setLayout(system_layout)
+        system_layout.setContentsMargins(20, 20, 20, 20)
         system_layout.setSpacing(20)
 
         # Charger les paramètres depuis la base
@@ -111,6 +112,7 @@ class SettingsPage(QWidget):
         appearance_tab = QWidget()
         appearance_layout = QVBoxLayout()
         appearance_tab.setLayout(appearance_layout)
+        appearance_layout.setContentsMargins(20, 20, 20, 20)
         appearance_layout.setSpacing(20)
 
         # Section Thème
@@ -121,10 +123,11 @@ class SettingsPage(QWidget):
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                padding: 20px;
+                padding: 0px;
             }}
         """)
         theme_layout = QVBoxLayout()
+        theme_layout.setContentsMargins(20, 20, 20, 20)
         theme_card.setLayout(theme_layout)
         theme_layout.setSpacing(15)
 
@@ -165,6 +168,7 @@ class SettingsPage(QWidget):
         database_tab = QWidget()
         database_layout = QVBoxLayout()
         database_tab.setLayout(database_layout)
+        database_layout.setContentsMargins(20, 20, 20, 20)
         database_layout.setSpacing(20)
 
         # Section Sauvegarde
@@ -176,11 +180,12 @@ class SettingsPage(QWidget):
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
                 border-left: 4px solid {COLORS['success']};
-                padding: 20px;
+                padding: 0px;
             }}
         """)
         backup_layout = QVBoxLayout()
         backup_card.setLayout(backup_layout)
+        backup_layout.setContentsMargins(20, 20, 20, 20)
         backup_layout.setSpacing(15)
 
         backup_title = QLabel("💾 Sauvegarde des Données")
@@ -231,11 +236,12 @@ class SettingsPage(QWidget):
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
                 border-left: 4px solid {COLORS['danger']};
-                padding: 20px;
+                padding: 0px;
             }}
         """)
         cleanup_layout = QVBoxLayout()
         cleanup_card.setLayout(cleanup_layout)
+        cleanup_layout.setContentsMargins(20, 20, 20, 20)
         cleanup_layout.setSpacing(15)
 
         cleanup_title = QLabel("🗑️ Nettoyage de la Base de Données")
@@ -298,11 +304,12 @@ class SettingsPage(QWidget):
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
                 border-left: 4px solid {COLORS['info']};
-                padding: 20px;
+                padding: 0px;
             }}
         """)
         stats_layout = QVBoxLayout()
         stats_card.setLayout(stats_layout)
+        stats_layout.setContentsMargins(20, 20, 20, 20)
         stats_layout.setSpacing(15)
 
         stats_title = QLabel("📊 Statistiques de la Base")
@@ -372,12 +379,13 @@ class SettingsPage(QWidget):
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                padding: 20px;
+                padding: 0px;
             }}
         """)
         card_layout = QVBoxLayout()
-        card.setLayout(card_layout)
+        card_layout.setContentsMargins(20, 20, 20, 20)
         card_layout.setSpacing(15)
+        card.setLayout(card_layout)
 
         section_title = QLabel(title)
         section_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
@@ -413,11 +421,12 @@ class SettingsPage(QWidget):
                 border-radius: 8px;
                 border: 1px solid {COLORS['border']};
                 border-top: 3px solid {color};
-                padding: 15px;
+                padding: 0px;
             }}
         """)
         item_layout = QVBoxLayout()
         item.setLayout(item_layout)
+        item_layout.setContentsMargins(20, 20, 20, 20)
         item_layout.setSpacing(8)
         item_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
