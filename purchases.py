@@ -533,14 +533,14 @@ class PurchasesPage(QWidget):
         tax_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
         
         self.tax_label = QLabel("0.00 DA")
-<<<<<<< HEAD
+
         self.tax_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.tax_label.setStyleSheet(f"color: {COLORS['warning']}; border: none;")
         
-=======
+
         self.tax_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         self.tax_label.setStyleSheet(f"color: {COLORS['warning']};")
->>>>>>> cd49a647335b91a1b1860f406caaf5ef607b3c15
+
         self.tax_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
         tax_line.addWidget(tax_label)

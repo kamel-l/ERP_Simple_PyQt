@@ -660,7 +660,13 @@ class Database:
         """)
         stats['low_stock_count'] = self.cursor.fetchone()['count']
         
+        year = datetime.now().year
+        stats['best_month'] = self.get_best_month(year)
+        stats['growth_rate'] = self.get_growth_rate(year)
+        
         return stats
+        
+        
     
     def get_sales_by_month(self, year):
         """Récupère les ventes par mois pour une année"""
@@ -706,6 +712,69 @@ class Database:
         """, (limit,))
         return [dict(row) for row in self.cursor.fetchall()]
     
+
+    def get_profit_by_month(self, year):
+        """Récupère le profit par mois"""
+        self.cursor.execute("""
+            SELECT 
+                strftime('%m', s.sale_date) as month,
+                COALESCE(SUM(s.total), 0) -
+                COALESCE((
+                    SELECT SUM(p.total)
+                    FROM purchases p
+                    WHERE strftime('%Y', p.purchase_date) = ?
+                    AND strftime('%m', p.purchase_date) = strftime('%m', s.sale_date)
+                ), 0) as profit
+            FROM sales s
+            WHERE strftime('%Y', s.sale_date) = ?
+            GROUP BY month
+            ORDER BY month
+        """, (str(year), str(year)))
+
+        return [dict(row) for row in self.cursor.fetchall()]
+    
+    def get_best_month(self, year):
+        """Retourne le meilleur mois en ventes"""
+        self.cursor.execute("""
+            SELECT 
+                strftime('%m', sale_date) as month,
+                SUM(total) as total
+            FROM sales
+            WHERE strftime('%Y', sale_date) = ?
+            GROUP BY month
+            ORDER BY total DESC
+            LIMIT 1
+        """, (str(year),))
+
+        row = self.cursor.fetchone()
+        return row['month'] if row else "-"
+    
+    def get_growth_rate(self, year):
+        """Calcule la croissance entre les deux derniers mois"""
+        self.cursor.execute("""
+            SELECT 
+                strftime('%m', sale_date) as month,
+                SUM(total) as total
+            FROM sales
+            WHERE strftime('%Y', sale_date) = ?
+            GROUP BY month
+            ORDER BY month DESC
+            LIMIT 2
+        """, (str(year),))
+
+        rows = self.cursor.fetchall()
+
+        if len(rows) < 2:
+            return 0
+
+        last, previous = rows[0]['total'], rows[1]['total']
+
+        if previous == 0:
+            return 0
+
+        return ((last - previous) / previous) * 100
+
+
     # ==================== PARAMÈTRES ====================
     
     def set_setting(self, key, value):
