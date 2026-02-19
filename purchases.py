@@ -287,6 +287,45 @@ class ProductSelectorDialog(QDialog):
             if item:
                 self.selected_product = item.data(Qt.ItemDataRole.UserRole)
                 self.accept()
+    
+    def create_new_product(self):
+        """Crée un nouveau produit et l'ajoute automatiquement"""
+        dialog = NewProductDialog()
+        if dialog.exec():
+            name = dialog.name_edit.text().strip()
+            purchase_price = float(dialog.purchase_price_edit.text())
+            selling_price = float(dialog.selling_price_edit.text())
+            stock = int(dialog.stock_edit.text())
+            
+            # Ajouter le produit à la base de données
+            product_id = self.db.add_product(
+                name=name,
+                selling_price=selling_price,
+                purchase_price=purchase_price,
+                stock_quantity=stock,
+                category_id=None,
+                min_stock=5
+            )
+            
+            if product_id:
+                QMessageBox.information(
+                    self, "Succès",
+                    f"Produit '{name}' créé avec succès!"
+                )
+                
+                # Récupérer le produit complet depuis la base
+                product = self.db.get_product_by_id(product_id)
+                
+                if product:
+                    # Le définir comme produit sélectionné
+                    self.selected_product = product
+                    # Fermer le dialogue avec succès (accept)
+                    self.accept()
+            else:
+                QMessageBox.critical(
+                    self, "Erreur",
+                    "Impossible de créer le produit!"
+                )
 
 
 # ------------------ DIALOG POUR AJOUTER UN FOURNISSEUR ------------------
@@ -583,8 +622,9 @@ class PurchasesPage(QWidget):
         tax_label_text.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
         
         self.tax_label = QLabel("0.00 DA")
-        self.tax_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        self.tax_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.tax_label.setStyleSheet(f"color: {COLORS['warning']}; border: none;")
+        
         self.tax_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
         amounts_grid.addWidget(tax_label_text, 1, 0)

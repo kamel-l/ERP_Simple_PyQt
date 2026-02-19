@@ -569,6 +569,7 @@ class ProductsPage(QWidget):
                 csv_reader = csv.DictReader(file)
                 
                 for row_num, row in enumerate(csv_reader, start=2):
+                    print(row.get('quantity'))
                     try:
                         name = row.get('name', '').strip()
                         
@@ -593,9 +594,9 @@ class ProductsPage(QWidget):
                             purchase_price = 0.0
                         
                         try:
-                            stock = int(row.get('quantity', row.get('stock_quantity', 0)))
+                            stock = int(row.get('quantity'))
                         except:
-                            stock = 0
+                            stock = 100
                         
                         try:
                             min_stock = int(row.get('min_stock', 5))
