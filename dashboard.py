@@ -6,6 +6,28 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
 from styles import COLORS
 from db_manager import get_database
+from PyQt6.QtCore import QObject, pyqtProperty, QPropertyAnimation
+from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
+
+
+              #==================================Classe d’animation KPI (à ajouter en haut du fichier)===================================
+
+class KpiAnimator(QObject):
+    def __init__(self, label):
+        super().__init__()
+        self._value = 0
+        self.label = label
+        self.suffix = ""
+
+    def getValue(self):
+        return self._value
+
+    def setValue(self, value):
+        self._value = value
+        formatted = f"{value:,.0f}{self.suffix}"
+        self.label.setText(formatted)
+
+    value = pyqtProperty(float, fget=getValue, fset=setValue)
 
 
 class DashboardPage(QWidget):
@@ -69,6 +91,7 @@ class DashboardPage(QWidget):
         header_layout.addWidget(refresh_btn)
 
         main_layout.addLayout(header_layout)
+
 
         # ============================================================
         #                        KPI PREMIUM LARGE
@@ -146,9 +169,82 @@ class DashboardPage(QWidget):
         final_layout.setContentsMargins(0, 0, 0, 0)
         final_layout.addWidget(scroll)
 
+        self.invoice_table = self.create_invoice_table()
+        main_layout.addWidget(self.create_section_title("🧾 Dernières Factures"))
+        main_layout.addWidget(self.invoice_table)
+
         # Charger les données
         self.refresh()
+    
+    # =======================================================================================
+    #                        Tableau des dernières factures (widget complet)
+    # =======================================================================================
 
+
+    def create_invoice_table(self):
+            table = QTableWidget()
+            table.setColumnCount(5)
+            table.setHorizontalHeaderLabels(["Facture", "Client", "Total", "Date", "Paiement"])
+            table.verticalHeader().setVisible(False)
+
+            table.setStyleSheet(f"""
+                QTableWidget {{
+                    background: {COLORS['bg_card']};
+                    color: white;
+                    gridline-color: {COLORS['border']};
+                    border-radius: 10px;
+                }}
+                QHeaderView::section {{
+                    background-color: {COLORS['primary']};
+                    color: white;
+                    font-weight: bold;
+                    padding: 8px;
+                }}
+                QTableWidget::item:hover {{
+                    background-color: rgba(0, 120, 255, 0.2);
+                }}
+            """)
+
+            table.setMinimumHeight(300)
+            table.setMaximumHeight(300)
+            table.setColumnWidth(0, 120)
+            table.setColumnWidth(1, 200)
+            table.setColumnWidth(2, 120)
+            table.setColumnWidth(3, 150)
+            table.setColumnWidth(4, 150)
+
+            return table    
+    
+
+    # =========================================================================
+    #                          la fonction de chargement
+    # =========================================================================
+    
+    def load_invoices_table(self):
+        data = self.db.get_all_sales(limit=10)
+
+        self.invoice_table.setRowCount(len(data))
+
+        for row, sale in enumerate(data):
+            self.invoice_table.setItem(row, 0, QTableWidgetItem(str(sale['invoice_number'])))
+            self.invoice_table.setItem(row, 1, QTableWidgetItem(sale.get('client', '—')))
+            self.invoice_table.setItem(row, 2, QTableWidgetItem(f"{sale['total']:,.0f} DA"))
+            self.invoice_table.setItem(row, 3, QTableWidgetItem(str(sale['date'])))
+            self.invoice_table.setItem(row, 4, QTableWidgetItem(sale.get('payment_mode', '—')))
+    # =========================================================================
+    #                      Fonction pour animer un KPI
+    # =========================================================================    
+    
+
+    def animate_kpi(self, label, target, suffix=""):
+        anim = KpiAnimator(label)
+        anim.suffix = suffix
+        animation = QPropertyAnimation(anim, b"value")
+        animation.setDuration(600)
+        animation.setStartValue(0)
+        animation.setEndValue(float(target))
+        animation.start()
+        label.animation = animation  # pour éviter le garbage collector
     # =====================================================================
     #                          CARTES KPI
     # =====================================================================
@@ -164,8 +260,11 @@ class DashboardPage(QWidget):
                 border-left: 5px solid {color};
             }}
         """)
-        card.setMinimumHeight(140)
-        card.setMaximumHeight(140)
+        
+
+        card.setMinimumHeight(180)
+        card.setMaximumHeight(180)
+        
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(18, 12, 18, 12)
@@ -173,25 +272,25 @@ class DashboardPage(QWidget):
 
         header = QHBoxLayout()
         icon_label = QLabel(icon)
-        icon_label.setFont(QFont("Segoe UI", 20))
+        icon_label.setFont(QFont("Segoe UI", 46))
         header.addWidget(icon_label)
 
         header.addStretch()
 
         title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 13))
+        title_label.setFont(QFont("Segoe UI", 16))
         title_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
         header.addWidget(title_label)
 
         layout.addLayout(header)
 
         value_label = QLabel(value)
-        value_label.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
+        value_label.setFont(QFont("Segoe UI", 40, QFont.Weight.Bold))
         value_label.setStyleSheet(f"color: {color};")
         layout.addWidget(value_label)
 
         subtitle_label = QLabel(subtitle)
-        subtitle_label.setFont(QFont("Segoe UI", 12))
+        subtitle_label.setFont(QFont("Segoe UI", 14))
         subtitle_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
         layout.addWidget(subtitle_label)
 
@@ -268,6 +367,7 @@ class DashboardPage(QWidget):
         self.load_kpis()
         self.load_recent_activities()
         self.load_quick_info()
+        self.load_invoices_table()
 
     def load_kpis(self):
         stats = self.db.get_statistics() or {}
