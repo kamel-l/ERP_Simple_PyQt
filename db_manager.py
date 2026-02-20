@@ -359,7 +359,7 @@ class Database:
             print(f"❌ Erreur lors de la suppression du produit: {e}")
             return False
     
-    def update_stock(self, product_id, quantity, movement_type, reference="", notes=""):
+    def update_stock(self, product_id, quantity, movement_type, notes=""):
         """
         Met à jour le stock d'un produit
         
@@ -485,7 +485,6 @@ class Database:
                     item['product_id'], 
                     -item['quantity'],
                     'sale',
-                    invoice_number,
                     f"Vente #{invoice_number}"
                 )
             
@@ -562,13 +561,13 @@ class Database:
             tax_amount = subtotal * (tax_rate / 100)
             total = subtotal + tax_amount
             
-            # Créer l'achat
+            # Créer l'achat (sans colonne reference — elle n'existe pas dans la table)
             self.cursor.execute("""
                 INSERT INTO purchases 
-                (reference, supplier_id, subtotal, tax_rate, tax_amount, 
+                (supplier_id, subtotal, tax_rate, tax_amount, 
                  total, payment_method, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (reference, supplier_id, subtotal, tax_rate, tax_amount,
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (supplier_id, subtotal, tax_rate, tax_amount,
                   total, payment_method, notes))
             
             purchase_id = self.cursor.lastrowid
@@ -584,12 +583,11 @@ class Database:
                 """, (purchase_id, item['product_id'], item['quantity'], 
                       item['unit_price'], item_total))
                 
-                # Augmenter le stock
+                # Augmenter le stock (4 arguments : product_id, quantity, type, notes)
                 self.update_stock(
                     item['product_id'], 
                     item['quantity'],
                     'purchase',
-                    reference,
                     f"Achat #{reference}"
                 )
             
@@ -662,7 +660,13 @@ class Database:
         """)
         stats['low_stock_count'] = self.cursor.fetchone()['count']
         
+        year = datetime.now().year
+        stats['best_month'] = self.get_best_month(year)
+        stats['growth_rate'] = self.get_growth_rate(year)
+        
         return stats
+        
+        
     
     def get_sales_by_month(self, year):
         """Récupère les ventes par mois pour une année"""
@@ -708,6 +712,69 @@ class Database:
         """, (limit,))
         return [dict(row) for row in self.cursor.fetchall()]
     
+
+    def get_profit_by_month(self, year):
+        """Récupère le profit par mois"""
+        self.cursor.execute("""
+            SELECT 
+                strftime('%m', s.sale_date) as month,
+                COALESCE(SUM(s.total), 0) -
+                COALESCE((
+                    SELECT SUM(p.total)
+                    FROM purchases p
+                    WHERE strftime('%Y', p.purchase_date) = ?
+                    AND strftime('%m', p.purchase_date) = strftime('%m', s.sale_date)
+                ), 0) as profit
+            FROM sales s
+            WHERE strftime('%Y', s.sale_date) = ?
+            GROUP BY month
+            ORDER BY month
+        """, (str(year), str(year)))
+
+        return [dict(row) for row in self.cursor.fetchall()]
+    
+    def get_best_month(self, year):
+        """Retourne le meilleur mois en ventes"""
+        self.cursor.execute("""
+            SELECT 
+                strftime('%m', sale_date) as month,
+                SUM(total) as total
+            FROM sales
+            WHERE strftime('%Y', sale_date) = ?
+            GROUP BY month
+            ORDER BY total DESC
+            LIMIT 1
+        """, (str(year),))
+
+        row = self.cursor.fetchone()
+        return row['month'] if row else "-"
+    
+    def get_growth_rate(self, year):
+        """Calcule la croissance entre les deux derniers mois"""
+        self.cursor.execute("""
+            SELECT 
+                strftime('%m', sale_date) as month,
+                SUM(total) as total
+            FROM sales
+            WHERE strftime('%Y', sale_date) = ?
+            GROUP BY month
+            ORDER BY month DESC
+            LIMIT 2
+        """, (str(year),))
+
+        rows = self.cursor.fetchall()
+
+        if len(rows) < 2:
+            return 0
+
+        last, previous = rows[0]['total'], rows[1]['total']
+
+        if previous == 0:
+            return 0
+
+        return ((last - previous) / previous) * 100
+
+
     # ==================== PARAMÈTRES ====================
     
     def set_setting(self, key, value):
@@ -859,7 +926,7 @@ if __name__ == "__main__":
     db = Database("test_erp.db")
     
     # Remplir avec des données de test
-    # db.populate_test_data()
+    db.populate_test_data()
     
     # Exemples d'utilisation
     print("\n" + "="*60)
