@@ -174,7 +174,7 @@ class StatisticsPage(QWidget):
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                border-left: 4px solid {color};
+              
                 padding: 0px;
             }}
         """)
@@ -268,12 +268,12 @@ class StatisticsPage(QWidget):
                 background: {COLORS['bg_card']};
                 border-radius: 10px;
                 border: 1px solid {COLORS['border']};
-                border-top: 3px solid {color};
+                
                 padding: 0px;
             }}
         """)
-        card.setMinimumHeight(80)
-        card.setMaximumHeight(80)
+        card.setMinimumHeight(100)
+        card.setMaximumHeight(100)
         
         layout = QVBoxLayout()
         layout.setContentsMargins(12, 10, 12, 10)
@@ -447,3 +447,4 @@ class StatisticsPage(QWidget):
         """Convertit une couleur hex en RGB"""
         hex_color = hex_color.lstrip('#')
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    

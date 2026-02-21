@@ -179,7 +179,7 @@ class SettingsPage(QWidget):
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                border-left: 4px solid {COLORS['success']};
+              
                 padding: 0px;
             }}
         """)
@@ -235,7 +235,7 @@ class SettingsPage(QWidget):
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                border-left: 4px solid {COLORS['danger']};
+               
                 padding: 0px;
             }}
         """)
@@ -303,7 +303,7 @@ class SettingsPage(QWidget):
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                border-left: 4px solid {COLORS['info']};
+              
                 padding: 0px;
             }}
         """)
@@ -420,7 +420,7 @@ class SettingsPage(QWidget):
                 background: {COLORS['bg_medium']};
                 border-radius: 8px;
                 border: 1px solid {COLORS['border']};
-                border-top: 3px solid {color};
+              
                 padding: 0px;
             }}
         """)
