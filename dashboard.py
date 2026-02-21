@@ -319,7 +319,7 @@ class DashboardPage(QWidget):
 
         header = QHBoxLayout()
         icon_label = QLabel(icon)
-        icon_label.setFont(QFont("Segoe UI", 46))
+        icon_label.setFont(QFont("Segoe UI", 30))
         header.addWidget(icon_label)
 
         header.addStretch()
