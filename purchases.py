@@ -496,7 +496,7 @@ class PurchasesPage(QWidget):
         """)
         
         summary_layout = QVBoxLayout()
-        summary_layout.setContentsMargins(20, 15, 20, 15)
+        summary_layout.setContentsMargins(20, 15, 20, 25)
         summary_layout.setSpacing(8)
         summary_card.setLayout(summary_layout)
 
@@ -515,7 +515,7 @@ class PurchasesPage(QWidget):
         subtotal_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
         
         self.subtotal_label = QLabel("0.00 DA")
-        self.subtotal_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        self.subtotal_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.subtotal_label.setStyleSheet(f"color: {COLORS['text_primary']};")
         self.subtotal_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
