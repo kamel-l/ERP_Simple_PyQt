@@ -5,22 +5,22 @@ Design moderne et professionnel
 
 # ==================== COULEURS ====================
 COLORS = {
-    'primary': '#4F46E5',        # Indigo
-    'primary_dark': '#4338CA',
-    'secondary': '#06B6D4',      # Cyan
+    'primary': '#3B82F6',        # Bleu royal
+    'primary_dark': '#2563EB',
+    'secondary': '#A855F7',      # Violet pourpre
     'success': '#22C55E',        # Vert
-    'warning': '#FBBF24',        # Jaune
-    'danger': '#EF4444',         # Rouge
-    'info': '#3B82F6',           # Bleu
-    'bg_dark': '#0F0F23',        # Indigo très sombre
-    'bg_medium': '#1A1A3E',
-    'bg_light': '#2E2E50',
-    'bg_card': '#1A1A3E',
-    'text_primary': '#EEF2FF',
-    'text_secondary': '#E0E7FF',
-    'text_tertiary': '#A5B4FC',
-    'border': '#3730A3',
-    'border_light': '#4338CA',
+    'warning': '#FBBF24',        # Jaune or
+    'danger': '#F87171',         # Rouge doux
+    'info': '#38BDF8',           # Bleu ciel
+    'bg_dark': '#0A0E1A',        # Bleu nuit profond
+    'bg_medium': '#141B2D',
+    'bg_light': '#1E2A42',
+    'bg_card': '#141B2D',
+    'text_primary': '#F8FAFC',
+    'text_secondary': '#E2E8F0',
+    'text_tertiary': '#94A3B8',
+    'border': '#2D3A54',
+    'border_light': '#3B4B68',
 }
 
 # ==================== STYLES DE BOUTONS ====================

@@ -88,20 +88,6 @@ class AddProductDialog(QDialog):
         self.product_combo.currentIndexChanged.connect(self.on_product_selected)
         form_layout.addRow(product_label, self.product_combo)
 
-        # Référence
-        ref_label = QLabel("Référence:")
-        ref_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        
-        self.reference_display = QLabel("-")
-        self.reference_display.setStyleSheet(f"""
-            color: {COLORS['text_tertiary']}; 
-            border: none;
-            font-size: 14px;
-            padding: 10px;
-            background: {COLORS['bg_light']};
-            border-radius: 5px;
-        """)
-        form_layout.addRow(ref_label, self.reference_display)
 
         # Prix unitaire
         price_label = QLabel("Prix unitaire:")
@@ -231,7 +217,7 @@ class AddProductDialog(QDialog):
         products = self.db.get_all_products()
         for product in products:
             if product['stock_quantity'] > 0:
-                display_text = f"{product['name']} - {product['selling_price']:,.2f} DA (Stock: {product['stock_quantity']})"
+                display_text = f"{product['name']})"
                 self.product_combo.addItem(display_text, product)
 
     def on_product_selected(self, index):
@@ -240,14 +226,12 @@ class AddProductDialog(QDialog):
         
         if product:
             self.selected_product = product
-            self.reference_display.setText(product['reference'])
             self.price_display.setText(f"{product['selling_price']:,.2f} DA")
             self.stock_display.setText(str(product['stock_quantity']))
             self.quantity.setMaximum(product['stock_quantity'])
             self.update_total()
         else:
             self.selected_product = None
-            self.reference_display.setText("-")
             self.price_display.setText("0.00 DA")
             self.stock_display.setText("0")
 
@@ -280,7 +264,7 @@ class SalesPage(QWidget):
         
         self.db = get_database()
         self.cart_items = []  # Articles dans le panier
-
+        
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -343,15 +327,17 @@ class SalesPage(QWidget):
                 background: {COLORS['bg_card']};
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                padding: 15px;
+                padding: 0px;
             }}
         """)
         table_layout = QVBoxLayout()
+        table_layout.setContentsMargins(15, 15, 15, 15)
+        table_layout.setSpacing(10)
         table_container.setLayout(table_layout)
 
         table_title = QLabel("🛒 Panier")
         table_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; margin-bottom: 10px;")
+        table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         table_layout.addWidget(table_title)
 
         self.table = QTableWidget(0, 6)
@@ -369,9 +355,23 @@ class SalesPage(QWidget):
         self.table.setColumnWidth(5, 80)
         
         self.table.setAlternatingRowColors(True)
-        self.table.setStyleSheet(TABLE_STYLE)
         self.table.verticalHeader().setVisible(False)
         self.table.setMinimumHeight(300)
+        self.table.setStyleSheet(TABLE_STYLE + f"""
+            QHeaderView::section {{
+                background-color: {COLORS['bg_light']};
+                color: {COLORS['text_primary']};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 8px;
+                border: none;
+                border-right: 1px solid {COLORS['border']};
+                border-bottom: 2px solid {COLORS['primary']};
+            }}
+            QHeaderView::section:last {{
+                border-right: none;
+            }}
+        """)
 
         table_layout.addWidget(self.table)
         layout.addWidget(table_container)
@@ -440,6 +440,8 @@ class SalesPage(QWidget):
         self.total_label.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
         self.total_label.setStyleSheet(f"color: {COLORS['success']}; border: none;")
         self.total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+         
         
         amounts_grid.addWidget(total_label_text, 3, 0)
         amounts_grid.addWidget(self.total_label, 3, 1)
@@ -471,7 +473,7 @@ class SalesPage(QWidget):
         layout.addWidget(summary_card)
 
     def load_clients(self):
-        """Charge les clients"""
+        """Charge les clients (peut être appelée depuis l'extérieur pour rafraîchir)"""
         self.client_combo.clear()
         self.client_combo.addItem("Client Anonyme", None)
         
@@ -530,12 +532,12 @@ class SalesPage(QWidget):
             
             # Bouton supprimer
             remove_btn = QPushButton("🗑️")
+            remove_btn.setFont(QFont("Segoe UI", 14))
             remove_btn.setStyleSheet(f"""
                 QPushButton {{
                     background: transparent;
                     color: {COLORS['danger']};
                     border: none;
-                    font-size: 18px;
                 }}
                 QPushButton:hover {{
                     background: {COLORS['danger']};

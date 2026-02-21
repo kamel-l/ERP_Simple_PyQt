@@ -100,28 +100,44 @@ class SalesHistoryPage(QWidget):
                 background: {COLORS['bg_card']};
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                padding: 15px;
+                padding: 0px;
             }}
         """)
         table_layout = QVBoxLayout()
+        table_layout.setContentsMargins(15, 15, 15, 15)
+        table_layout.setSpacing(10)
         table_container.setLayout(table_layout)
 
         table_title = QLabel("📋 Liste des Ventes")
         table_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; margin-bottom: 10px;")
+        table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         table_layout.addWidget(table_title)
 
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels([
-            "N° Facture", "Date", "Client", "Articles", 
+            "N° Facture", "Date", "Client", "Articles",
             "Sous-total", "TVA", "Total TTC"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setStyleSheet(TABLE_STYLE)
         self.table.verticalHeader().setVisible(False)
-        
+        self.table.setStyleSheet(TABLE_STYLE + f"""
+            QHeaderView::section {{
+                background-color: {COLORS['bg_light']};
+                color: {COLORS['text_primary']};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 8px;
+                border: none;
+                border-right: 1px solid {COLORS['border']};
+                border-bottom: 2px solid {COLORS['primary']};
+            }}
+            QHeaderView::section:last {{
+                border-right: none;
+            }}
+        """)
+
         table_layout.addWidget(self.table)
         layout.addWidget(table_container)
 
@@ -151,7 +167,7 @@ class SalesHistoryPage(QWidget):
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 10px;
                 border: 1px solid {COLORS['border']};
-                border-left: 4px solid {color};
+               
             }}
         """)
         card.setFixedHeight(80)

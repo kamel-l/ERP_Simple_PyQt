@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (
     QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QFrame, QMessageBox
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 
@@ -84,6 +84,9 @@ class ClientDialog(QDialog):
 
 # ------------------ PAGE CLIENTS ------------------
 class ClientsPage(QWidget):
+    # Signal émis quand un client est ajouté ou modifié
+    client_added = pyqtSignal()
+    
     def __init__(self):
         super().__init__()
         
@@ -93,7 +96,7 @@ class ClientsPage(QWidget):
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
-
+        
         # ------------------- HEADER -------------------
         title = QLabel("👥 Gestion des Clients")
         title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
@@ -143,10 +146,12 @@ class ClientsPage(QWidget):
                 background: {COLORS['bg_card']};
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                padding: 15px;
+                padding: 0px;
             }}
         """)
         table_layout = QVBoxLayout()
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
         table_container.setLayout(table_layout)
         
         self.table = QTableWidget(0, 5)
@@ -154,8 +159,22 @@ class ClientsPage(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setStyleSheet(TABLE_STYLE)
         self.table.verticalHeader().setVisible(False)
+        self.table.setStyleSheet(TABLE_STYLE + f"""
+            QHeaderView::section {{
+                background-color: {COLORS['bg_light']};
+                color: {COLORS['text_primary']};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 8px;
+                border: none;
+                border-right: 1px solid {COLORS['border']};
+                border-bottom: 2px solid {COLORS['primary']};
+            }}
+            QHeaderView::section:last {{
+                border-right: none;
+            }}
+        """)
         
         table_layout.addWidget(self.table)
         layout.addWidget(table_container)
@@ -183,6 +202,7 @@ class ClientsPage(QWidget):
 
         # Charger les données
         self.load_clients()
+        client_added = pyqtSignal()
 
     def build_stat_card(self, title, value, color):
         """Construit une petite carte de statistique"""
@@ -320,6 +340,8 @@ class ClientsPage(QWidget):
                 )
                 self.load_clients()
                 self.load_statistics()
+                # Émettre le signal pour notifier les autres modules
+                self.client_added.emit()
             else:
                 QMessageBox.critical(
                     self,
@@ -327,6 +349,7 @@ class ClientsPage(QWidget):
                     "Impossible d'ajouter le client!"
                 )
 
+        
     # ------------------ MODIFIER CLIENT ------------------
     def edit_client(self):
         """Modifie un client existant"""
@@ -383,6 +406,8 @@ class ClientsPage(QWidget):
                     f"Client '{name}' modifié avec succès!"
                 )
                 self.load_clients()
+                # Émettre le signal pour notifier les autres modules
+                self.client_added.emit()
             else:
                 QMessageBox.critical(
                     self,
@@ -425,6 +450,8 @@ class ClientsPage(QWidget):
                 )
                 self.load_clients()
                 self.load_statistics()
+                # Émettre le signal pour notifier les autres modules
+                self.client_added.emit()
             else:
                 QMessageBox.critical(
                     self,

@@ -30,6 +30,7 @@ from clean_erp_data import run_full_cleanup
 from db_manager import get_database
 
 
+
 class MainWindow(QMainWindow):
     """Fenêtre principale de l'application"""
     
@@ -43,6 +44,14 @@ class MainWindow(QMainWindow):
         
         # Appliquer le thème sombre
         # qdarktheme.setup_theme("dark")
+
+        # Créer les pages
+        self.clients_page = ClientsPage()
+        self.sales_page = SalesPage()
+        
+        # Connecter le signal : quand un client est ajouté/modifié/supprimé,
+        # la liste dans la page Ventes se rafraîchit automatiquement
+        self.clients_page.client_added.connect(self.sales_page.load_clients)
         
         # Widget central
         central_widget = QWidget()
@@ -65,12 +74,12 @@ class MainWindow(QMainWindow):
             }}
         """)
         
-        # Ajouter les pages
+        # Ajouter les pages (utiliser les instances déjà créées pour clients et sales)
         self.pages = {}
         self.add_page("dashboard", DashboardPage(), "📊 Tableau de Bord")
-        self.add_page("clients", ClientsPage(), "👥 Clients")
+        self.add_page("clients", self.clients_page, "👥 Clients")
         self.add_page("products", ProductsPage(), "📦 Produits")
-        self.add_page("sales", SalesPage(), "💰 Ventes")
+        self.add_page("sales", self.sales_page, "💰 Ventes")
         self.add_page("purchases", PurchasesPage(), "🛒 Achats")
         self.add_page("history", SalesHistoryPage(), "📊 Historique")
         self.add_page("statistics", StatisticsPage(), "📈 Statistiques")
@@ -88,7 +97,8 @@ class MainWindow(QMainWindow):
         
         # Afficher le dashboard par défaut
         self.show_page("dashboard")
-    
+
+
     def add_page(self, key, page, title):
         """Ajoute une page au stack"""
         index = self.stack.count()

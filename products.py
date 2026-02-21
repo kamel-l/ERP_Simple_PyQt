@@ -76,14 +76,7 @@ class ProductDialog(QDialog):
         form_layout.setSpacing(15)
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        # Référence *
-        ref_label = QLabel("Référence: *")
-        ref_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        self.reference = QLineEdit()
-        self.reference.setPlaceholderText("Ex: HP-LAPTOP-001")
-        self.reference.setStyleSheet(INPUT_STYLE)
-        self.reference.setMinimumHeight(45)
-        form_layout.addRow(ref_label, self.reference)
+        
 
         # Nom du produit *
         name_label = QLabel("Nom du produit: *")
@@ -195,7 +188,7 @@ class ProductDialog(QDialog):
 
     def load_product_data(self, product):
         """Charge les données du produit pour modification"""
-        self.reference.setText(product.get("reference", ""))
+       
         self.name.setText(product.get("name", ""))
         self.category.setCurrentText(product.get("category_name", ""))
         self.quantity.setValue(product.get("stock_quantity", 0))
@@ -205,9 +198,6 @@ class ProductDialog(QDialog):
 
     def validate_and_accept(self):
         """Valide les données avant d'accepter"""
-        if not self.reference.text().strip():
-            QMessageBox.warning(self, "Erreur", "La référence est obligatoire!")
-            return
         
         if not self.name.text().strip():
             QMessageBox.warning(self, "Erreur", "Le nom du produit est obligatoire!")
@@ -276,22 +266,44 @@ class ProductsPage(QWidget):
                 background: {COLORS['bg_card']};
                 border-radius: 12px;
                 border: 1px solid {COLORS['border']};
-                padding: 15px;
+                padding: 0px;
             }}
         """)
         table_layout = QVBoxLayout()
+        table_layout.setContentsMargins(0, 0, 0, 0)
+        table_layout.setSpacing(0)
         table_container.setLayout(table_layout)
 
-        self.table = QTableWidget(0, 8)
+        self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Référence", "Nom", "Catégorie", "Stock", 
+            "ID", "Nom", "Catégorie", "Stock", 
             "Prix Achat", "Prix Vente", "Valeur Stock"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setStyleSheet(TABLE_STYLE)
         self.table.verticalHeader().setVisible(False)
+        
+        # Appliquer TABLE_STYLE en DERNIER pour que le header soit visible
+        self.table.setStyleSheet(TABLE_STYLE + f"""
+            QHeaderView::section {{
+                background-color: {COLORS['bg_light']};
+                color: {COLORS['text_primary']};
+                font-size: 13px;
+                font-weight: bold;
+                padding: 10px 8px;
+                border: none;
+                border-right: 1px solid {COLORS['border']};
+                border-bottom: 2px solid {COLORS['primary']};
+            }}
+            QHeaderView::section:first {{
+                border-top-left-radius: 8px;
+            }}
+            QHeaderView::section:last {{
+                border-top-right-radius: 8px;
+                border-right: none;
+            }}
+        """)
         
         table_layout.addWidget(self.table)
         layout.addWidget(table_container)
@@ -399,38 +411,33 @@ class ProductsPage(QWidget):
         self.table.insertRow(row)
         
         id_item = QTableWidgetItem(str(product["id"]))
-        id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         id_item.setData(Qt.ItemDataRole.UserRole, product["id"])
-        self.table.setItem(row, 0, id_item)
-        
-        ref_item = QTableWidgetItem(product.get("reference", "-"))
-        self.table.setItem(row, 1, ref_item)
         
         name_item = QTableWidgetItem(product["name"])
-        self.table.setItem(row, 2, name_item)
+        self.table.setItem(row, 1, name_item)
         
         cat_item = QTableWidgetItem(product.get("category_name", "-"))
-        self.table.setItem(row, 3, cat_item)
+        self.table.setItem(row, 2, cat_item)
         
         qty_item = QTableWidgetItem(str(product["stock_quantity"]))
         qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         if product["stock_quantity"] <= product.get("min_stock", 0):
             qty_item.setForeground(Qt.GlobalColor.red)
-        self.table.setItem(row, 4, qty_item)
+        self.table.setItem(row, 3, qty_item)
         
         price_buy_item = QTableWidgetItem(f"{product.get('purchase_price', 0):,.2f}")
         price_buy_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-        self.table.setItem(row, 5, price_buy_item)
+        self.table.setItem(row, 4, price_buy_item)
         
         price_item = QTableWidgetItem(f"{product['selling_price']:,.2f}")
         price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-        self.table.setItem(row, 6, price_item)
+        self.table.setItem(row, 5, price_item)
         
         total_value = product["stock_quantity"] * product["selling_price"]
         value_item = QTableWidgetItem(f"{total_value:,.2f}")
         value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        self.table.setItem(row, 7, value_item)
+        self.table.setItem(row, 6, value_item)
 
     def add_product(self):
         """Ajoute un nouveau produit"""
@@ -449,7 +456,6 @@ class ProductsPage(QWidget):
                     category_id = category['id']
             
             product_id = self.db.add_product(
-                reference=dialog.reference.text().strip(),
                 name=dialog.name.text().strip(),
                 selling_price=dialog.price.value(),
                 category_id=category_id,
@@ -494,7 +500,6 @@ class ProductsPage(QWidget):
             
             if self.db.update_product(
                 product_id=product_id,
-                reference=dialog.reference.text().strip(),
                 name=dialog.name.text().strip(),
                 selling_price=dialog.price.value(),
                 category_id=category_id,
@@ -516,7 +521,7 @@ class ProductsPage(QWidget):
             return
         
         product_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
-        product_name = self.table.item(selected, 2).text()
+        product_name = self.table.item(selected, 1).text()
         
         reply = QMessageBox.question(
             self,
@@ -558,39 +563,62 @@ class ProductsPage(QWidget):
             updated = 0
             errors = []
             
-            with open(file_path, 'r', encoding='utf-8') as file:
+            with open(file_path, 'r', encoding='utf-8-sig') as file:
                 csv_reader = csv.DictReader(file)
                 
                 for row_num, row in enumerate(csv_reader, start=2):
+                    print(row.get('quantity'))
                     try:
-                        reference = row.get('reference', '').strip()
                         name = row.get('name', '').strip()
                         
-                        if not reference or not name:
-                            errors.append(f"Ligne {row_num}: Référence ou nom manquant")
+                        # Vérifier que le nom est présent (obligatoire)
+                        if not name:
+                            errors.append(f"Ligne {row_num}: Nom manquant")
                             continue
                         
-                        selling_price = float(row.get('price', row.get('selling_price', 0)))
-                        purchase_price = float(row.get('price_buy', row.get('purchase_price', 0)))
-                        stock = int(row.get('quantity', row.get('stock_quantity', 0)))
+                        # Nettoyer et convertir les prix (gérer les formats avec espaces et "DA")
+                        try:
+                            selling_price_str = row.get('price', row.get('selling_price', '0'))
+                            selling_price_str = selling_price_str.replace(' ', '').replace('DA', '').replace(',', '.')
+                            selling_price = float(selling_price_str) if selling_price_str else 0.0
+                        except:
+                            selling_price = 0.0
                         
-                        # Vérifier si existe
-                        existing = self.db.get_product_by_reference(reference)
+                        try:
+                            purchase_price_str = row.get('price_buy', row.get('purchase_price', '0'))
+                            purchase_price_str = purchase_price_str.replace(' ', '').replace('DA', '').replace(',', '.')
+                            purchase_price = float(purchase_price_str) if purchase_price_str else 0.0
+                        except:
+                            purchase_price = 0.0
                         
-                        if existing:
-                            # Mettre à jour
-                            self.db.update_product(
-                                existing['id'], reference, name, selling_price,
-                                None, "", purchase_price, stock, 5
-                            )
-                            updated += 1
-                        else:
-                            # Ajouter
-                            self.db.add_product(
-                                reference, name, selling_price,
-                                None, "", purchase_price, stock, 5
-                            )
-                            imported += 1
+                        try:
+                            stock = int(row.get('quantity'))
+                        except:
+                            stock = 100
+                        
+                        try:
+                            min_stock = int(row.get('min_stock', 5))
+                        except:
+                            min_stock = 5
+                        
+                        # Récupérer la catégorie
+                        category_name = row.get('category', row.get('category_name', '')).strip()
+                        category_id = None
+                        
+                        if category_name:
+                            categories = self.db.get_all_categories()
+                            category = next((c for c in categories if c['name'] == category_name), None)
+                            if not category:
+                                category_id = self.db.add_category(category_name)
+                            else:
+                                category_id = category['id']
+                        
+                        # Ajouter le produit (on n'essaie plus de vérifier l'existence)
+                        self.db.add_product(
+                            name, selling_price,
+                            category_id, "", purchase_price, stock, min_stock
+                        )
+                        imported += 1
                             
                     except Exception as e:
                         errors.append(f"Ligne {row_num}: {str(e)}")
@@ -600,7 +628,8 @@ class ProductsPage(QWidget):
             
             message = f"✅ Importés: {imported}\n🔄 Mis à jour: {updated}"
             if errors:
-                message += f"\n❌ Erreurs: {len(errors)}"
+                message += f"\n❌ Erreurs: {len(errors)}\n\nPremières erreurs:\n"
+                message += "\n".join(errors[:5])
             
             QMessageBox.information(self, "Import terminé", message)
             
@@ -620,7 +649,7 @@ class ProductsPage(QWidget):
             products = self.db.get_all_products()
             
             with open(file_path, 'w', newline='', encoding='utf-8') as file:
-                fieldnames = ['id', 'reference', 'name', 'category', 'stock_quantity',
+                fieldnames = ['id', 'name', 'category', 'stock_quantity',
                             'purchase_price', 'selling_price', 'min_stock']
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
                 
@@ -628,7 +657,6 @@ class ProductsPage(QWidget):
                 for product in products:
                     writer.writerow({
                         'id': product['id'],
-                        'reference': product['reference'],
                         'name': product['name'],
                         'category': product.get('category_name', ''),
                         'stock_quantity': product['stock_quantity'],
