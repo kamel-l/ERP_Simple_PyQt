@@ -169,7 +169,7 @@ class SettingsPage(QWidget):
         database_layout = QVBoxLayout()
         database_tab.setLayout(database_layout)
         database_layout.setContentsMargins(20, 20, 20, 20)
-        database_layout.setSpacing(20)
+        database_layout.setSpacing(10)
 
         # Section Sauvegarde
         backup_card = QFrame()
@@ -242,7 +242,7 @@ class SettingsPage(QWidget):
         cleanup_layout = QVBoxLayout()
         cleanup_card.setLayout(cleanup_layout)
         cleanup_layout.setContentsMargins(20, 20, 20, 20)
-        cleanup_layout.setSpacing(15)
+        cleanup_layout.setSpacing(10)
 
         cleanup_title = QLabel("🗑️ Nettoyage de la Base de Données")
         cleanup_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
@@ -310,7 +310,7 @@ class SettingsPage(QWidget):
         stats_layout = QVBoxLayout()
         stats_card.setLayout(stats_layout)
         stats_layout.setContentsMargins(20, 20, 20, 20)
-        stats_layout.setSpacing(15)
+        stats_layout.setSpacing(10)
 
         stats_title = QLabel("📊 Statistiques de la Base")
         stats_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
@@ -329,6 +329,7 @@ class SettingsPage(QWidget):
         refresh_stats_btn = QPushButton("🔄 Rafraîchir les Statistiques")
         refresh_stats_btn.setStyleSheet(BUTTON_STYLES['secondary'])
         refresh_stats_btn.setMinimumHeight(40)
+        refresh_stats_btn.setFixedWidth(250)
         refresh_stats_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         refresh_stats_btn.clicked.connect(self.refresh_stats)
         stats_layout.addWidget(refresh_stats_btn)
