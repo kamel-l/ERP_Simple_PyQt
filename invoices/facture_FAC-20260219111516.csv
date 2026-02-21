@@ -1,0 +1,12 @@
+Facture N°,FAC-20260219111516
+Date,2026-02-19 10:15:16
+Client,malek
+
+Produit,Quantité,Prix Unitaire,Remise (%),Total
+70038,12,2.5,0.0,30.0
+78 CALIFORNIA,4,20.0,0.0,80.0
+72 CALIFIRNIA,4,20.0,0.0,80.0
+
+Sous-total,190.0
+TVA,36.1
+Total TTC,226.1
