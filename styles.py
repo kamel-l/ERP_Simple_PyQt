@@ -1,281 +1,126 @@
-"""
-Module de styles réutilisables pour l'application
-Design moderne et professionnel
-"""
+# ============================
+#   STYLES.PY - DARK PREMIUM
+#   Theme: Dark SaaS 2025
+#   Font: Inter
+#   Accent: Cyan (#00BCD4)
+# ============================
 
-# ==================== COULEURS ====================
 COLORS = {
-    'primary': '#3B82F6',        # Bleu royal
-    'primary_dark': '#2563EB',
-    'secondary': '#A855F7',      # Violet pourpre
-    'success': '#22C55E',        # Vert
-    'warning': '#FBBF24',        # Jaune or
-    'danger': '#F87171',         # Rouge doux
-    'info': '#38BDF8',           # Bleu ciel
-    'bg_dark': '#0A0E1A',        # Bleu nuit profond
-    'bg_medium': '#141B2D',
-    'bg_light': '#1E2A42',
-    'bg_card': '#141B2D',
-    'text_primary': '#F8FAFC',
-    'text_secondary': '#E2E8F0',
-    'text_tertiary': '#94A3B8',
-    'border': '#2D3A54',
-    'border_light': '#3B4B68',
+    "accent": "#00BCD4",
+    "accent_light": "#26D8F1",
+    "accent_dark": "#0091A6",
+
+    # Text
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#BFC6D0",
+    "text_tertiary": "#8A8F99",
+
+    # Backgrounds
+    "bg_dark": "#10141A",
+    "bg_card": "#161B22",
+    "bg_card_hover": "#1E252E",
+    "bg_input": "#1A1F26",
+
+    # Borders
+    "border": "#2A313C",
+    "border_strong": "#3A424F",
+
+    # KPI colors
+    "success": "#4CAF50",
+    "warning": "#FFC107",
+    "danger": "#FF5252",
+    "info": "#29B6F6",
+    "secondary": "#9C27B0",
 }
 
-# ==================== STYLES DE BOUTONS ====================
-BUTTON_STYLES = {
-    'primary': f"""
-        QPushButton {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS['primary']}, stop:1 {COLORS['primary_dark']});
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            min-height: 36px;
-        }}
-        QPushButton:hover {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #1A94FF, stop:1 #0A84FF);
-        }}
-        QPushButton:pressed {{
-            background: {COLORS['primary_dark']};
-        }}
-        QPushButton:disabled {{
-            background: #3A3A3C;
-            color: #8E8E93;
-        }}
-    """,
-    
-    'success': f"""
-        QPushButton {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS['success']}, stop:1 #28C248);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            min-height: 36px;
-        }}
-        QPushButton:hover {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #40E168, stop:1 {COLORS['success']});
-        }}
-        QPushButton:pressed {{
-            background: #28C248;
-        }}
-    """,
-    
-    'danger': f"""
-        QPushButton {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS['danger']}, stop:1 #D93D32);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            min-height: 36px;
-        }}
-        QPushButton:hover {{
-            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #FF5549, stop:1 {COLORS['danger']});
-        }}
-        QPushButton:pressed {{
-            background: #D93D32;
-        }}
-    """,
-    
-    'secondary': f"""
-        QPushButton {{
-            background: transparent;
-            color: {COLORS['primary']};
-            border: 2px solid {COLORS['primary']};
-            border-radius: 8px;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            min-height: 36px;
-        }}
-        QPushButton:hover {{
-            background: rgba(10, 132, 255, 0.1);
-            border-color: #1A94FF;
-        }}
-        QPushButton:pressed {{
-            background: rgba(10, 132, 255, 0.2);
-        }}
-    """,
-}
+# =======================================
+#      Global StyleSheet (Dark Premium)
+# =======================================
 
-# ==================== STYLES DE CARTES ====================
-CARD_STYLE = f"""
+GLOBAL_STYLE = f"""
+    * {{
+        font-family: Inter;
+        color: {COLORS['text_primary']};
+    }}
+
+    QWidget {{
+        background-color: {COLORS['bg_dark']};
+    }}
+
     QFrame {{
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 {COLORS['bg_card']}, stop:1 #242424);
-        border-radius: 12px;
+        background-color: {COLORS['bg_card']};
         border: 1px solid {COLORS['border']};
+        border-radius: 10px;
     }}
-    QFrame:hover {{
-        border: 1px solid {COLORS['border_light']};
-    }}
-"""
 
-# ==================== STYLES DE TABLEAUX ====================
-TABLE_STYLE = f"""
-    QTableWidget {{
-        background-color: {COLORS['bg_medium']};
-        alternate-background-color: {COLORS['bg_light']};
-        border: 1px solid {COLORS['border']};
-        border-radius: 8px;
-        gridline-color: {COLORS['border']};
-        color: {COLORS['text_primary']};
-        selection-background-color: {COLORS['primary']};
-    }}
-    QTableWidget::item {{
-        padding: 8px;
-        border: none;
-    }}
-    QTableWidget::item:selected {{
-        background-color: {COLORS['primary']};
-        color: white;
-    }}
-    QTableWidget::item:hover {{
-        background-color: {COLORS['bg_light']};
-    }}
-    QHeaderView::section {{
-        background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 {COLORS['bg_light']}, stop:1 {COLORS['bg_medium']});
-        color: {COLORS['text_primary']};
-        padding: 10px;
-        border: none;
-        border-bottom: 2px solid {COLORS['primary']};
-        font-weight: bold;
-        font-size: 13px;
-    }}
-    QHeaderView::section:hover {{
-        background: {COLORS['bg_light']};
-    }}
-"""
-
-# ==================== STYLES DE CHAMPS DE SAISIE ====================
-INPUT_STYLE = f"""
-    QLineEdit, QComboBox {{
-        background-color: {COLORS['bg_light']};
-        border: 2px solid {COLORS['border']};
-        border-radius: 8px;
-        padding: 8px 12px;
-        color: {COLORS['text_primary']};
-        font-size: 14px;
-        min-height: 36px;
-    }}
-    QLineEdit:focus, QComboBox:focus {{
-        border: 2px solid {COLORS['primary']};
-        background-color: {COLORS['bg_medium']};
-    }}
-    QLineEdit:hover, QComboBox:hover {{
-        border: 2px solid {COLORS['border_light']};
-    }}
-    QComboBox::drop-down {{
-        border: none;
-        width: 30px;
-    }}
-    QComboBox::down-arrow {{
-        image: none;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        border-top: 5px solid {COLORS['text_tertiary']};
-        margin-right: 10px;
-    }}
-    QComboBox QAbstractItemView {{
-        background-color: {COLORS['bg_light']};
-        border: 1px solid {COLORS['border']};
-        selection-background-color: {COLORS['primary']};
-        color: {COLORS['text_primary']};
-    }}
-"""
-
-# ==================== STYLES DE DIALOGUES ====================
-DIALOG_STYLE = f"""
-    QDialog {{
-        background-color: {COLORS['bg_medium']};
-    }}
     QLabel {{
         color: {COLORS['text_primary']};
+        font-size: 14px;
     }}
-"""
 
-# ==================== STYLES DE SCROLLBAR ====================
-SCROLLBAR_STYLE = f"""
-    QScrollBar:vertical {{
+    QLineEdit, QComboBox {{
+        background-color: {COLORS['bg_input']};
+        border: 1px solid {COLORS['border_strong']};
+        padding: 8px;
+        border-radius: 6px;
+        color: white;
+    }}
+
+    QPushButton {{
+        background-color: {COLORS['accent']};
+        color: white;
+        padding: 10px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: bold;
         border: none;
-        background: {COLORS['bg_medium']};
+    }}
+
+    QPushButton:hover {{
+        background-color: {COLORS['accent_light']};
+    }}
+
+    QPushButton:pressed {{
+        background-color: {COLORS['accent_dark']};
+    }}
+
+    QScrollArea {{
+        background-color: transparent;
+        border: none;
+    }}
+
+    /* Scrollbar */
+    QScrollBar:vertical {{
         width: 10px;
+        background: transparent;
         margin: 0px;
     }}
     QScrollBar::handle:vertical {{
-        background: {COLORS['bg_light']};
+        background: {COLORS['accent_dark']};
         border-radius: 5px;
-        min-height: 20px;
+        min-height: 30px;
     }}
     QScrollBar::handle:vertical:hover {{
-        background: {COLORS['border_light']};
+        background: {COLORS['accent_light']};
     }}
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-        height: 0px;
+
+    /* Table */
+    QTableWidget {{
+        background-color: {COLORS['bg_card']};
+        alternate-background-color: {COLORS['bg_card_hover']};
+        gridline-color: {COLORS['border']};
+        border-radius: 8px;
     }}
-    QScrollBar:horizontal {{
+
+    QHeaderView::section {{
+        background-color: {COLORS['accent']};
+        color: black;
+        font-weight: bold;
+        padding: 8px;
         border: none;
-        background: {COLORS['bg_medium']};
-        height: 10px;
-        margin: 0px;
     }}
-    QScrollBar::handle:horizontal {{
-        background: {COLORS['bg_light']};
-        border-radius: 5px;
-        min-width: 20px;
-    }}
-    QScrollBar::handle:horizontal:hover {{
-        background: {COLORS['border_light']};
-    }}
-    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
-        width: 0px;
-    }}
-"""
 
-# ==================== FONCTION POUR CRÉER UNE CARTE KPI ====================
-def get_kpi_card_style(color):
-    """Retourne le style pour une carte KPI avec la couleur spécifiée"""
-    return f"""
-        QFrame {{
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 {COLORS['bg_card']}, stop:1 #242424);
-            border-radius: 12px;
-            border: 1px solid {COLORS['border']};
-            border-left: 4px solid {color};
-        }}
-        QFrame:hover {{
-            border: 1px solid {COLORS['border_light']};
-            border-left: 4px solid {color};
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 #323232, stop:1 #2A2A2A);
-        }}
-    """
-
-# ==================== STYLES GLOBAUX ====================
-GLOBAL_STYLE = f"""
-    QWidget {{
-        background-color: {COLORS['bg_dark']};
-        color: {COLORS['text_primary']};
-        font-family: 'Segoe UI', Arial, sans-serif;
+    QTableWidget::item:hover {{
+        background-color: {COLORS['bg_card_hover']};
     }}
-    
-    {INPUT_STYLE}
-    {TABLE_STYLE}
-    {SCROLLBAR_STYLE}
 """

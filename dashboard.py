@@ -1,17 +1,24 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
-    QGridLayout, QPushButton, QScrollArea, QHeaderView
+    QPushButton, QScrollArea, QTableWidget, QTableWidgetItem
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QObject, pyqtProperty, QPropertyAnimation
 from styles import COLORS
 from db_manager import get_database
-from PyQt6.QtCore import QObject, pyqtProperty, QPropertyAnimation
-from PyQt6.QtWidgets import QTableWidget, QTableWidgetItem
+# Import des fonctions DB correctes
+from db_manager import (
+    get_statistics,
+    get_recent_sales,
+    get_recent_purchases,
+    get_top_clients,
+    get_low_stock_products,
+)
 
 
-              #==================================Classe d’animation KPI (à ajouter en haut du fichier)===================================
-
+# ============================================================
+#                KPI VALUE ANIMATOR
+# ============================================================
 class KpiAnimator(QObject):
     def __init__(self, label):
         super().__init__()
@@ -30,444 +37,284 @@ class KpiAnimator(QObject):
     value = pyqtProperty(float, fget=getValue, fset=setValue)
 
 
+# ============================================================
+#                     DASHBOARD PAGE
+# ============================================================
 class DashboardPage(QWidget):
-    """Dashboard moderne avec grands widgets (version premium améliorée)"""
-
     def __init__(self):
         super().__init__()
         self.db = get_database()
 
-        # ========== SCROLL GLOBAL ==========
+        # Scroll wrapper
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(f"""
-            QScrollArea {{
-                border: none;
-                background: {COLORS['bg_dark']};
-            }}
-        """)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
 
-        # Conteneur principal
         container = QWidget()
         main_layout = QVBoxLayout(container)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setContentsMargins(25, 25, 25, 25)
+        main_layout.setSpacing(25)
 
-        # ============================================================
-        #                        HEADER
-        # ============================================================
-
-        header_layout = QHBoxLayout()
+        # --------------------------------------------------------
+        #                         HEADER
+        # --------------------------------------------------------
+        header = QHBoxLayout()
 
         title = QLabel("📊 Tableau de Bord")
-        title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']};")
-        header_layout.addWidget(title)
+        title.setFont(QFont("Inter", 32, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {COLORS['accent']};")
+        header.addWidget(title)
 
-        subtitle = QLabel("Vue d’ensemble de l’activité du système")
-        subtitle.setFont(QFont("Segoe UI", 13))
-        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']}; margin-left: 10px;")
-        header_layout.addWidget(subtitle)
+        subtitle = QLabel("Vue générale des opérations")
+        subtitle.setFont(QFont("Inter", 15))
+        subtitle.setStyleSheet(f"color: {COLORS['text_secondary']}; margin-left: 12px;")
+        header.addWidget(subtitle)
 
-        header_layout.addStretch()
+        header.addStretch()
 
-        refresh_btn = QPushButton("🔄 Actualiser")
-        refresh_btn.setStyleSheet(f"""
+        btn = QPushButton("🔄 Actualiser")
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setStyleSheet(f"""
             QPushButton {{
-                background: {COLORS['primary']};
-                color: white;
-                border: none;
+                background: {COLORS['accent']};
+                padding: 10px 24px;
                 border-radius: 6px;
-                padding: 12px 25px;
                 font-size: 14px;
                 font-weight: bold;
+                color: black;
             }}
             QPushButton:hover {{
-                background: {COLORS['primary_dark']};
+                background: {COLORS['accent_light']};
             }}
         """)
-        refresh_btn.clicked.connect(self.refresh)
-        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        header_layout.addWidget(refresh_btn)
+        btn.clicked.connect(self.refresh)
+        header.addWidget(btn)
 
-        main_layout.addLayout(header_layout)
+        main_layout.addLayout(header)
 
-
-        # ============================================================
-        #                        KPI PREMIUM LARGE
-        # ============================================================
-
+        # --------------------------------------------------------
+        #                     KPI STAT CARDS
+        # --------------------------------------------------------
         kpi_row = QHBoxLayout()
         kpi_row.setSpacing(25)
 
-        self.kpi_sales = self.create_kpi_card_large(
-            "💰", "Ventes Totales", "0 DA",
-            "Total des ventes", COLORS['primary']
-        )
-        self.kpi_purchases = self.create_kpi_card_large(
-            "🛒", "Achats", "0 DA",
-            "Achats effectués", COLORS['warning']
-        )
-        self.kpi_profit = self.create_kpi_card_large(
-            "📈", "Bénéfice Net", "0 DA",
-            "Marge bénéficiaire", COLORS['success']
-        )
-        self.kpi_clients = self.create_kpi_card_large(
-            "👥", "Clients", "0",
-            "Clients enregistrés", COLORS['secondary']
-        )
+        self.kpi_sales = self.create_kpi("💰", "Ventes Totales", "0 DA", COLORS["accent"])
+        self.kpi_purchase = self.create_kpi("🛒", "Achats", "0 DA", COLORS["warning"])
+        self.kpi_profit = self.create_kpi("📈", "Profit", "0 DA", COLORS["success"])
+        self.kpi_clients = self.create_kpi("👥", "Clients", "0", COLORS["secondary"])
 
         kpi_row.addWidget(self.kpi_sales)
-        kpi_row.addWidget(self.kpi_purchases)
+        kpi_row.addWidget(self.kpi_purchase)
         kpi_row.addWidget(self.kpi_profit)
         kpi_row.addWidget(self.kpi_clients)
 
         main_layout.addLayout(kpi_row)
 
-        # ============================================================
-        #                        ACTIVITÉS RÉCENTES
-        # ============================================================
-
-        activities_card = self.create_section_card("📋 Activités Récentes")
-
-        activities_layout = QVBoxLayout()
-        activities_layout.setSpacing(10)
-        activities_layout.setContentsMargins(15, 10, 15, 15)
-
-        activities_card.setLayout(activities_layout)
-        self.activities_container = activities_layout
+        # --------------------------------------------------------
+        #                  ACTIVITÉS RÉCENTES
+        # --------------------------------------------------------
+        activities_card = self.section_card("📋 Activités Récentes")
+        self.activities_layout = QVBoxLayout()
+        self.activities_layout.setContentsMargins(15, 55, 15, 15)
+        self.activities_layout.setSpacing(8)
+        activities_card.setLayout(self.activities_layout)
         main_layout.addWidget(activities_card)
 
-        # ============================================================
-        #                        INFO RAPIDE GRANDE TAILLE
-        # ============================================================
+        # --------------------------------------------------------
+        #                   INFO QUICK METRICS
+        # --------------------------------------------------------
+        info_row = QHBoxLayout()
+        info_row.setSpacing(20)
 
-        quick_row = QHBoxLayout()
-        quick_row.setSpacing(20)
+        self.info_today = self.info_card("📅", "Ventes Aujourd’hui", "0 DA", COLORS["info"])
+        self.info_best = self.info_card("🏆", "Top Client", "-", COLORS["success"])
+        self.info_stock = self.info_card("⚠️", "Stock Faible", "0 Produit", COLORS["danger"])
 
-        self.info_sales_today = self.create_info_card(
-            "📅", "Ventes Aujourd’hui", "0 DA", COLORS['info']
-        )
-        self.info_best_client = self.create_info_card(
-            "🏆", "Top Client", "-", COLORS['success']
-        )
-        self.info_stock_low = self.create_info_card(
-            "⚠️", "Stock Faible", "0 produits", COLORS['warning']
-        )
+        info_row.addWidget(self.info_today)
+        info_row.addWidget(self.info_best)
+        info_row.addWidget(self.info_stock)
 
-        quick_row.addWidget(self.info_sales_today)
-        quick_row.addWidget(self.info_best_client)
-        quick_row.addWidget(self.info_stock_low)
+        main_layout.addLayout(info_row)
 
-        main_layout.addLayout(quick_row)
+        # --------------------------------------------------------
+        #                  DERNIÈRES FACTURES
+        # --------------------------------------------------------
+        title2 = QLabel("🧾 Dernières Factures")
+        title2.setFont(QFont("Inter", 20, QFont.Weight.Bold))
+        main_layout.addWidget(title2)
 
-        main_layout.addStretch()
+        self.table = self.create_invoice_table()
+        main_layout.addWidget(self.table)
 
+        # --------------------------------------------------------
         scroll.setWidget(container)
+        layout = QVBoxLayout(self)
+        layout.addWidget(scroll)
 
-        final_layout = QVBoxLayout(self)
-        final_layout.setContentsMargins(0, 0, 0, 0)
-        final_layout.addWidget(scroll)
-
-        # Ajouter le tableau des factures (désormais un container complet avec titre)
-        invoice_container = self.create_invoice_table()
-        main_layout.addWidget(invoice_container)
-
-        # Charger les données
         self.refresh()
-    
-    # =======================================================================================
-    #                        Tableau des dernières factures (widget complet)
-    # =======================================================================================
 
-
-    def create_invoice_table(self):
-        """Crée un tableau moderne des dernières factures"""
-        # Container avec style moderne
-        table_container = QFrame()
-        table_container.setStyleSheet(f"""
-            QFrame {{
-                background: {COLORS['bg_card']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 0px;
-            }}
-        """)
-        table_layout = QVBoxLayout()
-        table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(0)
-        table_container.setLayout(table_layout)
-        
-        # Titre de section
-        title = QLabel("🧾 Dernières Factures")
-        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']}; padding: 15px;")
-        table_layout.addWidget(title)
-        
-        # Table
-        table = QTableWidget(0, 5)
-        table.setHorizontalHeaderLabels(["Facture", "Client", "Total", "Date", "Paiement"])
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        table.setAlternatingRowColors(True)
-        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        table.verticalHeader().setVisible(False)
-        
-        # Importer TABLE_STYLE et appliquer le style moderne
-        from styles import TABLE_STYLE
-        table.setStyleSheet(TABLE_STYLE + f"""
-            QTableWidget {{
-                background-color: {COLORS['bg_medium']};
-                alternate-background-color: {COLORS['bg_light']};
-            }}
-            QHeaderView::section {{
-                background-color: {COLORS['bg_light']};
-                color: {COLORS['text_primary']};
-                font-size: 13px;
-                font-weight: bold;
-                padding: 10px 8px;
-                border: none;
-                border-right: 1px solid {COLORS['border']};
-                border-bottom: 2px solid {COLORS['primary']};
-            }}
-            QHeaderView::section:first {{
-                border-top-left-radius: 8px;
-            }}
-            QHeaderView::section:last {{
-                border-top-right-radius: 8px;
-                border-right: none;
-            }}
-        """)
-        
-        table.setMinimumHeight(300)
-        table.setMaximumHeight(400)
-        
-        table_layout.addWidget(table)
-        
-        self.invoice_table = table
-        return table_container    
-    
-
-    # =========================================================================
-    #                          la fonction de chargement
-    # =========================================================================
-    
-    def load_invoices_table(self):
-        """Charge les dernières factures dans le tableau"""
-        data = self.db.get_all_sales(limit=10)
-
-        self.invoice_table.setRowCount(len(data))
-
-        for row, sale in enumerate(data):
-            # Facture
-            self.invoice_table.setItem(row, 0, QTableWidgetItem(str(sale['invoice_number'])))
-            
-            # Client
-            client_name = sale.get('client_name', sale.get('client', '—'))
-            self.invoice_table.setItem(row, 1, QTableWidgetItem(client_name))
-            
-            # Total
-            self.invoice_table.setItem(row, 2, QTableWidgetItem(f"{sale['total']:,.0f} DA"))
-            
-            # Date
-            date_str = sale.get('sale_date', '—')
-            if date_str and date_str != '—':
-                # Extraire juste la date (sans l'heure si présente)
-                date_str = str(date_str).split(' ')[0]
-            self.invoice_table.setItem(row, 3, QTableWidgetItem(date_str))
-            
-            # Paiement
-            payment = sale.get('payment_method', sale.get('payment_mode', '—'))
-            self.invoice_table.setItem(row, 4, QTableWidgetItem(payment))
-    # =========================================================================
-    #                      Fonction pour animer un KPI
-    # =========================================================================    
-    
-
-    def animate_kpi(self, label, target, suffix=""):
-        anim = KpiAnimator(label)
-        anim.suffix = suffix
-        animation = QPropertyAnimation(anim, b"value")
-        animation.setDuration(600)
-        animation.setStartValue(0)
-        animation.setEndValue(float(target))
-        animation.start()
-        label.animation = animation  # pour éviter le garbage collector
-    # =====================================================================
-    #                          CARTES KPI
-    # =====================================================================
-
-    def create_kpi_card_large(self, icon, title, value, subtitle, color):
+    # ============================================================
+    #                      KPI CARD CREATOR
+    # ============================================================
+    def create_kpi(self, icon, title, value, color):
         card = QFrame()
+        card.setFixedHeight(160)
         card.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 14px;
+                background: {COLORS['bg_card']};
                 border: 1px solid {COLORS['border']};
-                
+                border-radius: 14px;
             }}
         """)
-        
-
-        card.setMinimumHeight(180)
-        card.setMaximumHeight(180)
-        
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(8, 2, 8, 2)
-        layout.setSpacing(8)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(6)
 
-        header = QHBoxLayout()
-        icon_label = QLabel(icon)
-        icon_label.setFont(QFont("Segoe UI", 30))
-        header.addWidget(icon_label)
+        icon_l = QLabel(icon)
+        icon_l.setFont(QFont("Inter", 32))
+        layout.addWidget(icon_l)
 
-        header.addStretch()
+        label_title = QLabel(title)
+        label_title.setFont(QFont("Inter", 13))
+        label_title.setStyleSheet(f"color: {COLORS['text_secondary']};")
+        layout.addWidget(label_title)
 
-        title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 16))
-        title_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-        header.addWidget(title_label)
+        label_value = QLabel(value)
+        label_value.setFont(QFont("Inter", 28, QFont.Weight.Bold))
+        label_value.setStyleSheet(f"color: {color};")
+        layout.addWidget(label_value)
 
-        layout.addLayout(header)
+        layout.addStretch()
 
-        value_label = QLabel(value)
-        value_label.setFont(QFont("Segoe UI", 40, QFont.Weight.Bold))
-        value_label.setStyleSheet(f"color: {color};")
-        layout.addWidget(value_label)
-
-        subtitle_label = QLabel(subtitle)
-        subtitle_label.setFont(QFont("Segoe UI", 14))
-        subtitle_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-        layout.addWidget(subtitle_label)
-
-        card.value_label = value_label
-
+        card.value_label = label_value
         return card
 
-    # =====================================================================
-    #                          SECTION CARD
-    # =====================================================================
-
-    def create_section_card(self, title):
+    # ============================================================
+    #                    SECTION TITLE CARD
+    # ============================================================
+    def section_card(self, title):
         frame = QFrame()
+        frame.setMinimumHeight(200)
         frame.setStyleSheet(f"""
             QFrame {{
                 background: {COLORS['bg_card']};
-                border-radius: 14px;
+                border-radius: 12px;
                 border: 1px solid {COLORS['border']};
             }}
         """)
-        frame.setMinimumHeight(250)
 
         title_label = QLabel(title, parent=frame)
-        title_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {COLORS['text_primary']}; padding: 12px;")
+        title_label.setFont(QFont("Inter", 18, QFont.Weight.Bold))
+        title_label.move(20, 12)
 
         return frame
 
-    # =====================================================================
-    #                          INFO CARDS LARGE
-    # =====================================================================
-
-    def create_info_card(self, icon, title, value, color):
+    # ============================================================
+    #                     SMALL INFO CARDS
+    # ============================================================
+    def info_card(self, icon, title, value, color):
         card = QFrame()
+        card.setFixedHeight(110)
         card.setStyleSheet(f"""
             QFrame {{
                 background: {COLORS['bg_card']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                
+                border-radius: 8px;
+                border-top: 4px solid {color};
             }}
         """)
-        card.setMinimumHeight(220)
-        card.setMaximumHeight(220)
 
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(12, 10, 12, 10)
-        layout.setSpacing(5)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_label = QLabel(icon)
-        icon_label.setFont(QFont("Segoe UI", 25))
-        layout.addWidget(icon_label)
+        icon_l = QLabel(icon)
+        icon_l.setFont(QFont("Inter", 28))
+        layout.addWidget(icon_l)
 
-        title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 25))
-        title_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-        layout.addWidget(title_label)
+        label_t = QLabel(title)
+        label_t.setStyleSheet(f"color: {COLORS['text_secondary']}; font-size: 13px;")
+        layout.addWidget(label_t)
 
-        value_label = QLabel(value)
-        value_label.setFont(QFont("Segoe UI", 25, QFont.Weight.Bold))
-        value_label.setStyleSheet(f"color: {color};")
-        layout.addWidget(value_label)
+        label_v = QLabel(value)
+        label_v.setFont(QFont("Inter", 18, QFont.Weight.Bold))
+        label_v.setStyleSheet(f"color: {color};")
+        layout.addWidget(label_v)
 
-        card.value_label = value_label
-
+        card.value_label = label_v
         return card
 
-    # =====================================================================
-    #                          FONCTIONS DE CHARGEMENT
-    # =====================================================================
+    # ============================================================
+    #                       INVOICE TABLE
+    # ============================================================
+    def create_invoice_table(self):
+        table = QTableWidget()
+        table.setColumnCount(5)
+        table.setHorizontalHeaderLabels(["Facture", "Client", "Total", "Date", "Paiement"])
+        table.verticalHeader().setVisible(False)
+        table.setMinimumHeight(320)
 
+        table.setStyleSheet(f"""
+            QTableWidget {{
+                background: {COLORS['bg_card']};
+                alternate-background-color: {COLORS['bg_card_hover']};
+                border-radius: 8px;
+            }}
+        """)
+
+        return table
+
+    # ============================================================
+    #                       DATA LOADING
+    # ============================================================
     def refresh(self):
         self.load_kpis()
-        self.load_recent_activities()
-        self.load_quick_info()
-        self.load_invoices_table()
+        self.load_activities()
+        #self.load_info()
+        self.load_table()
+
+    def animate(self, label, value, suffix=""):
+        obj = KpiAnimator(label)
+        obj.suffix = suffix
+        anim = QPropertyAnimation(obj, b"value")
+        anim.setDuration(700)
+        anim.setStartValue(0)
+        anim.setEndValue(float(value))
+        anim.start()
+        label.anim = anim
 
     def load_kpis(self):
-        stats = self.db.get_statistics() or {}
+        stats = get_statistics() or {}
 
-        sales = float(stats.get("sales_total", 0))
-        purchases = float(stats.get("purchases_total", 0))
-        profit = sales - purchases
-        clients = stats.get("total_clients", 0)
+        self.animate(self.kpi_sales.value_label, stats.get("total_sales", 0), " DA")
+        #self.animate(self.kpi_purchases.value_label, stats.get("total_purchases", 0), " DA")
+        #self.animate(self.kpi_today.value_label, stats.get("sales_today", 0), " DA")
 
-        self.kpi_sales.value_label.setText(f"{sales:,.0f} DA")
-        self.kpi_purchases.value_label.setText(f"{purchases:,.0f} DA")
-        self.kpi_profit.value_label.setText(f"{profit:,.0f} DA")
-        self.kpi_clients.value_label.setText(str(clients))
+        
 
-    def load_recent_activities(self):
-        # Nettoyage
-        for i in reversed(range(self.activities_container.count())):
-            widget = self.activities_container.itemAt(i).widget()
-            if widget:
-                widget.deleteLater()
+    def load_activities(self):
+        recent_sales = get_recent_sales(5)
+        recent_purchases = get_recent_purchases(3)
 
-        sales = self.db.get_all_sales(limit=4)
-        purchases = self.db.get_all_purchases(limit=2)
+        #self.last_sales.clear()
+        for s in recent_sales:
+            self.last_sales.addItem(
+                f"#{s['id']} • {s['client_name']} • {s['total']} DA"
+            )
 
-        if not sales and not purchases:
-            empty = QLabel("Aucune activité récente")
-            empty.setStyleSheet("font-size: 14px; color: gray; padding: 20px;")
-            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.activities_container.addWidget(empty)
-            return
+        #self.last_purchases.clear()
+        for p in recent_purchases:
+            self.last_purchases.addItem(
+                f"#{p['id']} • {p['supplier']} • {p['total']} DA"
+        )
 
-        def add_item(icon, text):
-            lbl = QLabel(f"{icon}  {text}")
-            lbl.setStyleSheet("font-size: 15px; color: white; padding: 6px;")
-            self.activities_container.addWidget(lbl)
+    
 
-        for s in sales:
-            add_item("🟢", f"Vente : Facture {s['invoice_number']} - {s['total']:,.0f} DA")
+    def load_table(self):
+        data = get_recent_sales(10)
 
-        for p in purchases:
-            add_item("🟡", f"Achat : id {p['id']} - {p['total']:,.0f} DA")
-
-    def load_quick_info(self):
-        stats = self.db.get_statistics() or {}
-
-        sales_today = float(stats.get("sales_today", 0))
-        self.info_sales_today.value_label.setText(f"{sales_today:,.0f} DA")
-
-        top = self.db.get_top_clients(limit=1)
-        if top:
-            self.info_best_client.value_label.setText(top[0]["name"])
-        else:
-            self.info_best_client.value_label.setText("—")
-
-        low_stock = self.db.get_low_stock_products() or []
-        self.info_stock_low.value_label.setText(f"{len(low_stock)} produits")
+        self.table.setRowCount(len(data))
+        for r, item in enumerate(data):
+            self.table.setItem(r, 0, QTableWidgetItem(str(item["id"])))
+            self.table.setItem(r, 1, QTableWidgetItem(item["client_name"]))
+            self.table.setItem(r, 2, QTableWidgetItem(str(item["total"])))
+            self.table.setItem(r, 3, QTableWidgetItem(item["date"]))
