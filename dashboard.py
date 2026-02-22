@@ -1,12 +1,11 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
-    QPushButton, QScrollArea, QTableWidget, QTableWidgetItem
+    QPushButton, QScrollArea, QTableWidget, QTableWidgetItem, QListWidget
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, QObject, pyqtProperty, QPropertyAnimation
 from styles import COLORS
 from db_manager import get_database
-# Import des fonctions DB correctes
 from db_manager import (
     get_statistics,
     get_recent_sales,
@@ -113,11 +112,47 @@ class DashboardPage(QWidget):
         # --------------------------------------------------------
         #                  ACTIVITÉS RÉCENTES
         # --------------------------------------------------------
-        activities_card = self.section_card("📋 Activités Récentes")
-        self.activities_layout = QVBoxLayout()
-        self.activities_layout.setContentsMargins(15, 55, 15, 15)
-        self.activities_layout.setSpacing(8)
-        activities_card.setLayout(self.activities_layout)
+        activities_card = QFrame()
+        activities_card.setMinimumHeight(200)
+        activities_card.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['bg_card']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+            }}
+        """)
+
+        activities_inner = QVBoxLayout(activities_card)
+        activities_inner.setContentsMargins(15, 15, 15, 15)
+        activities_inner.setSpacing(10)
+
+        act_title = QLabel("📋 Activités Récentes")
+        act_title.setFont(QFont("Inter", 18, QFont.Weight.Bold))
+        activities_inner.addWidget(act_title)
+
+        act_row = QHBoxLayout()
+
+        # ✅ CORRIGÉ : Création des QListWidget manquants
+        sales_col = QVBoxLayout()
+        sales_lbl = QLabel("🧾 Dernières Ventes")
+        sales_lbl.setStyleSheet(f"color: {COLORS['text_secondary']};")
+        self.last_sales = QListWidget()
+        self.last_sales.setStyleSheet(f"background: {COLORS['bg_dark']}; border-radius: 6px;")
+        sales_col.addWidget(sales_lbl)
+        sales_col.addWidget(self.last_sales)
+
+        purchases_col = QVBoxLayout()
+        purchases_lbl = QLabel("🛒 Derniers Achats")
+        purchases_lbl.setStyleSheet(f"color: {COLORS['text_secondary']};")
+        self.last_purchases = QListWidget()
+        self.last_purchases.setStyleSheet(f"background: {COLORS['bg_dark']}; border-radius: 6px;")
+        purchases_col.addWidget(purchases_lbl)
+        purchases_col.addWidget(self.last_purchases)
+
+        act_row.addLayout(sales_col)
+        act_row.addLayout(purchases_col)
+        activities_inner.addLayout(act_row)
+
         main_layout.addWidget(activities_card)
 
         # --------------------------------------------------------
@@ -126,7 +161,7 @@ class DashboardPage(QWidget):
         info_row = QHBoxLayout()
         info_row.setSpacing(20)
 
-        self.info_today = self.info_card("📅", "Ventes Aujourd’hui", "0 DA", COLORS["info"])
+        self.info_today = self.info_card("📅", "Ventes Aujourd'hui", "0 DA", COLORS["info"])
         self.info_best = self.info_card("🏆", "Top Client", "-", COLORS["success"])
         self.info_stock = self.info_card("⚠️", "Stock Faible", "0 Produit", COLORS["danger"])
 
@@ -191,26 +226,6 @@ class DashboardPage(QWidget):
         return card
 
     # ============================================================
-    #                    SECTION TITLE CARD
-    # ============================================================
-    def section_card(self, title):
-        frame = QFrame()
-        frame.setMinimumHeight(200)
-        frame.setStyleSheet(f"""
-            QFrame {{
-                background: {COLORS['bg_card']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-            }}
-        """)
-
-        title_label = QLabel(title, parent=frame)
-        title_label.setFont(QFont("Inter", 18, QFont.Weight.Bold))
-        title_label.move(20, 12)
-
-        return frame
-
-    # ============================================================
     #                     SMALL INFO CARDS
     # ============================================================
     def info_card(self, icon, title, value, color):
@@ -267,9 +282,9 @@ class DashboardPage(QWidget):
     #                       DATA LOADING
     # ============================================================
     def refresh(self):
-        self.load_kpis()
+        self.load_kpis()       # ✅ CORRIGÉ : méthode définie ci-dessous
         self.load_activities()
-        #self.load_info()
+        self.load_info()       # ✅ CORRIGÉ : méthode définie ci-dessous
         self.load_table()
 
     def animate(self, label, value, suffix=""):
@@ -282,32 +297,50 @@ class DashboardPage(QWidget):
         anim.start()
         label.anim = anim
 
+    # ✅ CORRIGÉ : méthode load_kpis() ajoutée
     def load_kpis(self):
         stats = get_statistics() or {}
+        total_sales = stats.get("total_sales", 0)
+        total_purchases = stats.get("total_purchases", 0)
+        profit = total_sales - total_purchases
 
-        self.animate(self.kpi_sales.value_label, stats.get("total_sales", 0), " DA")
-        #self.animate(self.kpi_purchases.value_label, stats.get("total_purchases", 0), " DA")
-        #self.animate(self.kpi_today.value_label, stats.get("sales_today", 0), " DA")
+        self.animate(self.kpi_sales.value_label, total_sales, " DA")
+        self.animate(self.kpi_purchase.value_label, total_purchases, " DA")
+        self.animate(self.kpi_profit.value_label, profit, " DA")
 
-        
+        clients = self.db.get_all_clients()
+        self.animate(self.kpi_clients.value_label, len(clients))
 
     def load_activities(self):
         recent_sales = get_recent_sales(5)
         recent_purchases = get_recent_purchases(3)
 
-        #self.last_sales.clear()
+        self.last_sales.clear()
         for s in recent_sales:
             self.last_sales.addItem(
                 f"#{s['id']} • {s['client_name']} • {s['total']} DA"
             )
 
-        #self.last_purchases.clear()
+        self.last_purchases.clear()
         for p in recent_purchases:
             self.last_purchases.addItem(
                 f"#{p['id']} • {p['supplier']} • {p['total']} DA"
-        )
+            )
 
-    
+    # ✅ CORRIGÉ : méthode load_info() ajoutée
+    def load_info(self):
+        stats = get_statistics() or {}
+        sales_today = stats.get("sales_today", 0)
+        self.info_today.value_label.setText(f"{sales_today:,.0f} DA")
+
+        top_clients = get_top_clients(1)
+        if top_clients:
+            self.info_best.value_label.setText(top_clients[0]["name"])
+        else:
+            self.info_best.value_label.setText("-")
+
+        low_stock = get_low_stock_products()
+        self.info_stock.value_label.setText(f"{len(low_stock)} Produit(s)")
 
     def load_table(self):
         data = get_recent_sales(10)
@@ -318,3 +351,5 @@ class DashboardPage(QWidget):
             self.table.setItem(r, 1, QTableWidgetItem(item["client_name"]))
             self.table.setItem(r, 2, QTableWidgetItem(str(item["total"])))
             self.table.setItem(r, 3, QTableWidgetItem(item["date"]))
+            # ✅ CORRIGÉ : Colonne "Paiement" remplie (valeur par défaut)
+            self.table.setItem(r, 4, QTableWidgetItem("—"))

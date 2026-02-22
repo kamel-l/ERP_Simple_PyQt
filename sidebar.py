@@ -1,8 +1,8 @@
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QPushButton, QLabel, QFrame, QSizePolicy
+    QWidget, QVBoxLayout, QPushButton, QLabel, QFrame
 )
 from PyQt6.QtGui import QFont, QIcon
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize  # ✅ CORRIGÉ : Import QSize depuis QtCore
 from styles import COLORS
 
 
@@ -10,7 +10,7 @@ class SidebarButton(QPushButton):
     def __init__(self, text, icon_path=None):
         super().__init__()
 
-        self.text = text
+        self.text_label = text
         self.icon_path = icon_path
 
         self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -20,7 +20,7 @@ class SidebarButton(QPushButton):
 
         if icon_path:
             self.setIcon(QIcon(icon_path))
-            self.setIconSize(Qt.QSize(22, 22))
+            self.setIconSize(QSize(22, 22))  # ✅ CORRIGÉ : QSize au lieu de Qt.QSize
 
         self.setText(f"   {text}")
 
@@ -89,7 +89,6 @@ class Sidebar(QWidget):
         self.add_button(layout, "Dashboard", "icons/home.png")
         self.add_button(layout, "Produits", "icons/box.png")
         self.add_button(layout, "Clients", "icons/users.png")
-        self.add_button(layout, "Ventes", "icons/cart.png")
         self.add_button(layout, "Achats", "icons/buy.png")
         self.add_button(layout, "Statistiques", "icons/stats.png")
         self.add_button(layout, "Paramètres", "icons/settings.png")

@@ -1,11 +1,11 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QTableWidget, QTableWidgetItem, QScrollArea
+    QTableWidget, QTableWidgetItem, QScrollArea, QPushButton
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, QObject, pyqtProperty, QPropertyAnimation
 from styles import COLORS
-from db_manager import get_database
+from db_manager import get_database, get_statistics, get_top_products
 
 
 class KpiAnimator(QObject):
@@ -50,6 +50,25 @@ class StatisticsPage(QWidget):
         title.setStyleSheet(f"color: {COLORS['accent']};")
         header.addWidget(title)
         header.addStretch()
+
+        refresh_btn = QPushButton("🔄 Actualiser")
+        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        refresh_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {COLORS['accent']};
+                padding: 10px 24px;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: bold;
+                color: black;
+            }}
+            QPushButton:hover {{
+                background: {COLORS['accent_light']};
+            }}
+        """)
+        refresh_btn.clicked.connect(self.refresh)
+        header.addWidget(refresh_btn)
+
         layout.addLayout(header)
 
         # --------------------------------------------------------
@@ -68,7 +87,7 @@ class StatisticsPage(QWidget):
         layout.addLayout(kpi_row)
 
         # --------------------------------------------------------
-        # TABLE STATS (Exemple ventes par produit)
+        # TABLE STATS
         # --------------------------------------------------------
         table_title = QLabel("📋 Ventes par Produit")
         table_title.setFont(QFont("Inter", 20, QFont.Weight.Bold))
@@ -129,11 +148,14 @@ class StatisticsPage(QWidget):
     #                     DATA LOADING
     # ============================================================
     def refresh(self):
-        stats = self.db.get_statistics() or {}
-        self.animate(self.kpi_sales.value_label, stats.get("sales_total", 0), " DA")
-        self.animate(self.kpi_purchases.value_label, stats.get("purchases_total", 0), " DA")
-        self.animate(self.kpi_profit.value_label,
-                     stats.get("sales_total", 0) - stats.get("purchases_total", 0), " DA")
+        # ✅ CORRIGÉ : get_statistics() au lieu de self.get_statistics()
+        stats = get_statistics() or {}
+
+        self.animate(self.kpi_sales.value_label, stats.get("total_sales", 0), " DA")
+        self.animate(self.kpi_purchases.value_label, stats.get("total_purchases", 0), " DA")
+
+        profit = stats.get("total_sales", 0) - stats.get("total_purchases", 0)
+        self.animate(self.kpi_profit.value_label, profit, " DA")
 
         self.load_table()
 
@@ -148,9 +170,13 @@ class StatisticsPage(QWidget):
         label.anim = animation
 
     def load_table(self):
-        data = self.db.sales_by_product()  # retourne liste de dict avec product, qty, total
-        self.table.setRowCount(len(data))
-        for r, item in enumerate(data):
-            self.table.setItem(r, 0, QTableWidgetItem(item["product"]))
-            self.table.setItem(r, 1, QTableWidgetItem(str(item["quantity"])))
-            self.table.setItem(r, 2, QTableWidgetItem(str(item["total"])))
+        try:
+            data = get_top_products(10)
+            self.table.setRowCount(len(data))
+            for r, item in enumerate(data):
+                self.table.setItem(r, 0, QTableWidgetItem(item.get("name", "")))
+                self.table.setItem(r, 1, QTableWidgetItem(str(item.get("quantity", 0))))
+                self.table.setItem(r, 2, QTableWidgetItem(str(item.get("total", 0))))
+        except Exception as e:
+            print(f"Erreur lors du chargement du tableau: {e}")
+            self.table.setRowCount(0)

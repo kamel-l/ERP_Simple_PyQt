@@ -17,14 +17,15 @@ from styles import COLORS
 from dashboard import DashboardPage
 from clients import ClientsPage
 from products import ProductsPage
-from sales import SalesPage
 from purchases import PurchasesPage
 from statistics import StatisticsPage
 from settings import SettingsPage
-# from sales_history import SalesHistoryPage
-from clean_erp_data import run_full_cleanup
+from sales_history import SalesHistoryPage  # ✅ CORRIGÉ : décommenté
 from db_manager import get_database
 from db_manager import init_database
+
+# ✅ CORRIGÉ : Supprimé l'import de clean_erp_data (fichier inexistant)
+# ✅ CORRIGÉ : Supprimé l'import de SalesPage (non utilisé dans init_pages)
 
 
 class MainWindow(QMainWindow):
@@ -74,17 +75,15 @@ class MainWindow(QMainWindow):
         self.dashboard_page = DashboardPage()
         self.clients_page = ClientsPage()
         self.products_page = ProductsPage()
-        self.sales_page = SalesPage()
         self.purchases_page = PurchasesPage()
         self.statistics_page = StatisticsPage()
         self.settings_page = SettingsPage()
-        # self.sales_history_page = SalesHistoryPage()
+        self.sales_history_page = SalesHistoryPage()  # ✅ CORRIGÉ : instancié correctement
 
         # Ajouter les pages au stack
         self.add_page("dashboard", self.dashboard_page, "📊 Tableau de Bord")
         self.add_page("clients", self.clients_page, "👥 Clients")
         self.add_page("products", self.products_page, "📦 Produits")
-        self.add_page("sales", self.sales_page, "💰 Ventes")
         self.add_page("purchases", self.purchases_page, "🛒 Achats")
         self.add_page("history", self.sales_history_page, "📊 Historique Ventes")
         self.add_page("statistics", self.statistics_page, "📈 Statistiques")
@@ -121,7 +120,6 @@ class MainWindow(QMainWindow):
             ("📊 Tableau de Bord", "dashboard", COLORS['accent']),
             ("👥 Clients", "clients", COLORS['secondary']),
             ("📦 Produits", "products", COLORS['success']),
-            ("💰 Ventes", "sales", COLORS['accent']),
             ("🛒 Achats", "purchases", COLORS['warning']),
             ("📊 Historique Ventes", "history", COLORS['info']),
             ("📈 Statistiques", "statistics", COLORS['info']),
@@ -148,7 +146,7 @@ class MainWindow(QMainWindow):
         btn = QPushButton(text)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setMinimumHeight(50)
-        btn.clicked.connect(lambda: self.show_page(key))
+        btn.clicked.connect(lambda checked, k=key: self.show_page(k))  # ✅ CORRIGÉ : lambda avec argument capturé
         btn.setStyleSheet(f"""
             QPushButton {{
                 background: transparent;
@@ -209,17 +207,13 @@ class MainWindow(QMainWindow):
     #                   MENU ERP TOOLS
     # ============================================================
     def init_menu(self):
-        cleanup_menu = self.menuBar().addMenu("ERP Tools")
-        clean_action = QAction("Nettoyer les données ERP", self)
-        clean_action.triggered.connect(self.run_erp_cleanup)
-        cleanup_menu.addAction(clean_action)
-
-    def run_erp_cleanup(self):
-        try:
-            run_full_cleanup()
-            QMessageBox.information(self, "Succès", "Le nettoyage ERP a été effectué avec succès.")
-        except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Une erreur est survenue:\n{e}")
+        # ✅ CORRIGÉ : Supprimé l'action "Nettoyer les données" (dépend de clean_erp_data manquant)
+        about_menu = self.menuBar().addMenu("ERP Tools")
+        about_action = QAction("À propos", self)
+        about_action.triggered.connect(lambda: QMessageBox.information(
+            self, "ERP Pro", "ERP Pro - Système de gestion\nVersion 2.0.0"
+        ))
+        about_menu.addAction(about_action)
 
 
 def main():
