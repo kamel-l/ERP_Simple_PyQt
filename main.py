@@ -16,6 +16,7 @@ from PyQt6.QtCore import Qt
 from styles import COLORS
 from dashboard import DashboardPage
 from clients import ClientsPage
+from sales import SalesPage
 from products import ProductsPage
 from purchases import PurchasesPage
 from statistics import StatisticsPage
@@ -75,6 +76,7 @@ class MainWindow(QMainWindow):
         self.dashboard_page = DashboardPage()
         self.clients_page = ClientsPage()
         self.products_page = ProductsPage()
+        self.sales_page = SalesPage()
         self.purchases_page = PurchasesPage()
         self.statistics_page = StatisticsPage()
         self.settings_page = SettingsPage()
@@ -84,6 +86,7 @@ class MainWindow(QMainWindow):
         self.add_page("dashboard", self.dashboard_page, "📊 Tableau de Bord")
         self.add_page("clients", self.clients_page, "👥 Clients")
         self.add_page("products", self.products_page, "📦 Produits")
+        self.add_page("sales", self.sales_page, "💰 Ventes")
         self.add_page("purchases", self.purchases_page, "🛒 Achats")
         self.add_page("history", self.sales_history_page, "📊 Historique Ventes")
         self.add_page("statistics", self.statistics_page, "📈 Statistiques")
@@ -120,6 +123,7 @@ class MainWindow(QMainWindow):
             ("📊 Tableau de Bord", "dashboard", COLORS['accent']),
             ("👥 Clients", "clients", COLORS['secondary']),
             ("📦 Produits", "products", COLORS['success']),
+            ("💰 Ventes", "sales", COLORS['info']),
             ("🛒 Achats", "purchases", COLORS['warning']),
             ("📊 Historique Ventes", "history", COLORS['info']),
             ("📈 Statistiques", "statistics", COLORS['info']),

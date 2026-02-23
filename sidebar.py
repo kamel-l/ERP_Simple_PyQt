@@ -90,6 +90,7 @@ class Sidebar(QWidget):
         self.add_button(layout, "Produits", "icons/box.png")
         self.add_button(layout, "Clients", "icons/users.png")
         self.add_button(layout, "Achats", "icons/buy.png")
+        self.add_button(layout, "Ventes", "icons/sell.png")
         self.add_button(layout, "Statistiques", "icons/stats.png")
         self.add_button(layout, "Paramètres", "icons/settings.png")
 
