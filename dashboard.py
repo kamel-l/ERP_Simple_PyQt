@@ -235,7 +235,7 @@ class DashboardPage(QWidget):
             QFrame {{
                 background: {COLORS['bg_card']};
                 border-radius: 8px;
-                border-top: 4px solid {color};
+                
             }}
         """)
 
