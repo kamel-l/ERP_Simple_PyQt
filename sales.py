@@ -376,101 +376,135 @@ class SalesPage(QWidget):
         table_layout.addWidget(self.table)
         layout.addWidget(table_container)
 
-        # Summary Section
+        # ── Summary Section ──────────────────────────────────────────────
         summary_card = QFrame()
+        summary_card.setObjectName("summaryCard")
         summary_card.setStyleSheet(f"""
-            QFrame {{
+            QFrame#summaryCard {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 12px;
                 border: 2px solid {COLORS['success']};
-                padding: 25px;
             }}
         """)
-        summary_main_layout = QVBoxLayout()
-        summary_card.setLayout(summary_main_layout)
-        summary_main_layout.setSpacing(15)
 
+        summary_main_layout = QVBoxLayout(summary_card)
+        summary_main_layout.setContentsMargins(25, 18, 25, 18)
+        summary_main_layout.setSpacing(10)
+
+        # Titre
         summary_title = QLabel("💰 Résumé de la Vente")
-        summary_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        summary_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+        summary_title.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
+        summary_title.setStyleSheet(f"color: {COLORS['text_primary']};")
         summary_main_layout.addWidget(summary_title)
 
-        amounts_grid = QGridLayout()
-        amounts_grid.setSpacing(15)
+        # ── Grille principale en 2 colonnes ──────────────────────────────
+        info_row = QHBoxLayout()
+        info_row.setSpacing(25)
 
-        # Sous-total
-        subtotal_label_text = QLabel("Sous-total HT:")
-        subtotal_label_text.setFont(QFont("Segoe UI", 13))
-        subtotal_label_text.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        
-        self.subtotal_label = QLabel("0.00 DA")
-        self.subtotal_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        self.subtotal_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        self.subtotal_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        
-        amounts_grid.addWidget(subtotal_label_text, 0, 0)
-        amounts_grid.addWidget(self.subtotal_label, 0, 1)
+        # helper pour créer une ligne label + valeur
+        def _row(parent_layout, icon_text, color):
+            h = QHBoxLayout()
+            h.setSpacing(8)
+            lbl = QLabel(icon_text)
+            lbl.setFont(QFont("Segoe UI", 12))
+            lbl.setStyleSheet(f"color: {COLORS['text_tertiary']};")
+            val = QLabel("—")
+            val.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+            val.setStyleSheet(f"color: {color};")
+            val.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            val.setMinimumWidth(120)
+            h.addWidget(lbl, 1)
+            h.addWidget(val)
+            parent_layout.addLayout(h)
+            return val
 
-        # TVA
-        tax_label_text = QLabel("TVA (19%):")
-        tax_label_text.setFont(QFont("Segoe UI", 13))
-        tax_label_text.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        
-        self.tax_label = QLabel("0.00 DA")
-        self.tax_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        self.tax_label.setStyleSheet(f"color: {COLORS['warning']}; border: none;")
-        self.tax_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-        
-        amounts_grid.addWidget(tax_label_text, 1, 0)
-        amounts_grid.addWidget(self.tax_label, 1, 1)
+        # Colonne gauche
+        left_col = QVBoxLayout()
+        left_col.setSpacing(8)
+        self.nb_articles_label   = _row(left_col, "📦 Nombre d'articles :", COLORS['primary'])
+        self.qty_total_label     = _row(left_col, "🔢 Quantité totale :",   COLORS['primary'])
+        self.discount_total_label= _row(left_col, "🏷️  Remise totale :",    COLORS['danger'])
 
-        # Ligne de séparation
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background-color: {COLORS['border']}; border: none;")
-        amounts_grid.addWidget(separator, 2, 0, 1, 2)
+        # Colonne droite
+        right_col = QVBoxLayout()
+        right_col.setSpacing(8)
+        self.subtotal_label = _row(right_col, "Sous-total HT :", COLORS['text_primary'])
+        self.tax_label      = _row(right_col, "TVA (19%) :",     COLORS['warning'])
 
-        # Total
-        total_label_text = QLabel("TOTAL TTC:")
-        total_label_text.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        total_label_text.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        
+        # Mode de paiement dans colonne droite
+        pay_h = QHBoxLayout()
+        pay_h.setSpacing(8)
+        pay_lbl = QLabel("💳 Paiement :")
+        pay_lbl.setFont(QFont("Segoe UI", 12))
+        pay_lbl.setStyleSheet(f"color: {COLORS['text_tertiary']};")
+        self.payment_combo = QComboBox()
+        self.payment_combo.addItems(["💵 Espèces", "💳 Carte bancaire", "🏦 Virement", "📱 Mobile"])
+        self.payment_combo.setStyleSheet(INPUT_STYLE)
+        self.payment_combo.setMinimumHeight(34)
+        pay_h.addWidget(pay_lbl, 1)
+        pay_h.addWidget(self.payment_combo, 2)
+        right_col.addLayout(pay_h)
+
+        info_row.addLayout(left_col, 1)
+
+        v_sep = QFrame()
+        v_sep.setFrameShape(QFrame.Shape.VLine)
+        v_sep.setFixedWidth(1)
+        v_sep.setStyleSheet(f"background-color: {COLORS['border']};")
+        info_row.addWidget(v_sep)
+
+        info_row.addLayout(right_col, 1)
+        summary_main_layout.addLayout(info_row)
+
+        # ── Séparateur vert ──────────────────────────────────────────────
+        h_sep = QFrame()
+        h_sep.setFrameShape(QFrame.Shape.HLine)
+        h_sep.setFixedHeight(2)
+        h_sep.setStyleSheet(f"background-color: {COLORS['success']};")
+        summary_main_layout.addWidget(h_sep)
+
+        # ── TOTAL TTC ────────────────────────────────────────────────────
+        total_row = QHBoxLayout()
+        total_lbl = QLabel("TOTAL TTC :")
+        total_lbl.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        total_lbl.setStyleSheet(f"color: {COLORS['text_primary']};")
         self.total_label = QLabel("0.00 DA")
-        self.total_label.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        self.total_label.setStyleSheet(f"color: {COLORS['success']}; border: none;")
-        self.total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self.total_label.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
+        self.total_label.setStyleSheet(f"color: {COLORS['success']};")
+        self.total_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        total_row.addWidget(total_lbl)
+        total_row.addStretch()
+        total_row.addWidget(self.total_label)
+        summary_main_layout.addLayout(total_row)
 
-         
-        
-        amounts_grid.addWidget(total_label_text, 3, 0)
-        amounts_grid.addWidget(self.total_label, 3, 1)
-
-        summary_main_layout.addLayout(amounts_grid)
-
-        # Boutons d'action
+        # ── Boutons ──────────────────────────────────────────────────────
         button_layout = QHBoxLayout()
         button_layout.setSpacing(10)
-        
+
         self.clear_btn = QPushButton("🗑️ Vider le Panier")
         self.clear_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        self.clear_btn.setMinimumHeight(50)
+        self.clear_btn.setMinimumHeight(46)
         self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clear_btn.clicked.connect(self.clear_cart)
-        
+
         self.save_btn = QPushButton("💾 Enregistrer la Vente")
         self.save_btn.setStyleSheet(BUTTON_STYLES['success'])
-        self.save_btn.setFixedSize(220, 50)
+        self.save_btn.setMinimumHeight(46)
+        self.save_btn.setMinimumWidth(220)
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.clicked.connect(self.save_sale)
-        
+
         button_layout.addWidget(self.clear_btn)
         button_layout.addStretch()
         button_layout.addWidget(self.save_btn)
-        
         summary_main_layout.addLayout(button_layout)
 
         layout.addWidget(summary_card)
+
+        # Initialiser l'affichage
+        self.update_totals()
+
 
     def load_clients(self):
         """Charge les clients (peut être appelée depuis l'extérieur pour rafraîchir)"""
@@ -577,7 +611,20 @@ class SalesPage(QWidget):
         subtotal = sum(item['total'] for item in self.cart_items)
         tax = subtotal * 0.19  # TVA 19%
         total = subtotal + tax
-        
+
+        # Calcul du nombre d'articles et de la quantité totale
+        nb_articles = len(self.cart_items)
+        qty_total = sum(item['quantity'] for item in self.cart_items)
+
+        # Calcul de la remise totale (prix sans remise - prix avec remise)
+        total_sans_remise = sum(
+            item['quantity'] * item['unit_price'] for item in self.cart_items
+        )
+        remise_total = total_sans_remise - subtotal
+
+        self.nb_articles_label.setText(f"{nb_articles} article(s)")
+        self.qty_total_label.setText(f"{qty_total} unité(s)")
+        self.discount_total_label.setText(f"-{remise_total:,.2f} DA")
         self.subtotal_label.setText(f"{subtotal:,.2f} DA")
         self.tax_label.setText(f"{tax:,.2f} DA")
         self.total_label.setText(f"{total:,.2f} DA")
@@ -604,12 +651,22 @@ class SalesPage(QWidget):
                 'discount': item['discount']
             })
         
+        # Récupérer le mode de paiement sélectionné
+        payment_map = {
+            "💵 Espèces": "cash",
+            "💳 Carte bancaire": "card",
+            "🏦 Virement": "transfer",
+            "📱 Mobile Payment": "mobile"
+        }
+        payment_text = self.payment_combo.currentText()
+        payment_method = payment_map.get(payment_text, "cash")
+
         # Enregistrer dans la base
         sale_id = self.db.create_sale(
             invoice_number=invoice_number,
             client_id=client_id,
             items=items,
-            payment_method="cash",
+            payment_method=payment_method,
             tax_rate=19.0,
             discount=0
         )
@@ -626,6 +683,7 @@ class SalesPage(QWidget):
             self.table.setRowCount(0)
             self.update_totals()
             self.client_combo.setCurrentIndex(0)
+            self.payment_combo.setCurrentIndex(0)
         else:
             QMessageBox.critical(
                 self,
