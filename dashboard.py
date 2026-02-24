@@ -407,9 +407,7 @@ class DashboardPage(QWidget):
 
     def _load_kpis(self):
         stats     = self.db.get_statistics() or {}
-        print("Toutes les stats:", stats)  # ← ajouter cette ligne
         sales     = float(stats.get("sales_total", 0))
-      
         purchases = float(stats.get("purchases_total", 0))
         profit    = sales - purchases
         clients   = int(stats.get("total_clients", 0))
