@@ -660,6 +660,14 @@ class Database:
         """)
         stats['low_stock_count'] = self.cursor.fetchone()['count']
         
+        # Ventes d'aujourd'hui
+        today = datetime.now().strftime('%Y-%m-%d')
+        self.cursor.execute("""
+            SELECT COALESCE(SUM(total), 0) as total FROM sales
+            WHERE DATE(sale_date) = ?
+        """, (today,))
+        stats['sales_today'] = self.cursor.fetchone()['total']
+
         year = datetime.now().year
         stats['best_month'] = self.get_best_month(year)
         stats['growth_rate'] = self.get_growth_rate(year)

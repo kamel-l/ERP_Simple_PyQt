@@ -12,7 +12,7 @@ COLORS = {
     'warning': '#FBBF24',        # Or
     'danger': '#F472B6',         # Rose rouge
     'info': '#60A5FA',           # Bleu pervenche
-    'bg_dark': '#18909C',        # Violet très sombre
+    'bg_dark': '#415a77',        # Violet très sombre
     'bg_medium': '#2A1A33',
     'bg_light': '#3D2847',
     'bg_card': '#2A1A33',
