@@ -29,8 +29,6 @@ from PyQt6.QtGui import QAction
 from clean_erp_data import run_full_cleanup
 from db_manager import get_database
 
-
-
 class MainWindow(QMainWindow):
     """Fenêtre principale de l'application"""
     
@@ -220,36 +218,62 @@ class MainWindow(QMainWindow):
     def create_logo(self):
         """Crée le logo/titre de l'application"""
         logo_container = QFrame()
-        logo_container.setStyleSheet(f"""
-            QFrame {{
+        logo_container.setMinimumHeight(110)
+        logo_container.setMaximumHeight(120)
+        logo_container.setStyleSheet("""
+            QFrame {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 {COLORS['primary']}, stop:1 {COLORS['secondary']});
-                border-radius: 12px;
-                padding: 20px;
-                margin-bottom: 15px;
-            }}
+                    stop:0 #0A84FF, stop:1 #5E5CE6);
+                border-radius: 14px;
+            }
         """)
+
         logo_layout = QVBoxLayout(logo_container)
-        logo_layout.setSpacing(5)
-        
-        app_name = QLabel("🏢 ERP Pro")
-        app_name.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
-        app_name.setStyleSheet("color: white; border: none;")
-        app_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_layout.addWidget(app_name)
-        
-        app_subtitle = QLabel("Gestion Complète")
-        app_subtitle.setFont(QFont("Segoe UI", 11))
-        app_subtitle.setStyleSheet(f"color: {COLORS['text_secondary']}; border: none;")
-        app_subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_layout.addWidget(app_subtitle)
-        
-        version = QLabel("v2.0.0")
-        version.setFont(QFont("Segoe UI", 9))
-        version.setStyleSheet("color: rgba(255, 255, 255, 0.6); border: none;")
-        version.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo_layout.addWidget(version)
-        
+        logo_layout.setSpacing(4)
+        logo_layout.setContentsMargins(16, 14, 16, 14)
+
+        # Ligne haut : icone + nom
+        top_row = QHBoxLayout()
+        top_row.setSpacing(10)
+
+        icon_label = QLabel("🏢")
+        icon_label.setFont(QFont("Segoe UI", 26))
+        icon_label.setStyleSheet("color: white; background: transparent; border: none;")
+        icon_label.setFixedSize(40, 40)
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        top_row.addWidget(icon_label)
+
+        name_col = QVBoxLayout()
+        name_col.setSpacing(0)
+
+        app_name = QLabel("ERP Pro")
+        app_name.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        app_name.setStyleSheet("color: white; background: transparent; border: none;")
+        name_col.addWidget(app_name)
+
+        app_subtitle = QLabel("Gestion Professionnelle")
+        app_subtitle.setFont(QFont("Segoe UI", 9))
+        app_subtitle.setStyleSheet("color: rgba(255,255,255,0.75); background: transparent; border: none;")
+        name_col.addWidget(app_subtitle)
+
+        top_row.addLayout(name_col)
+        top_row.addStretch()
+        logo_layout.addLayout(top_row)
+
+        # Badge version
+        version_badge = QLabel("  v2.0.0  ")
+        version_badge.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
+        version_badge.setStyleSheet("""
+            color: white;
+            background: rgba(255,255,255,0.20);
+            border-radius: 6px;
+            border: none;
+            padding: 2px 6px;
+        """)
+        version_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        version_badge.setFixedWidth(60)
+        logo_layout.addWidget(version_badge)
+
         return logo_container
     
     def create_nav_button(self, text, key, color):
