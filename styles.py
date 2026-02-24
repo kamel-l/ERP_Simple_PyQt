@@ -5,14 +5,14 @@ Design moderne et professionnel
 
 # ==================== COULEURS ====================
 COLORS = {
-     'primary': '#A855F7',        # Violet améthyste
+    'primary': '#A855F7',        # Violet améthyste
     'primary_dark': '#9333EA',
     'secondary': '#EC4899',      # Rose magenta
     'success': '#34D399',        # Vert menthe
     'warning': '#FBBF24',        # Or
     'danger': '#F472B6',         # Rose rouge
     'info': '#60A5FA',           # Bleu pervenche
-    'bg_dark': '#18101C',        # Violet très sombre
+    'bg_dark': '#18909C',        # Violet très sombre
     'bg_medium': '#2A1A33',
     'bg_light': '#3D2847',
     'bg_card': '#2A1A33',
