@@ -357,13 +357,14 @@ class SettingsPage(QWidget):
         self.reset_btn = QPushButton("♻️ Réinitialiser")
         self.reset_btn.setStyleSheet(BUTTON_STYLES['secondary'])
         self.reset_btn.setMinimumHeight(45)
+        self.reset_btn.setFixedWidth(550)
         self.reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.reset_btn.clicked.connect(self.reset_settings)
         
         self.save_btn = QPushButton("💾 Enregistrer les Paramètres")
         self.save_btn.setStyleSheet(BUTTON_STYLES['success'])
         self.save_btn.setMinimumHeight(45)
-        self.save_btn.setFixedWidth(250)
+        self.save_btn.setFixedWidth(550)
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.clicked.connect(self.save_settings)
 
