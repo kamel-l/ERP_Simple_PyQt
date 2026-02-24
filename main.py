@@ -23,7 +23,7 @@ from products import ProductsPage
 from sales import SalesPage
 from purchases import PurchasesPage
 from settings import SettingsPage
-from statistics import StatisticsPage
+from statistics_view import StatisticsPage
 from sales_history import SalesHistoryPage
 from PyQt6.QtGui import QAction
 from clean_erp_data import run_full_cleanup
