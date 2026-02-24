@@ -1,701 +1,659 @@
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QHBoxLayout,
-    QFormLayout, QLineEdit, QComboBox, QFrame, QTabWidget, QMessageBox,
-    QFileDialog, QInputDialog, QApplication
+    QLineEdit, QComboBox, QFrame, QScrollArea, QMessageBox,
+    QFileDialog, QInputDialog, QApplication, QSizePolicy
 )
-from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtCore import Qt, QSize
 import qdarktheme
-from styles import COLORS, BUTTON_STYLES, INPUT_STYLE
+from styles import COLORS
 from db_manager import get_database
 from datetime import datetime
-import time
 
+
+# ─────────────────────────────────────────────
+#  Composants réutilisables
+# ─────────────────────────────────────────────
+
+CARD_STYLE = """
+    QFrame {
+        background: #1A1D27;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.07);
+    }
+"""
+
+INPUT_STYLE = """
+    QLineEdit {
+        background: #0F1117;
+        color: #E2E8F0;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        selection-background-color: #3B82F6;
+    }
+    QLineEdit:focus {
+        border: 1px solid #3B82F6;
+        background: #111827;
+    }
+"""
+
+COMBO_STYLE = """
+    QComboBox {
+        background: #0F1117;
+        color: #E2E8F0;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 42px;
+    }
+    QComboBox:focus { border: 1px solid #3B82F6; }
+    QComboBox::drop-down { border: none; width: 30px; }
+    QComboBox QAbstractItemView {
+        background: #1A1D27;
+        color: #E2E8F0;
+        selection-background-color: #3B82F6;
+        border: 1px solid rgba(255,255,255,0.10);
+    }
+"""
+
+def make_btn(text, color="#3B82F6", text_color="white", outlined=False):
+    """Crée un bouton stylisé."""
+    btn = QPushButton(text)
+    btn.setMinimumHeight(42)
+    btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    btn.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+    if outlined:
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                color: {color};
+                border: 1.5px solid {color};
+                border-radius: 9px;
+                padding: 0 22px;
+            }}
+            QPushButton:hover {{ background: {color}22; }}
+            QPushButton:pressed {{ background: {color}44; }}
+        """)
+    else:
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {color};
+                color: {text_color};
+                border: none;
+                border-radius: 9px;
+                padding: 0 22px;
+            }}
+            QPushButton:hover {{ background: {color}CC; }}
+            QPushButton:pressed {{ background: {color}99; }}
+        """)
+    return btn
+
+
+class SectionCard(QFrame):
+    """Carte de section avec titre et icône."""
+    def __init__(self, icon, title, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(CARD_STYLE)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(24, 20, 24, 24)
+        self._layout.setSpacing(18)
+
+        # En-tête
+        hdr = QHBoxLayout()
+        hdr.setSpacing(10)
+
+        icon_lbl = QLabel(icon)
+        icon_lbl.setFont(QFont("Segoe UI", 18))
+        icon_lbl.setStyleSheet("background: transparent; border: none;")
+        icon_lbl.setFixedSize(32, 32)
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        hdr.addWidget(icon_lbl)
+
+        title_lbl = QLabel(title)
+        title_lbl.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        title_lbl.setStyleSheet("color: #F1F5F9; background: transparent; border: none;")
+        hdr.addWidget(title_lbl)
+        hdr.addStretch()
+
+        self._layout.addLayout(hdr)
+
+        # Séparateur
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFixedHeight(1)
+        sep.setStyleSheet("background: rgba(255,255,255,0.07); border: none;")
+        self._layout.addWidget(sep)
+
+    def body(self):
+        return self._layout
+
+
+class FieldRow(QHBoxLayout):
+    """Ligne label + champ."""
+    def __init__(self, label_text, field_widget, parent=None):
+        super().__init__()
+        self.setSpacing(0)
+
+        lbl = QLabel(label_text)
+        lbl.setFont(QFont("Segoe UI", 11))
+        lbl.setStyleSheet("color: rgba(255,255,255,0.50); background: transparent; border: none;")
+        lbl.setFixedWidth(170)
+
+        self.addWidget(lbl)
+        self.addWidget(field_widget)
+
+
+# ─────────────────────────────────────────────
+#  Onglets personnalisés (boutons-onglets)
+# ─────────────────────────────────────────────
+
+class TabBar(QFrame):
+    def __init__(self, tabs_data, parent=None):
+        super().__init__(parent)
+        self.setObjectName("tabbar")
+        self.setStyleSheet("QFrame#tabbar { background: transparent; border: none; }")
+        self._btns = []
+        self._callbacks = []
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+
+        for i, (icon, label, callback) in enumerate(tabs_data):
+            btn = QPushButton(f"{icon}  {label}")
+            btn.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+            btn.setMinimumHeight(40)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setCheckable(True)
+            btn.setProperty("tab_index", i)
+            btn.clicked.connect(lambda checked, idx=i: self._activate(idx))
+            self._btns.append(btn)
+            self._callbacks.append(callback)
+            layout.addWidget(btn)
+
+        layout.addStretch()
+        self._activate(0)
+
+    def _activate(self, idx):
+        for i, btn in enumerate(self._btns):
+            if i == idx:
+                btn.setChecked(True)
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background: #3B82F6;
+                        color: white;
+                        border: none;
+                        border-radius: 9px;
+                        padding: 0 20px;
+                    }
+                """)
+            else:
+                btn.setChecked(False)
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background: rgba(255,255,255,0.06);
+                        color: rgba(255,255,255,0.45);
+                        border: none;
+                        border-radius: 9px;
+                        padding: 0 20px;
+                    }
+                    QPushButton:hover {
+                        background: rgba(255,255,255,0.10);
+                        color: rgba(255,255,255,0.80);
+                    }
+                """)
+        self._callbacks[idx]()
+
+
+# ─────────────────────────────────────────────
+#  Page Paramètres principale
+# ─────────────────────────────────────────────
 
 class SettingsPage(QWidget):
     def __init__(self):
         super().__init__()
-        
-        # Récupérer l'instance de la base de données
         self.db = get_database()
+        self.setStyleSheet("background: #0F1117;")
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(20)
-        layout.setContentsMargins(20, 20, 20, 20)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(32, 28, 32, 28)
+        root.setSpacing(0)
 
-        # ------------------- HEADER -------------------
-        header_layout = QVBoxLayout()
-        layout.addLayout(header_layout)
+        # ── EN-TÊTE ───────────────────────────────────────
+        hdr_row = QHBoxLayout()
 
-        title = QLabel("⚙️ Paramètres")
-        title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 5px;")
-        header_layout.addWidget(title)
+        title_col = QVBoxLayout()
+        title_col.setSpacing(4)
 
-        subtitle = QLabel("Configuration de votre système")
-        subtitle.setFont(QFont("Segoe UI", 14))
-        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']}; margin-bottom: 15px;")
-        header_layout.addWidget(subtitle)
+        page_title = QLabel("Paramètres")
+        page_title.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
+        page_title.setStyleSheet("color: #F1F5F9; background: transparent;")
+        title_col.addWidget(page_title)
 
-        # ------------------- TABS -------------------
-        tabs = QTabWidget()
-        tabs.setStyleSheet(f"""
-            QTabWidget::pane {{
-                border: 1px solid {COLORS['border']};
-                border-radius: 8px;
-                background: {COLORS['bg_card']};
-                padding: 0px;
-            }}
-            QTabBar::tab {{
-                background: {COLORS['bg_medium']};
-                color: {COLORS['text_tertiary']};
-                padding: 12px 24px;
-                margin-right: 5px;
-                border-top-left-radius: 8px;
-                border-top-right-radius: 8px;
-                font-size: 13px;
-                font-weight: bold;
-            }}
-            QTabBar::tab:selected {{
-                background: {COLORS['bg_card']};
-                color: {COLORS['primary']};
-                border-bottom: 3px solid {COLORS['primary']};
-            }}
-            QTabBar::tab:hover {{
-                background: {COLORS['bg_light']};
-            }}
-        """)
+        page_sub = QLabel("Configuration de votre système ERP")
+        page_sub.setFont(QFont("Segoe UI", 12))
+        page_sub.setStyleSheet("color: rgba(255,255,255,0.35); background: transparent;")
+        title_col.addWidget(page_sub)
 
-        # ------------------- ONGLET SYSTÈME -------------------
-        system_tab = QWidget()
-        system_layout = QVBoxLayout()
-        system_tab.setLayout(system_layout)
-        system_layout.setContentsMargins(20, 20, 20, 20)
-        system_layout.setSpacing(20)
+        hdr_row.addLayout(title_col)
+        hdr_row.addStretch()
 
-        # Charger les paramètres depuis la base
-        company_name = self.db.get_setting('company_name', 'My Company')
-        company_address = self.db.get_setting('company_address', '123 Rue Example, Alger')
-        company_phone = self.db.get_setting('company_phone', '0555123456')
-        company_email = self.db.get_setting('company_email', 'contact@mycompany.dz')
-        currency = self.db.get_setting('currency', 'DA (Dinar Algérien)')
-        vat = self.db.get_setting('vat', '19')
-        vat_number = self.db.get_setting('vat_number', '123456789012345')
-
-        # Section Entreprise
-        company_section = self.create_section(
-            "🏢 Informations de l'Entreprise",
-            [
-                ("Nom de l'entreprise:", company_name, "company_name"),
-                ("Adresse:", company_address, "address"),
-                ("Téléphone:", company_phone, "company_phone"),
-                ("Email:", company_email, "company_email"),
-            ]
-        )
-        system_layout.addWidget(company_section)
-
-        # Section Devise et Taxes
-        finance_section = self.create_section(
-            "💰 Configuration Financière",
-            [
-                ("Devise:", currency, "currency"),
-                ("TVA (%):", vat, "vat"),
-                ("Numéro de TVA:", vat_number, "vat_number"),
-            ]
-        )
-        system_layout.addWidget(finance_section)
-
-        system_layout.addStretch()
-        tabs.addTab(system_tab, "🏢 Système")
-
-        # ------------------- ONGLET APPARENCE -------------------
-        appearance_tab = QWidget()
-        appearance_layout = QVBoxLayout()
-        appearance_tab.setLayout(appearance_layout)
-        appearance_layout.setContentsMargins(20, 20, 20, 20)
-        appearance_layout.setSpacing(20)
-
-        # Section Thème
-        theme_card = QFrame()
-        theme_card.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 0px;
-            }}
-        """)
-        theme_layout = QVBoxLayout()
-        theme_layout.setContentsMargins(20, 20, 20, 20)
-        theme_card.setLayout(theme_layout)
-        theme_layout.setSpacing(15)
-
-        theme_title = QLabel("🎨 Thème de l'Application")
-        theme_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        theme_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        theme_layout.addWidget(theme_title)
-
-        theme_desc = QLabel("Choisissez le thème qui vous convient le mieux")
-        theme_desc.setFont(QFont("Segoe UI", 12))
-        theme_desc.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        theme_layout.addWidget(theme_desc)
-
-        theme_select_layout = QHBoxLayout()
-        theme_select_layout.setSpacing(15)
-
-        theme_label = QLabel("Thème:")
-        theme_label.setFont(QFont("Segoe UI", 13))
-        theme_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        
-        self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["🌙 Mode Sombre", "☀️ Mode Clair"])
-        self.theme_combo.setStyleSheet(INPUT_STYLE)
-        self.theme_combo.setMinimumHeight(45)
-        self.theme_combo.currentIndexChanged.connect(self.change_theme)
-
-        theme_select_layout.addWidget(theme_label)
-        theme_select_layout.addWidget(self.theme_combo)
-        theme_select_layout.addStretch()
-
-        theme_layout.addLayout(theme_select_layout)
-        appearance_layout.addWidget(theme_card)
-
-        appearance_layout.addStretch()
-        tabs.addTab(appearance_tab, "🎨 Apparence")
-
-        # ------------------- ONGLET BASE DE DONNÉES -------------------
-        database_tab = QWidget()
-        database_layout = QVBoxLayout()
-        database_tab.setLayout(database_layout)
-        database_layout.setContentsMargins(20, 20, 20, 20)
-        database_layout.setSpacing(10)
-
-        # Section Sauvegarde
-        backup_card = QFrame()
-        backup_card.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-              
-                padding: 0px;
-            }}
-        """)
-        backup_layout = QVBoxLayout()
-        backup_card.setLayout(backup_layout)
-        backup_layout.setContentsMargins(20, 20, 20, 20)
-        backup_layout.setSpacing(15)
-
-        backup_title = QLabel("💾 Sauvegarde des Données")
-        backup_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        backup_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        backup_layout.addWidget(backup_title)
-
-        backup_desc = QLabel("Créez une copie de sécurité de toutes vos données")
-        backup_desc.setFont(QFont("Segoe UI", 12))
-        backup_desc.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        backup_layout.addWidget(backup_desc)
-
-        # Informations sur la dernière sauvegarde
-        last_backup = self.db.get_setting('last_backup_date', 'Aucune')
-        self.last_backup_label = QLabel(f"📅 Dernière sauvegarde: {last_backup}")
-        self.last_backup_label.setFont(QFont("Segoe UI", 11))
-        self.last_backup_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none; margin-top: 10px;")
-        backup_layout.addWidget(self.last_backup_label)
-
-        # Boutons de sauvegarde
-        backup_btn_layout = QHBoxLayout()
-        backup_btn_layout.setSpacing(10)
-
-        self.backup_btn = QPushButton("💾 Créer une Sauvegarde")
-        self.backup_btn.setStyleSheet(BUTTON_STYLES['success'])
-        self.backup_btn.setMinimumHeight(45)
-        self.backup_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.backup_btn.clicked.connect(self.create_backup)
-
-        self.restore_btn = QPushButton("📂 Restaurer une Sauvegarde")
-        self.restore_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        self.restore_btn.setMinimumHeight(45)
-        self.restore_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.restore_btn.clicked.connect(self.restore_backup)
-
-        backup_btn_layout.addWidget(self.backup_btn)
-        backup_btn_layout.addWidget(self.restore_btn)
-        backup_layout.addLayout(backup_btn_layout)
-
-        database_layout.addWidget(backup_card)
-
-        # Section Nettoyage de la Base de Données
-        cleanup_card = QFrame()
-        cleanup_card.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-               
-                padding: 0px;
-            }}
-        """)
-        cleanup_layout = QVBoxLayout()
-        cleanup_card.setLayout(cleanup_layout)
-        cleanup_layout.setContentsMargins(20, 20, 20, 20)
-        cleanup_layout.setSpacing(10)
-
-        cleanup_title = QLabel("🗑️ Nettoyage de la Base de Données")
-        cleanup_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        cleanup_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        cleanup_layout.addWidget(cleanup_title)
-
-        cleanup_desc = QLabel("⚠️ Attention: Cette action est irréversible!")
-        cleanup_desc.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        cleanup_desc.setStyleSheet(f"color: {COLORS['danger']}; border: none;")
-        cleanup_layout.addWidget(cleanup_desc)
-
-        cleanup_info = QLabel(
-            "Le nettoyage de la base de données supprimera définitivement:\n"
-            "• Tous les clients\n"
-            "• Tous les produits\n"
-            "• Toutes les ventes\n"
-            "• Tous les achats\n"
-            "• Tout l'historique\n\n"
-            "⚠️ Assurez-vous d'avoir créé une sauvegarde avant de continuer!"
-        )
-        cleanup_info.setFont(QFont("Segoe UI", 11))
-        cleanup_info.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none; margin-top: 10px;")
-        cleanup_layout.addWidget(cleanup_info)
-
-        # Bouton de nettoyage
-        self.cleanup_btn = QPushButton("🗑️ NETTOYER LA BASE DE DONNÉES")
-        self.cleanup_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['danger']}, stop:1 #D93D32);
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 15px 30px;
-                font-size: 15px;
-                font-weight: bold;
-                min-height: 50px;
-            }}
-            QPushButton:hover {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 #FF5549, stop:1 {COLORS['danger']});
-            }}
-            QPushButton:pressed {{
-                background: #D93D32;
-            }}
-        """)
-        self.cleanup_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.cleanup_btn.clicked.connect(self.cleanup_database)
-        cleanup_layout.addWidget(self.cleanup_btn)
-
-        database_layout.addWidget(cleanup_card)
-
-        # Section Statistiques de la Base
-        stats_card = QFrame()
-        stats_card.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-              
-                padding: 0px;
-            }}
-        """)
-        stats_layout = QVBoxLayout()
-        stats_card.setLayout(stats_layout)
-        stats_layout.setContentsMargins(20, 20, 20, 20)
-        stats_layout.setSpacing(10)
-
-        stats_title = QLabel("📊 Statistiques de la Base")
-        stats_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        stats_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        stats_layout.addWidget(stats_title)
-
-        # Grille de statistiques
-        self.stats_grid = QHBoxLayout()
-        self.stats_grid.setSpacing(20)
-        stats_layout.addLayout(self.stats_grid)
-
-        # Charger les statistiques initiales
-        self.load_statistics()
-
-        # Bouton rafraîchir
-        refresh_stats_btn = QPushButton("🔄 Rafraîchir les Statistiques")
-        refresh_stats_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        refresh_stats_btn.setMinimumHeight(40)
-        refresh_stats_btn.setFixedWidth(250)
-        refresh_stats_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        refresh_stats_btn.clicked.connect(self.refresh_stats)
-        stats_layout.addWidget(refresh_stats_btn)
-
-        # Bouton données de test
-        test_data_btn = QPushButton("🧪 Générer des Données de Test")
-        test_data_btn.setStyleSheet(BUTTON_STYLES['primary'])
-        test_data_btn.setMinimumHeight(40)
-        test_data_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        test_data_btn.clicked.connect(self.generate_test_data)
-        stats_layout.addWidget(test_data_btn)
-
-        database_layout.addWidget(stats_card)
-
-        database_layout.addStretch()
-        tabs.addTab(database_tab, "🗄️ Base de Données")
-
-        layout.addWidget(tabs)
-
-        # ------------------- ACTION BUTTONS -------------------
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(10)
-        layout.addLayout(btn_layout)
-
-        self.reset_btn = QPushButton("♻️ Réinitialiser")
-        self.reset_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        self.reset_btn.setMinimumHeight(45)
-        self.reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Boutons d'action globaux (en-tête)
+        self.reset_btn = make_btn("↺  Réinitialiser", "#64748B", outlined=True)
+        self.reset_btn.setFixedWidth(150)
         self.reset_btn.clicked.connect(self.reset_settings)
-        
-        self.save_btn = QPushButton("💾 Enregistrer les Paramètres")
-        self.save_btn.setStyleSheet(BUTTON_STYLES['success'])
-        self.save_btn.setMinimumHeight(45)
-        self.save_btn.setFixedWidth(250)
-        self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self.save_btn = make_btn("✓  Enregistrer", "#10B981")
+        self.save_btn.setFixedWidth(170)
         self.save_btn.clicked.connect(self.save_settings)
 
-        btn_layout.addWidget(self.reset_btn)
-        btn_layout.addStretch()
-        btn_layout.addWidget(self.save_btn)
+        hdr_row.addWidget(self.reset_btn)
+        hdr_row.addSpacing(10)
+        hdr_row.addWidget(self.save_btn)
 
-    def create_section(self, title, fields):
-        """Crée une section de paramètres avec des champs"""
-        card = QFrame()
-        card.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 0px;
-            }}
-        """)
-        card_layout = QVBoxLayout()
-        card_layout.setContentsMargins(20, 20, 20, 20)
-        card_layout.setSpacing(15)
-        card.setLayout(card_layout)
+        root.addLayout(hdr_row)
+        root.addSpacing(24)
 
-        section_title = QLabel(title)
-        section_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        section_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        card_layout.addWidget(section_title)
+        # ── BARRE D'ONGLETS ───────────────────────────────
+        # Zone de contenu (stacké manuellement)
+        self.content_system = self._build_system_tab()
+        self.content_appearance = self._build_appearance_tab()
+        self.content_database = self._build_database_tab()
 
-        form = QFormLayout()
-        form.setSpacing(12)
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        form.setFormAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.all_contents = [
+            self.content_system,
+            self.content_appearance,
+            self.content_database,
+        ]
 
-        for label_text, default_value, field_name in fields:
-            label = QLabel(label_text)
-            label.setFont(QFont("Segoe UI", 12))
-            label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-            
-            field = QLineEdit(str(default_value))
+        tab_bar = TabBar([
+            ("🏢", "Système",      lambda: self._show_tab(0)),
+            ("🎨", "Apparence",    lambda: self._show_tab(1)),
+            ("🗄️", "Base de Données", lambda: self._show_tab(2)),
+        ])
+        root.addWidget(tab_bar)
+        root.addSpacing(20)
+
+        # Conteneur de contenu
+        self.content_frame = QFrame()
+        self.content_frame.setStyleSheet("background: transparent; border: none;")
+        self.content_layout = QVBoxLayout(self.content_frame)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+
+        for c in self.all_contents:
+            c.hide()
+            self.content_layout.addWidget(c)
+
+        root.addWidget(self.content_frame)
+        self._show_tab(0)
+
+    # ── Navigation onglets ────────────────────────────────
+    def _show_tab(self, idx):
+        for i, c in enumerate(self.all_contents):
+            c.setVisible(i == idx)
+
+    # ── Onglet SYSTÈME ────────────────────────────────────
+    def _build_system_tab(self):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(container)
+        layout.setSpacing(16)
+        layout.setContentsMargins(0, 0, 12, 0)
+
+        # Charger les valeurs
+        company_name    = self.db.get_setting('company_name',    'My Company')
+        company_address = self.db.get_setting('company_address', '123 Rue Example, Alger')
+        company_phone   = self.db.get_setting('company_phone',   '0555123456')
+        company_email   = self.db.get_setting('company_email',   'contact@mycompany.dz')
+        currency        = self.db.get_setting('currency',        'DA (Dinar Algérien)')
+        vat             = self.db.get_setting('vat',             '19')
+        vat_number      = self.db.get_setting('vat_number',      '123456789012345')
+
+        # ── Carte Entreprise ──
+        card_ent = SectionCard("🏢", "Informations de l'Entreprise")
+        body = card_ent.body()
+
+        fields_ent = [
+            ("Nom de l'entreprise",  company_name,    "company_name"),
+            ("Adresse",              company_address, "address"),
+            ("Téléphone",            company_phone,   "company_phone"),
+            ("Email",                company_email,   "company_email"),
+        ]
+        for lbl_text, val, attr in fields_ent:
+            field = QLineEdit(str(val))
             field.setStyleSheet(INPUT_STYLE)
-            field.setMinimumHeight(40)
-            setattr(self, field_name, field)
-            
-            form.addRow(label, field)
+            field.setMinimumHeight(42)
+            setattr(self, attr, field)
+            row = FieldRow(lbl_text, field)
+            body.addLayout(row)
 
-        card_layout.addLayout(form)
-        return card
+        layout.addWidget(card_ent)
+
+        # ── Carte Finance ──
+        card_fin = SectionCard("💰", "Configuration Financière")
+        body2 = card_fin.body()
+
+        fields_fin = [
+            ("Devise",        currency,   "currency"),
+            ("TVA (%)",       vat,        "vat"),
+            ("Numéro de TVA", vat_number, "vat_number"),
+        ]
+        for lbl_text, val, attr in fields_fin:
+            field = QLineEdit(str(val))
+            field.setStyleSheet(INPUT_STYLE)
+            field.setMinimumHeight(42)
+            setattr(self, attr, field)
+            row = FieldRow(lbl_text, field)
+            body2.addLayout(row)
+
+        layout.addWidget(card_fin)
+        layout.addStretch()
+
+        scroll.setWidget(container)
+        return scroll
+
+    # ── Onglet APPARENCE ─────────────────────────────────
+    def _build_appearance_tab(self):
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(container)
+        layout.setSpacing(16)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        card = SectionCard("🎨", "Thème de l'Application")
+        body = card.body()
+
+        desc = QLabel("Choisissez le thème qui vous convient le mieux.")
+        desc.setFont(QFont("Segoe UI", 11))
+        desc.setStyleSheet("color: rgba(255,255,255,0.40); background: transparent; border: none;")
+        body.addWidget(desc)
+
+        row = QHBoxLayout()
+        lbl = QLabel("Thème actif")
+        lbl.setFont(QFont("Segoe UI", 11))
+        lbl.setStyleSheet("color: rgba(255,255,255,0.50); background: transparent; border: none;")
+        lbl.setFixedWidth(170)
+
+        self.theme_combo = QComboBox()
+        self.theme_combo.addItems(["🌙  Mode Sombre", "☀️  Mode Clair"])
+        self.theme_combo.setStyleSheet(COMBO_STYLE)
+        self.theme_combo.setFont(QFont("Segoe UI", 11))
+        self.theme_combo.currentIndexChanged.connect(self.change_theme)
+
+        row.addWidget(lbl)
+        row.addWidget(self.theme_combo)
+        body.addLayout(row)
+
+        layout.addWidget(card)
+        layout.addStretch()
+        return container
+
+    # ── Onglet BASE DE DONNÉES ───────────────────────────
+    def _build_database_tab(self):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+
+        container = QWidget()
+        container.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(container)
+        layout.setSpacing(16)
+        layout.setContentsMargins(0, 0, 12, 0)
+
+        # ── Carte Sauvegarde ──
+        card_bk = SectionCard("💾", "Sauvegarde des Données")
+        body_bk = card_bk.body()
+
+        desc_bk = QLabel("Créez ou restaurez une copie de sécurité complète de vos données.")
+        desc_bk.setFont(QFont("Segoe UI", 11))
+        desc_bk.setStyleSheet("color: rgba(255,255,255,0.40); background: transparent; border: none;")
+        body_bk.addWidget(desc_bk)
+
+        last_backup = self.db.get_setting('last_backup_date', 'Aucune sauvegarde')
+        self.last_backup_label = QLabel(f"📅 Dernière sauvegarde : {last_backup}")
+        self.last_backup_label.setFont(QFont("Segoe UI", 10))
+        self.last_backup_label.setStyleSheet(
+            "color: rgba(255,255,255,0.30); background: transparent; border: none;")
+        body_bk.addWidget(self.last_backup_label)
+
+        bk_btns = QHBoxLayout()
+        bk_btns.setSpacing(10)
+        btn_create = make_btn("💾  Créer une Sauvegarde", "#10B981")
+        btn_create.clicked.connect(self.create_backup)
+        btn_restore = make_btn("📂  Restaurer", "#3B82F6", outlined=True)
+        btn_restore.clicked.connect(self.restore_backup)
+        bk_btns.addWidget(btn_create)
+        bk_btns.addWidget(btn_restore)
+        bk_btns.addStretch()
+        body_bk.addLayout(bk_btns)
+
+        layout.addWidget(card_bk)
+
+        # ── Carte Statistiques ──
+        card_stats = SectionCard("📊", "Statistiques de la Base")
+        body_stats = card_stats.body()
+
+        self.stats_grid = QHBoxLayout()
+        self.stats_grid.setSpacing(12)
+        body_stats.addLayout(self.stats_grid)
+        self.load_statistics()
+
+        stats_btns = QHBoxLayout()
+        stats_btns.setSpacing(10)
+        btn_refresh = make_btn("🔄  Actualiser", "#64748B", outlined=True)
+        btn_refresh.setFixedWidth(160)
+        btn_refresh.clicked.connect(self.refresh_stats)
+        btn_test = make_btn("🧪  Données de Test", "#8B5CF6")
+        btn_test.setFixedWidth(200)
+        btn_test.clicked.connect(self.generate_test_data)
+        stats_btns.addWidget(btn_refresh)
+        stats_btns.addWidget(btn_test)
+        stats_btns.addStretch()
+        body_stats.addLayout(stats_btns)
+
+        layout.addWidget(card_stats)
+
+        # ── Carte Danger ──
+        card_danger = SectionCard("⚠️", "Zone de Danger")
+        body_danger = card_danger.body()
+        card_danger.setStyleSheet("""
+            QFrame {
+                background: #1A1215;
+                border-radius: 14px;
+                border: 1px solid rgba(239,68,68,0.25);
+            }
+        """)
+
+        warn_lbl = QLabel("Cette action supprimera définitivement toutes les données (clients, produits, ventes, achats, historique). Elle est irréversible.")
+        warn_lbl.setWordWrap(True)
+        warn_lbl.setFont(QFont("Segoe UI", 11))
+        warn_lbl.setStyleSheet("color: rgba(255,255,255,0.40); background: transparent; border: none;")
+        body_danger.addWidget(warn_lbl)
+
+        btn_clean = make_btn("🗑️  Nettoyer la Base de Données", "#EF4444")
+        btn_clean.setFixedWidth(280)
+        btn_clean.clicked.connect(self.cleanup_database)
+        body_danger.addWidget(btn_clean)
+
+        layout.addWidget(card_danger)
+        layout.addStretch()
+
+        scroll.setWidget(container)
+        return scroll
+
+    # ─────────────────────────────────────────────────────
+    #  Méthodes métier (inchangées)
+    # ─────────────────────────────────────────────────────
 
     def create_stat_item(self, icon, label, value, color):
-        """Crée un item de statistique"""
         item = QFrame()
         item.setStyleSheet(f"""
             QFrame {{
-                background: {COLORS['bg_medium']};
-                border-radius: 8px;
-                border: 1px solid {COLORS['border']};
-              
-                padding: 0px;
+                background: #0F1117;
+                border-radius: 10px;
+                border: 1px solid rgba(255,255,255,0.07);
             }}
         """)
-        item_layout = QVBoxLayout()
-        item.setLayout(item_layout)
-        item_layout.setContentsMargins(20, 20, 20, 20)
-        item_layout.setSpacing(8)
-        item_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        il = QVBoxLayout(item)
+        il.setContentsMargins(16, 16, 16, 16)
+        il.setSpacing(6)
+        il.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        icon_label = QLabel(icon)
-        icon_label.setFont(QFont("Segoe UI", 28))
-        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        icon_label.setStyleSheet("border: none;")
-        item_layout.addWidget(icon_label)
+        ic = QLabel(icon)
+        ic.setFont(QFont("Segoe UI", 24))
+        ic.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        ic.setStyleSheet("border: none; background: transparent;")
+        il.addWidget(ic)
 
-        value_label = QLabel(str(value))
-        value_label.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
-        value_label.setStyleSheet(f"color: {color}; border: none;")
-        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        item_layout.addWidget(value_label)
+        vl = QLabel(str(value))
+        vl.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
+        vl.setStyleSheet(f"color: {color}; border: none; background: transparent;")
+        vl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        il.addWidget(vl)
 
-        text_label = QLabel(label)
-        text_label.setFont(QFont("Segoe UI", 11))
-        text_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        item_layout.addWidget(text_label)
+        tl = QLabel(label)
+        tl.setFont(QFont("Segoe UI", 10))
+        tl.setStyleSheet("color: rgba(255,255,255,0.35); border: none; background: transparent;")
+        tl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        il.addWidget(tl)
 
         return item
 
     def load_statistics(self):
-        """Charge les statistiques de la base de données"""
-        # Effacer les anciens widgets
         while self.stats_grid.count():
             child = self.stats_grid.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-        
-        # Récupérer les stats
-        stats = self.db.get_statistics()
-        
-        stats_items = [
-            ("👥", "Clients", stats['total_clients'], COLORS['secondary']),
-            ("📦", "Produits", stats['total_products'], COLORS['success']),
-            ("💰", "Ventes", stats['total_sales'], COLORS['primary']),
-            ("🛒", "Achats", stats['total_purchases'], COLORS['warning']),
-        ]
 
-        for icon, label, value, color in stats_items:
-            stat_item = self.create_stat_item(icon, label, value, color)
-            self.stats_grid.addWidget(stat_item)
+        stats = self.db.get_statistics()
+        items = [
+            ("👥", "Clients",  stats['total_clients'],   "#8B5CF6"),
+            ("📦", "Produits", stats['total_products'],  "#10B981"),
+            ("💰", "Ventes",   stats['total_sales'],     "#3B82F6"),
+            ("🛒", "Achats",   stats['total_purchases'], "#F59E0B"),
+        ]
+        for icon, label, value, color in items:
+            self.stats_grid.addWidget(self.create_stat_item(icon, label, value, color))
 
     def change_theme(self, index):
-        """Change le thème de l'application"""
-        if index == 0:
-            qdarktheme.setup_theme("dark")
-        else:
-            qdarktheme.setup_theme("light")
+        qdarktheme.setup_theme("dark" if index == 0 else "light")
 
     def cleanup_database(self):
-        """Nettoie complètement la base de données"""
         reply = QMessageBox.warning(
-            self,
-            "⚠️ ATTENTION - Nettoyage de la Base",
-            "🗑️ Vous êtes sur le point de SUPPRIMER DÉFINITIVEMENT toutes les données!\n\n"
-            "Cette action supprimera:\n"
-            "• Tous les clients\n"
-            "• Tous les produits\n"
-            "• Toutes les ventes\n"
-            "• Tous les achats\n"
-            "• Tout l'historique\n\n"
-            "⚠️ CETTE ACTION EST IRRÉVERSIBLE!\n\n"
-            "Êtes-vous absolument certain de vouloir continuer?",
+            self, "⚠️ Confirmation",
+            "Vous allez supprimer DÉFINITIVEMENT toutes les données.\n\nCette action est irréversible. Continuer?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
-        
         if reply == QMessageBox.StandardButton.No:
             return
-        
+
         text, ok = QInputDialog.getText(
-            self,
-            "🔒 Confirmation Finale",
-            "Pour confirmer le nettoyage, tapez exactement le mot:\n\nSUPPRIMER\n\n"
-            "(en majuscules)",
-            QLineEdit.EchoMode.Normal,
-            ""
+            self, "Confirmation finale",
+            'Tapez exactement  SUPPRIMER  pour confirmer :',
+            QLineEdit.EchoMode.Normal, ""
         )
-        
         if not ok or text != "SUPPRIMER":
-            QMessageBox.information(
-                self,
-                "❌ Annulé",
-                "Le nettoyage de la base de données a été annulé."
-            )
+            QMessageBox.information(self, "Annulé", "Le nettoyage a été annulé.")
             return
-        
+
         try:
-            progress = QMessageBox(self)
-            progress.setWindowTitle("🗑️ Nettoyage en cours...")
-            progress.setText("Suppression des données...\n\nVeuillez patienter.")
-            progress.setStandardButtons(QMessageBox.StandardButton.NoButton)
-            progress.show()
+            prog = QMessageBox(self)
+            prog.setWindowTitle("Nettoyage…")
+            prog.setText("Suppression en cours, veuillez patienter.")
+            prog.setStandardButtons(QMessageBox.StandardButton.NoButton)
+            prog.show()
             QApplication.processEvents()
-            
-            # Nettoyer la base de données
             success = self.db.clear_all_data()
-            
-            progress.close()
-            
+            prog.close()
             if success:
-                QMessageBox.information(
-                    self,
-                    "✅ Nettoyage Terminé",
-                    "🗑️ La base de données a été nettoyée avec succès!"
-                )
+                QMessageBox.information(self, "✅ Terminé", "Base de données nettoyée avec succès.")
                 self.refresh_stats()
             else:
-                QMessageBox.critical(
-                    self,
-                    "❌ Erreur",
-                    "Une erreur s'est produite lors du nettoyage."
-                )
-            
+                QMessageBox.critical(self, "Erreur", "Une erreur est survenue lors du nettoyage.")
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "❌ Erreur",
-                f"Erreur lors du nettoyage:\n\n{str(e)}"
-            )
+            QMessageBox.critical(self, "Erreur", f"Erreur:\n{e}")
 
     def create_backup(self):
-        """Crée une sauvegarde de la base de données"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_name = f"erp_backup_{timestamp}.db"
-        
         filename, _ = QFileDialog.getSaveFileName(
-            self,
-            "💾 Sauvegarder la Base de Données",
-            default_name,
-            "Base de données (*.db);;Tous les fichiers (*.*)"
+            self, "Sauvegarder", f"erp_backup_{timestamp}.db",
+            "Base de données (*.db);;Tous (*.*)"
         )
-        
         if filename:
             try:
                 if self.db.backup_database(filename):
-                    # Enregistrer la date de sauvegarde
-                    self.db.set_setting('last_backup_date', 
-                                      datetime.now().strftime("%d/%m/%Y %H:%M"))
-                    self.last_backup_label.setText(
-                        f"📅 Dernière sauvegarde: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
-                    )
-                    
-                    QMessageBox.information(
-                        self,
-                        "✅ Sauvegarde Créée",
-                        f"✅ Sauvegarde créée avec succès!\n\n"
-                        f"Fichier: {filename}"
-                    )
+                    now = datetime.now().strftime("%d/%m/%Y %H:%M")
+                    self.db.set_setting('last_backup_date', now)
+                    self.last_backup_label.setText(f"📅 Dernière sauvegarde : {now}")
+                    QMessageBox.information(self, "✅ Sauvegarde créée", f"Fichier : {filename}")
             except Exception as e:
-                QMessageBox.critical(
-                    self,
-                    "❌ Erreur",
-                    f"Impossible de créer la sauvegarde:\n\n{str(e)}"
-                )
+                QMessageBox.critical(self, "Erreur", f"Impossible de créer la sauvegarde :\n{e}")
 
     def restore_backup(self):
-        """Restaure une sauvegarde"""
         reply = QMessageBox.warning(
-            self,
-            "⚠️ Restauration",
-            "⚠️ La restauration remplacera toutes les données actuelles!\n\n"
-            "Voulez-vous continuer?",
+            self, "⚠️ Restauration",
+            "La restauration remplacera toutes les données actuelles. Continuer?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
-        
         if reply == QMessageBox.StandardButton.No:
             return
-        
         filename, _ = QFileDialog.getOpenFileName(
-            self,
-            "📂 Restaurer une Sauvegarde",
-            "",
-            "Base de données (*.db);;Tous les fichiers (*.*)"
+            self, "Restaurer", "", "Base de données (*.db);;Tous (*.*)"
         )
-        
         if filename:
             try:
                 if self.db.restore_database(filename):
-                    QMessageBox.information(
-                        self,
-                        "✅ Restauration Réussie",
-                        "✅ Les données ont été restaurées!\n\n"
-                        "💡 Redémarrez l'application pour voir les changements."
-                    )
+                    QMessageBox.information(self, "✅ Restauré",
+                                            "Données restaurées. Redémarrez l'application.")
                     self.refresh_stats()
             except Exception as e:
-                QMessageBox.critical(
-                    self,
-                    "❌ Erreur",
-                    f"Impossible de restaurer:\n\n{str(e)}"
-                )
+                QMessageBox.critical(self, "Erreur", f"Impossible de restaurer :\n{e}")
 
     def refresh_stats(self):
-        """Rafraîchit les statistiques"""
         self.load_statistics()
-        QMessageBox.information(
-            self,
-            "🔄 Statistiques Actualisées",
-            "Les statistiques ont été mises à jour."
-        )
 
     def generate_test_data(self):
-        """Génère des données de test"""
         reply = QMessageBox.question(
-            self,
-            "🧪 Données de Test",
-            "Voulez-vous générer des données de test?\n\n"
-            "Cela ajoutera:\n"
-            "• Des clients exemples\n"
-            "• Des produits exemples\n"
-            "• Des catégories\n"
-            "• Des fournisseurs",
+            self, "🧪 Données de Test",
+            "Générer des clients, produits, catégories et fournisseurs exemples?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        
         if reply == QMessageBox.StandardButton.Yes:
             try:
                 self.db.populate_test_data()
-                QMessageBox.information(
-                    self,
-                    "✅ Données Créées",
-                    "Les données de test ont été générées avec succès!"
-                )
+                QMessageBox.information(self, "✅ Généré", "Données de test créées avec succès.")
                 self.refresh_stats()
             except Exception as e:
-                QMessageBox.critical(
-                    self,
-                    "❌ Erreur",
-                    f"Erreur lors de la génération:\n\n{str(e)}"
-                )
+                QMessageBox.critical(self, "Erreur", f"Erreur:\n{e}")
 
     def save_settings(self):
-        """Enregistre les paramètres"""
         try:
-            self.db.set_setting('company_name', self.company_name.text())
+            self.db.set_setting('company_name',    self.company_name.text())
             self.db.set_setting('company_address', self.address.text())
-            self.db.set_setting('company_phone', self.company_phone.text())
-            self.db.set_setting('company_email', self.company_email.text())
-            self.db.set_setting('currency', self.currency.text())
-            self.db.set_setting('vat', self.vat.text())
-            self.db.set_setting('vat_number', self.vat_number.text())
-            
-            QMessageBox.information(
-                self,
-                "✅ Paramètres Enregistrés",
-                "Vos paramètres ont été enregistrés avec succès!"
-            )
+            self.db.set_setting('company_phone',   self.company_phone.text())
+            self.db.set_setting('company_email',   self.company_email.text())
+            self.db.set_setting('currency',        self.currency.text())
+            self.db.set_setting('vat',             self.vat.text())
+            self.db.set_setting('vat_number',      self.vat_number.text())
+            QMessageBox.information(self, "✅ Enregistré", "Paramètres enregistrés avec succès.")
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "❌ Erreur",
-                f"Erreur lors de l'enregistrement:\n\n{str(e)}"
-            )
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de l'enregistrement:\n{e}")
 
     def reset_settings(self):
-        """Réinitialise les paramètres"""
         reply = QMessageBox.question(
-            self,
-            "♻️ Réinitialiser",
-            "Voulez-vous réinitialiser tous les paramètres?",
+            self, "Réinitialiser",
+            "Réinitialiser tous les paramètres aux valeurs par défaut?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        
         if reply == QMessageBox.StandardButton.Yes:
             self.company_name.setText("My Company")
             self.address.setText("123 Rue Example, Alger")
