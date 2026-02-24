@@ -21,6 +21,9 @@ COLORS = {
     'text_tertiary': '#94A3B8',
     'border': '#2D3A54',
     'border_light': '#3B4B68',
+    'accent_dark':  "#1E5FA8",   # bleu foncé pressé,
+    'accent':       "#4DA6FF",   # bleu néon vif
+    'accent_light': "#99CCFF",   # bleu clair survol
 }
 
 # ==================== STYLES DE BOUTONS ====================
