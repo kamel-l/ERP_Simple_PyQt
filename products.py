@@ -356,11 +356,18 @@ class ProductsPage(QWidget):
         self.export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.export_btn.setMinimumHeight(40)
 
+        self.delete_all_btn = QPushButton("🗑️ Tout Supprimer")
+        self.delete_all_btn.setStyleSheet(BUTTON_STYLES['danger'])
+        self.delete_all_btn.clicked.connect(self.delete_all_products)
+        self.delete_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.delete_all_btn.setMinimumHeight(40)
+
         actions_layout.addWidget(self.import_btn)
         actions_layout.addWidget(self.export_btn)
         actions_layout.addStretch()
         actions_layout.addWidget(self.edit_btn)
         actions_layout.addWidget(self.delete_btn)
+        actions_layout.addWidget(self.delete_all_btn)
 
         self.load_products()
 
@@ -563,6 +570,50 @@ class ProductsPage(QWidget):
                 self.update_statistics()
             else:
                 QMessageBox.critical(self, "Erreur", "Impossible de supprimer!")
+
+    def delete_all_products(self):
+        """Supprime tous les produits après double confirmation"""
+        count = self.table.rowCount()
+        if count == 0:
+            QMessageBox.information(self, "Info", "Aucun produit à supprimer.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "⚠️ Confirmation",
+            f"Vous êtes sur le point de supprimer TOUS les {count} produits.\nCette action est irréversible !\n\nVoulez-vous continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        # Deuxième confirmation de sécurité
+        reply2 = QMessageBox.warning(
+            self,
+            "⚠️ Dernière confirmation",
+            f"Êtes-vous ABSOLUMENT sûr de vouloir supprimer les {count} produits ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply2 != QMessageBox.StandardButton.Yes:
+            return
+
+        errors = 0
+        for row in range(self.table.rowCount()):
+            product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+            if not self.db.delete_product(product_id):
+                errors += 1
+
+        self.load_products()
+        self.update_statistics()
+
+        if errors == 0:
+            QMessageBox.information(self, "Succès", f"{count} produit(s) supprimé(s) avec succès!")
+        else:
+            QMessageBox.warning(self, "Attention", f"{count - errors} supprimé(s), {errors} échec(s).")
 
     def filter_products(self, text):
         """Filtre les produits"""
