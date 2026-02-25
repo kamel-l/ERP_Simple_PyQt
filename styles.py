@@ -21,6 +21,10 @@ COLORS = {
     'text_tertiary': '#D8B4FE',
     'border': '#4C2F5E',
     'border_light': '#5E3A73',
+    'accent' : '#32D599' ,
+    'accent_light' : '#60A5FA' ,
+    'bg_card_hover' : '#A815F3' ,
+    'bg_input' : '#F438B6' , 
 }
 
 # ==================== STYLES DE BOUTONS ====================
@@ -165,7 +169,7 @@ TABLE_STYLE = f"""
 
 # ==================== STYLES DE CHAMPS DE SAISIE ====================
 INPUT_STYLE = f"""
-    QLineEdit, QComboBox {{
+    QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit {{
         background-color: {COLORS['bg_light']};
         border: 2px solid {COLORS['border']};
         border-radius: 8px;
@@ -174,11 +178,11 @@ INPUT_STYLE = f"""
         font-size: 14px;
         min-height: 36px;
     }}
-    QLineEdit:focus, QComboBox:focus {{
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QTextEdit:focus {{
         border: 2px solid {COLORS['primary']};
         background-color: {COLORS['bg_medium']};
     }}
-    QLineEdit:hover, QComboBox:hover {{
+    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover, QTextEdit:hover {{
         border: 2px solid {COLORS['border_light']};
     }}
     QComboBox::drop-down {{
@@ -198,6 +202,53 @@ INPUT_STYLE = f"""
         selection-background-color: {COLORS['primary']};
         color: {COLORS['text_primary']};
     }}
+    QSpinBox::up-button, QDoubleSpinBox::up-button {{
+        subcontrol-origin: border;
+        subcontrol-position: top right;
+        width: 20px;
+        border-left: 1px solid {COLORS['border']};
+        border-bottom: 1px solid {COLORS['border']};
+        border-top-right-radius: 8px;
+        background-color: {COLORS['bg_medium']};
+    }}
+    QSpinBox::down-button, QDoubleSpinBox::down-button {{
+        subcontrol-origin: border;
+        subcontrol-position: bottom right;
+        width: 20px;
+        border-left: 1px solid {COLORS['border']};
+        border-bottom-right-radius: 8px;
+        background-color: {COLORS['bg_medium']};
+    }}
+    QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+    QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
+        background-color: {COLORS['primary']};
+    }}
+"""
+
+# ==================== STYLES DE BOUTONS RADIO ====================
+RADIO_STYLE = f"""
+    QRadioButton {{
+        color: {COLORS['text_primary']};
+        font-size: 14px;
+        padding: 10px;
+        spacing: 10px;
+    }}
+    QRadioButton::indicator {{
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        border: 2px solid {COLORS['border']};
+        background-color: {COLORS['bg_light']};
+    }}
+    QRadioButton::indicator:checked {{
+        background-color: {COLORS['primary']};
+        border-color: {COLORS['primary']};
+        image: url(:/icons/check.png);
+    }}
+    QRadioButton::indicator:hover {{
+        border-color: {COLORS['primary']};
+        background-color: {COLORS['bg_medium']};
+    }}
 """
 
 # ==================== STYLES DE DIALOGUES ====================
@@ -207,6 +258,39 @@ DIALOG_STYLE = f"""
     }}
     QLabel {{
         color: {COLORS['text_primary']};
+        font-size: 13px;
+    }}
+    QLabel#title {{
+        font-size: 20px;
+        font-weight: bold;
+        color: white;
+    }}
+    QLabel#subtitle {{
+        font-size: 11px;
+        color: {COLORS['text_tertiary']};
+    }}
+    QFrame#header {{
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 {COLORS['success']}, stop:1 {COLORS['primary']});
+        border-radius: 10px;
+        padding: 20px;
+    }}
+    QFrame#amountFrame {{
+        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+            stop:0 {COLORS['bg_card']}, stop:1 #242424);
+        border-radius: 12px;
+        border: 3px solid {COLORS['success']};
+        padding: 20px;
+    }}
+    QFrame#paymentFrame {{
+        background: {COLORS['bg_card']};
+        border-radius: 10px;
+        padding: 20px;
+    }}
+    QFrame#detailsFrame {{
+        background: {COLORS['bg_card']};
+        border-radius: 8px;
+        padding: 15px;
     }}
 """
 
@@ -278,4 +362,6 @@ GLOBAL_STYLE = f"""
     {INPUT_STYLE}
     {TABLE_STYLE}
     {SCROLLBAR_STYLE}
+    {DIALOG_STYLE}
+    {RADIO_STYLE}
 """

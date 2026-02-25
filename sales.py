@@ -8,6 +8,7 @@ from PyQt6.QtCore import Qt
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
+from payment_module import show_payment_dialog  # ← AJOUTER CETTE LIGNE
 
 
 class AddProductDialog(QDialog):
@@ -630,16 +631,38 @@ class SalesPage(QWidget):
         self.total_label.setText(f"{total:,.2f} DA")
 
     def save_sale(self):
-        """Enregistre la vente"""
+        """Enregistre la vente avec gestion du paiement"""
         if not self.cart_items:
             QMessageBox.warning(self, "Attention", "Le panier est vide!")
             return
         
-        client_id = self.client_combo.currentData()
+        # Calculer le total TTC
+        subtotal = sum(item['total'] for item in self.cart_items)
+        tax = subtotal * 0.19
+        total_ttc = subtotal + tax
         
         # Générer un numéro de facture
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         invoice_number = f"FAC-{timestamp}"
+        
+        # 1. Afficher le dialogue de paiement
+        payment_data = show_payment_dialog(
+            total_amount=total_ttc,
+            invoice_number=invoice_number,
+            parent=self
+        )
+        
+        # Si l'utilisateur a annulé le paiement
+        if not payment_data:
+            QMessageBox.information(
+                self,
+                "Paiement annulé",
+                "La vente n'a pas été enregistrée."
+            )
+            return
+        
+        # 2. Si le paiement est validé, enregistrer la vente
+        client_id = self.client_combo.currentData()
         
         # Préparer les articles
         items = []
@@ -651,16 +674,9 @@ class SalesPage(QWidget):
                 'discount': item['discount']
             })
         
-        # Récupérer le mode de paiement sélectionné
-        payment_map = {
-            "💵 Espèces": "cash",
-            "💳 Carte bancaire": "card",
-            "🏦 Virement": "transfer",
-            "📱 Mobile Payment": "mobile"
-        }
-        payment_text = self.payment_combo.currentText()
-        payment_method = payment_map.get(payment_text, "cash")
-
+        # Utiliser la méthode de paiement du dialogue
+        payment_method = payment_data['method']
+        
         # Enregistrer dans la base
         sale_id = self.db.create_sale(
             invoice_number=invoice_number,
@@ -672,10 +688,17 @@ class SalesPage(QWidget):
         )
         
         if sale_id:
+            # Afficher les détails du paiement dans le message
+            payment_details = self.format_payment_details(payment_data)
+            
             QMessageBox.information(
                 self,
                 "Succès",
-                f"Vente enregistrée avec succès!\n\nFacture N° {invoice_number}"
+                f"✅ Vente enregistrée avec succès!\n\n"
+                f"📄 Facture N° {invoice_number}\n"
+                f"💰 Montant: {total_ttc:,.2f} DA\n"
+                f"💳 Paiement: {self.get_payment_method_name(payment_method)}\n"
+                f"{payment_details}"
             )
             
             # Réinitialiser
@@ -683,10 +706,65 @@ class SalesPage(QWidget):
             self.table.setRowCount(0)
             self.update_totals()
             self.client_combo.setCurrentIndex(0)
-            self.payment_combo.setCurrentIndex(0)
         else:
             QMessageBox.critical(
                 self,
                 "Erreur",
-                "Impossible d'enregistrer la vente!"
-            )
+                "❌ Impossible d'enregistrer la vente!"
+            )        
+
+    def get_payment_method_name(self, method_code):
+            """Convertit le code de paiement en nom affichable"""
+            method_names = {
+                'cash': '💵 Espèces',
+                'card': '💳 Carte bancaire',
+                'check': '📝 Chèque',
+                'transfer': '🏦 Virement',
+                'mobile': '📱 Mobile Money',
+                'credit': '🔄 Crédit'
+            }
+            return method_names.get(method_code, method_code)
+
+    def format_payment_details(self, payment_data):
+            """Formate les détails du paiement pour l'affichage"""
+            details = payment_data.get('details', {})
+            method = payment_data['method']
+            
+            detail_text = ""
+            
+            if method == 'cash':
+                if 'received' in details:
+                    detail_text += f"   💵 Reçu: {details['received']:,.2f} DA\n"
+                    if 'change' in details and details['change'] > 0:
+                        detail_text += f"   💸 Monnaie rendue: {details['change']:,.2f} DA"
+            
+            elif method == 'card':
+                if 'transaction' in details and details['transaction']:
+                    detail_text += f"   🔢 Transaction: {details['transaction']}\n"
+                if 'card_type' in details and details['card_type']:
+                    detail_text += f"   💳 Carte: {details['card_type']}"
+            
+            elif method == 'check':
+                if 'check_number' in details and details['check_number']:
+                    detail_text += f"   📝 N° Chèque: {details['check_number']}\n"
+                if 'bank' in details and details['bank']:
+                    detail_text += f"   🏦 Banque: {details['bank']}"
+            
+            elif method == 'transfer':
+                if 'reference' in details and details['reference']:
+                    detail_text += f"   🔢 Référence: {details['reference']}"
+            
+            elif method == 'mobile':
+                if 'operator' in details and details['operator']:
+                    detail_text += f"   📱 Opérateur: {details['operator']}\n"
+                if 'transaction' in details and details['transaction']:
+                    detail_text += f"   🔢 Transaction: {details['transaction']}"
+            
+            elif method == 'credit':
+                if 'due_date' in details and details['due_date']:
+                    detail_text += f"   📅 Échéance: {details['due_date']}\n"
+                detail_text += "   ⚠️ Paiement à crédit"
+            
+            if detail_text:
+                return f"\n📋 Détails du paiement:\n{detail_text}"
+            return ""        
