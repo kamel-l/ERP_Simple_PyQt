@@ -259,6 +259,25 @@ class ProductsPage(QWidget):
         self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         search_layout.addWidget(self.add_btn)
 
+        self.refresh_btn = QPushButton("↻   Actualiser")
+        self.refresh_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.refresh_btn.setFixedHeight(45)
+        self.refresh_btn.setFixedWidth(130)
+        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.refresh_btn.setStyleSheet("""
+            QPushButton {
+                background: #3B82F6;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 0 18px;
+            }
+            QPushButton:hover  { background: #2563EB; }
+            QPushButton:pressed{ background: #1D4ED8; }
+        """)
+        self.refresh_btn.clicked.connect(self.refresh_page)
+        search_layout.addWidget(self.refresh_btn)
+
         # Table
         table_container = QFrame()
         table_container.setStyleSheet(f"""
@@ -412,7 +431,8 @@ class ProductsPage(QWidget):
         
         id_item = QTableWidgetItem(str(product["id"]))
         id_item.setData(Qt.ItemDataRole.UserRole, product["id"])
-        
+        self.table.setItem(row, 0, id_item)
+
         name_item = QTableWidgetItem(product["name"])
         self.table.setItem(row, 1, name_item)
         
@@ -439,14 +459,19 @@ class ProductsPage(QWidget):
         value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.table.setItem(row, 6, value_item)
 
+    def refresh_page(self):
+        """Actualise la liste des produits et les statistiques"""
+        self.search_input.clear()
+        self.load_products()
+        self.update_statistics()
+
     def add_product(self):
         """Ajoute un nouveau produit"""
         dialog = ProductDialog()
         if dialog.exec():
-            # Vérifier si la catégorie existe
             category_name = dialog.category.currentText().strip()
             category_id = None
-            
+
             if category_name:
                 categories = self.db.get_all_categories()
                 category = next((c for c in categories if c['name'] == category_name), None)
@@ -454,16 +479,17 @@ class ProductsPage(QWidget):
                     category_id = self.db.add_category(category_name)
                 else:
                     category_id = category['id']
-            
+
             product_id = self.db.add_product(
                 name=dialog.name.text().strip(),
                 selling_price=dialog.price.value(),
                 category_id=category_id,
+                description="",
                 purchase_price=dialog.price_buy.value(),
                 stock_quantity=dialog.quantity.value(),
                 min_stock=dialog.min_stock.value()
             )
-            
+
             if product_id:
                 QMessageBox.information(self, "Succès", "Produit ajouté avec succès!")
                 self.load_products()
@@ -613,12 +639,29 @@ class ProductsPage(QWidget):
                             else:
                                 category_id = category['id']
                         
-                        # Ajouter le produit (on n'essaie plus de vérifier l'existence)
-                        self.db.add_product(
-                            name, selling_price,
-                            category_id, "", purchase_price, stock, min_stock
-                        )
-                        imported += 1
+                        # Vérifier si le produit existe déjà (par nom exact)
+                        existing = self.db.search_products(name)
+                        existing = [p for p in existing if p["name"].strip().lower() == name.lower()]
+
+                        if existing:
+                            # Produit existant → mise à jour
+                            self.db.update_product(
+                                product_id=existing[0]["id"],
+                                name=name,
+                                selling_price=selling_price,
+                                category_id=category_id,
+                                purchase_price=purchase_price,
+                                stock_quantity=stock,
+                                min_stock=min_stock
+                            )
+                            updated += 1
+                        else:
+                            # Nouveau produit → insertion
+                            self.db.add_product(
+                                name, selling_price,
+                                category_id, "", purchase_price, stock, min_stock
+                            )
+                            imported += 1
                             
                     except Exception as e:
                         errors.append(f"Ligne {row_num}: {str(e)}")
