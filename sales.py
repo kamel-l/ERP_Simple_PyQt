@@ -218,7 +218,7 @@ class AddProductDialog(QDialog):
         products = self.db.get_all_products()
         for product in products:
             if product['stock_quantity'] > 0:
-                display_text = f"{product['name']})"
+                display_text = f"{product['name']}"
                 self.product_combo.addItem(display_text, product)
 
     def on_product_selected(self, index):
