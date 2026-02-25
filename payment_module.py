@@ -19,8 +19,8 @@ class PaymentDialog(QDialog):
     
     payment_completed = pyqtSignal(dict)  # Signal émis quand le paiement est validé
     
-    def __init__(self, total_amount, invoice_number=""):
-        super().__init__()
+    def __init__(self, total_amount, invoice_number="", parent=None):
+        super().__init__(parent)
         
         self.total_amount = total_amount
         self.invoice_number = invoice_number
@@ -200,21 +200,39 @@ class PaymentDialog(QDialog):
         
         return frame
     
+    def _reset_widget_refs(self):
+        """Réinitialise toutes les références aux widgets de détails"""
+        self.cash_received      = None
+        self.change_label       = None
+        self.card_transaction   = None
+        self.card_type          = None
+        self.check_number       = None
+        self.check_bank         = None
+        self.transfer_ref       = None
+        self.mobile_operator    = None
+        self.mobile_transaction = None
+        self.credit_due_date    = None
+
     def on_payment_method_changed(self, radio, checked):
         """Appelé quand le mode de paiement change"""
         if not checked:
             return
         
         method = radio.property("method")
-        
-        # Effacer les détails précédents
+
+        # 1. Réinitialiser les références EN PREMIER
+        self._reset_widget_refs()
+
+        # 2. Détruire les anciens widgets de façon SYNCHRONE via setParent(None)
+        #    (deleteLater est asynchrone et cause le RuntimeError)
         if self.details_layout:
             while self.details_layout.count():
                 child = self.details_layout.takeAt(0)
-                if child.widget():
-                    child.widget().deleteLater()
-        
-        # Ajouter les détails selon la méthode
+                widget = child.widget()
+                if widget:
+                    widget.setParent(None)  # destruction immédiate et synchrone
+
+        # 3. Créer les nouveaux widgets pour la méthode choisie
         if method == "cash":
             self.add_cash_details()
         elif method == "card":
@@ -271,16 +289,18 @@ class PaymentDialog(QDialog):
     
     def calculate_change(self):
         """Calcule la monnaie à rendre"""
-        if hasattr(self, 'cash_received') and hasattr(self, 'change_label') and self.cash_received:
-            received = self.cash_received.value()
-            change = received - self.total_amount
-            
-            if change >= 0:
-                self.change_label.setText(f"💸 Monnaie à rendre: {change:,.2f} DA")
-                self.change_label.setStyleSheet(f"color: {COLORS['success']}; border: none; padding: 10px; font-size: 14px; font-weight: bold;")
-            else:
-                self.change_label.setText(f"⚠️ Montant insuffisant: {abs(change):,.2f} DA manquants")
-                self.change_label.setStyleSheet(f"color: {COLORS['danger']}; border: none; padding: 10px; font-size: 14px; font-weight: bold;")
+        if self.cash_received and self.change_label:
+            try:
+                received = self.cash_received.value()
+                change = received - self.total_amount
+                if change >= 0:
+                    self.change_label.setText(f"💸 Monnaie à rendre: {change:,.2f} DA")
+                    self.change_label.setStyleSheet(f"color: {COLORS['success']}; border: none; padding: 10px; font-size: 14px; font-weight: bold;")
+                else:
+                    self.change_label.setText(f"⚠️ Montant insuffisant: {abs(change):,.2f} DA manquants")
+                    self.change_label.setStyleSheet(f"color: {COLORS['danger']}; border: none; padding: 10px; font-size: 14px; font-weight: bold;")
+            except RuntimeError:
+                pass
     
     def add_card_details(self):
         """Détails pour paiement par carte"""
@@ -500,23 +520,25 @@ class PaymentDialog(QDialog):
     
     def validate_payment(self):
         """Valide et enregistre le paiement"""
-        # Récupérer la méthode sélectionnée
         method_button = self.payment_group.checkedButton()
         if not method_button:
-            QMessageBox.warning(self, "Mode de paiement", 
+            QMessageBox.warning(self, "Mode de paiement",
                               "Veuillez sélectionner un mode de paiement !")
             return
         
         payment_method = method_button.property("method")
         
-        # Validation spécifique selon la méthode
+        # Validation espèces
         if payment_method == "cash" and self.cash_received:
-            if self.cash_received.value() < self.total_amount:
-                QMessageBox.warning(self, "Montant insuffisant",
-                                  "Le montant reçu est inférieur au total !")
-                return
+            try:
+                if self.cash_received.value() < self.total_amount:
+                    QMessageBox.warning(self, "Montant insuffisant",
+                                      "Le montant reçu est inférieur au total !")
+                    return
+            except RuntimeError:
+                pass
         
-        # Créer le dictionnaire de paiement
+        # Construction du dictionnaire de paiement
         payment_data = {
             'method': payment_method,
             'amount': self.total_amount,
@@ -525,40 +547,52 @@ class PaymentDialog(QDialog):
             'notes': self.notes.toPlainText() if self.notes else "",
             'details': {}
         }
-        
-        # Ajouter les détails spécifiques
-        if payment_method == "cash" and self.cash_received:
-            payment_data['details']['received'] = self.cash_received.value()
-            payment_data['details']['change'] = self.cash_received.value() - self.total_amount
+
+        # Lecture sécurisée des widgets (protection contre RuntimeError)
+        def safe_value(widget):
+            if widget is None:
+                return None
+            try:
+                if hasattr(widget, 'text'):
+                    return widget.text()
+                if hasattr(widget, 'value'):
+                    return widget.value()
+            except RuntimeError:
+                return None
+            return None
+
+        if payment_method == "cash":
+            received = safe_value(self.cash_received)
+            if received is not None:
+                payment_data['details']['received'] = received
+                payment_data['details']['change'] = received - self.total_amount
         elif payment_method == "card":
-            if self.card_transaction:
-                payment_data['details']['transaction'] = self.card_transaction.text()
-            if self.card_type:
-                payment_data['details']['card_type'] = self.card_type.text()
+            v = safe_value(self.card_transaction)
+            if v: payment_data['details']['transaction'] = v
+            v = safe_value(self.card_type)
+            if v: payment_data['details']['card_type'] = v
         elif payment_method == "check":
-            if self.check_number:
-                payment_data['details']['check_number'] = self.check_number.text()
-            if self.check_bank:
-                payment_data['details']['bank'] = self.check_bank.text()
+            v = safe_value(self.check_number)
+            if v: payment_data['details']['check_number'] = v
+            v = safe_value(self.check_bank)
+            if v: payment_data['details']['bank'] = v
         elif payment_method == "transfer":
-            if self.transfer_ref:
-                payment_data['details']['reference'] = self.transfer_ref.text()
+            v = safe_value(self.transfer_ref)
+            if v: payment_data['details']['reference'] = v
         elif payment_method == "mobile":
-            if self.mobile_operator:
-                payment_data['details']['operator'] = self.mobile_operator.text()
-            if self.mobile_transaction:
-                payment_data['details']['transaction'] = self.mobile_transaction.text()
+            v = safe_value(self.mobile_operator)
+            if v: payment_data['details']['operator'] = v
+            v = safe_value(self.mobile_transaction)
+            if v: payment_data['details']['transaction'] = v
         elif payment_method == "credit":
-            if self.credit_due_date:
-                payment_data['details']['due_date'] = self.credit_due_date.text()
-        
+            v = safe_value(self.credit_due_date)
+            if v: payment_data['details']['due_date'] = v
+
         # Émettre le signal
         self.payment_completed.emit(payment_data)
         
-        # Message de confirmation
         QMessageBox.information(self, "Paiement enregistré",
                               f"✅ Paiement de {self.total_amount:,.2f} DA enregistré avec succès !")
-        
         self.accept()
 
 
@@ -566,22 +600,20 @@ class PaymentDialog(QDialog):
 def show_payment_dialog(total_amount, invoice_number="", parent=None):
     """
     Affiche le dialogue de paiement
-    
+
     Returns:
         payment_data si validé, None si annulé
     """
-    dialog = PaymentDialog(total_amount, invoice_number)
-    if parent:
-        dialog.setParent(parent)
-    
+    dialog = PaymentDialog(total_amount, invoice_number, parent=parent)
+
     payment_data = None
-    
+
     def on_payment(data):
         nonlocal payment_data
         payment_data = data
-    
+
     dialog.payment_completed.connect(on_payment)
-    
+
     if dialog.exec():
         return payment_data
     return None
