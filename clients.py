@@ -13,7 +13,7 @@ class ClientDialog(QDialog):
         super().__init__()
 
         self.client_id = client_id
-        self.setWindowTitle("📝 Détails du Client")
+        self.setWindowTitle("📝 Détails du Client") 
         self.setMinimumWidth(500)
         self.setStyleSheet(f"""
             QDialog {{
