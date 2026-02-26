@@ -408,16 +408,47 @@ class SalesPage(QWidget):
             }}
         """)
 
-        summary_card.setMinimumHeight(260)
+        # summary_card.setMinimumHeight(260)
         summary_main_layout = QVBoxLayout(summary_card)
-        summary_main_layout.setContentsMargins(25, 18, 25, 18)
+        summary_main_layout.setContentsMargins(22, 16, 22, 16)
         summary_main_layout.setSpacing(10)
+
+        # ── Ligne titre + client ──────────────────────────────────────────
+        title_client_row = QHBoxLayout()
 
         # Titre
         summary_title = QLabel("💰 Résumé de la Vente")
         summary_title.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
         summary_title.setStyleSheet(f"color: {COLORS['text_primary']};")
-        summary_main_layout.addWidget(summary_title)
+        # summary_main_layout.addWidget(summary_title)
+        title_client_row.addWidget(summary_title)
+        title_client_row.addStretch()
+
+        # Badge client
+        client_badge_frame = QFrame()
+        client_badge_frame.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['primary']}22;
+                border-radius: 8px;
+                border: 1px solid {COLORS['primary']};
+            }}
+        """)
+        client_badge_layout = QHBoxLayout(client_badge_frame)
+        client_badge_layout.setContentsMargins(10, 5, 10, 5)
+        client_badge_layout.setSpacing(6)
+
+        client_icon = QLabel("👤")
+        client_icon.setFont(QFont("Segoe UI", 12))
+        client_icon.setStyleSheet("border: none;")
+        client_badge_layout.addWidget(client_icon)
+
+        self.client_name_label = QLabel("—")
+        self.client_name_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        self.client_name_label.setStyleSheet(f"color: {COLORS['primary']}; border: none;")
+        client_badge_layout.addWidget(self.client_name_label)
+
+        title_client_row.addWidget(client_badge_frame)
+        summary_main_layout.addLayout(title_client_row)
 
         # ── Grille principale en 2 colonnes ──────────────────────────────
         info_row = QHBoxLayout()
