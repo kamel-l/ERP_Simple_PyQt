@@ -427,7 +427,7 @@ class DashboardPage(QWidget):
 
         sales     = self.db.get_all_sales(limit=4)
         purchases = self.db.get_all_purchases(limit=3)
-        print(purchases)
+    
 
         if not sales and not purchases:
             empty = QLabel("Aucune activité récente")
