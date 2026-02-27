@@ -6,58 +6,19 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, QSize
 import qdarktheme
-from styles import COLORS
+from styles import COLORS, SETTINGS_CARD_STYLE, SETTINGS_INPUT_STYLE, SETTINGS_COMBO_STYLE
 from db_manager import get_database
 from datetime import datetime
 
 
 # ─────────────────────────────────────────────
-#  Composants réutilisables
+#  Styles importés depuis styles.py (centralisés)
 # ─────────────────────────────────────────────
 
-CARD_STYLE = """
-    QFrame {
-        background: #1A1D27;
-        border-radius: 14px;
-        border: 1px solid rgba(255,255,255,0.07);
-    }
-"""
-
-INPUT_STYLE = """
-    QLineEdit {
-        background: #0F1117;
-        color: #E2E8F0;
-        border: 1px solid rgba(255,255,255,0.10);
-        border-radius: 8px;
-        padding: 10px 14px;
-        font-size: 13px;
-        selection-background-color: #3B82F6;
-    }
-    QLineEdit:focus {
-        border: 1px solid #3B82F6;
-        background: #111827;
-    }
-"""
-
-COMBO_STYLE = """
-    QComboBox {
-        background: #0F1117;
-        color: #E2E8F0;
-        border: 1px solid rgba(255,255,255,0.10);
-        border-radius: 8px;
-        padding: 10px 14px;
-        font-size: 13px;
-        min-height: 42px;
-    }
-    QComboBox:focus { border: 1px solid #3B82F6; }
-    QComboBox::drop-down { border: none; width: 30px; }
-    QComboBox QAbstractItemView {
-        background: #1A1D27;
-        color: #E2E8F0;
-        selection-background-color: #3B82F6;
-        border: 1px solid rgba(255,255,255,0.10);
-    }
-"""
+# Alias locaux pour rétro-compatibilité avec le reste du module
+CARD_STYLE  = SETTINGS_CARD_STYLE
+INPUT_STYLE = SETTINGS_INPUT_STYLE
+COMBO_STYLE = SETTINGS_COMBO_STYLE
 
 def make_btn(text, color="#3B82F6", text_color="white", outlined=False):
     """Crée un bouton stylisé."""

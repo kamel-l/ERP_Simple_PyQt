@@ -351,6 +351,64 @@ def get_kpi_card_style(color):
         }}
     """
 
+
+# ==================== STYLES SETTINGS (anciennement locaux à settings.py) ====================
+
+# Couleurs palette sombre cohérente (dashboard / settings / statistics)
+DARK_COLORS = {
+    'bg_page':   "#0F1117",
+    'bg_card':   "#1A1D27",
+    'bg_deep':   "#13151F",
+    'border':    "rgba(255,255,255,0.07)",
+    'txt_pri':   "#F1F5F9",
+    'txt_sec':   "rgba(255,255,255,0.45)",
+    'txt_muted': "rgba(255,255,255,0.25)",
+}
+
+SETTINGS_CARD_STYLE = """
+    QFrame {
+        background: #1A1D27;
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.07);
+    }
+"""
+
+SETTINGS_INPUT_STYLE = """
+    QLineEdit {
+        background: #0F1117;
+        color: #E2E8F0;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        selection-background-color: #3B82F6;
+    }
+    QLineEdit:focus {
+        border: 1px solid #3B82F6;
+        background: #111827;
+    }
+"""
+
+SETTINGS_COMBO_STYLE = """
+    QComboBox {
+        background: #0F1117;
+        color: #E2E8F0;
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 13px;
+        min-height: 42px;
+    }
+    QComboBox:focus { border: 1px solid #3B82F6; }
+    QComboBox::drop-down { border: none; width: 30px; }
+    QComboBox QAbstractItemView {
+        background: #1A1D27;
+        color: #E2E8F0;
+        selection-background-color: #3B82F6;
+        border: 1px solid rgba(255,255,255,0.10);
+    }
+"""
+
 # ==================== STYLES GLOBAUX ====================
 GLOBAL_STYLE = f"""
     QWidget {{
