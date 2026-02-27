@@ -921,12 +921,15 @@ class PurchasesPage(QWidget):
         items = []
         for row in range(self.table.rowCount()):
             try:
-                product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+                product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)  # C'est l'ID
+                product_name = self.table.item(row, 0).text()  # C'est le nom affiché
+                
                 quantity = int(float(self.table.item(row, 1).text()))
                 unit_price = float(self.table.item(row, 2).text())
                 
                 items.append({
-                    'product_id': product_id,
+                    'product_id': product_id,  # Garder l'ID pour le stock
+                    'product_name': product_name,  # Utiliser le nom pour l'affichage
                     'quantity': quantity,
                     'unit_price': unit_price
                 })

@@ -159,12 +159,13 @@ class Database:
             CREATE TABLE IF NOT EXISTS purchase_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 purchase_id INTEGER NOT NULL,
-                product_id INTEGER NOT NULL,
+                product_name TEXT,
                 quantity INTEGER NOT NULL,
                 unit_price REAL NOT NULL,
                 total REAL NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
-                FOREIGN KEY (product_id) REFERENCES products(id)
+                FOREIGN KEY (product_name) REFERENCES products(name)
             )
         """)
         
@@ -553,7 +554,7 @@ class Database:
     # ==================== ACHATS ====================
     
     def create_purchase(self, reference, supplier_id, items, payment_method="cash",
-                       tax_rate=10.0, notes=""):
+                   tax_rate=10.0, notes=""):
         """Crée un nouvel achat avec ses articles"""
         try:
             # Calculer les totaux
@@ -561,14 +562,14 @@ class Database:
             tax_amount = subtotal * (tax_rate / 100)
             total = subtotal + tax_amount
             
-            # Créer l'achat (sans colonne reference — elle n'existe pas dans la table)
+            # Créer l'achat
             self.cursor.execute("""
                 INSERT INTO purchases 
                 (supplier_id, subtotal, tax_rate, tax_amount, 
-                 total, payment_method, notes)
+                total, payment_method, notes)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (supplier_id, subtotal, tax_rate, tax_amount,
-                  total, payment_method, notes))
+                total, payment_method, notes))
             
             purchase_id = self.cursor.lastrowid
             
@@ -578,14 +579,14 @@ class Database:
                 
                 self.cursor.execute("""
                     INSERT INTO purchase_items 
-                    (purchase_id, product_id, quantity, unit_price, total)
+                    (purchase_id, product_name, quantity, unit_price, total)
                     VALUES (?, ?, ?, ?, ?)
-                """, (purchase_id, item['product_id'], item['quantity'], 
-                      item['unit_price'], item_total))
+                """, (purchase_id, item['product_name'], item['quantity'], 
+                    item['unit_price'], item_total))
                 
-                # Augmenter le stock (4 arguments : product_id, quantity, type, notes)
+                # Augmenter le stock avec l'ID du produit
                 self.update_stock(
-                    item['product_id'], 
+                    item['product_id'],  # Maintenant c'est l'ID
                     item['quantity'],
                     'purchase',
                     f"Achat #{reference}"
@@ -600,12 +601,12 @@ class Database:
             return None
     
     def get_all_purchases(self, limit=None):
-        """Récupère tous les achats"""
+        """Récupère tous les achats (du plus récent au plus ancien)"""
         query = """
             SELECT p.*, s.name as supplier_name
-            FROM purchases p
-            LEFT JOIN suppliers s ON p.supplier_id = s.id
-            ORDER BY p.purchase_date DESC
+            FROM purchase_items p
+            LEFT JOIN suppliers s ON p.purchase_id = s.id
+            ORDER BY p. created_at DESC  -- Plus récent d'abord
         """
         if limit:
             query += f" LIMIT {limit}"

@@ -427,6 +427,7 @@ class DashboardPage(QWidget):
 
         sales     = self.db.get_all_sales(limit=4)
         purchases = self.db.get_all_purchases(limit=3)
+        print(purchases)
 
         if not sales and not purchases:
             empty = QLabel("Aucune activité récente")
@@ -464,7 +465,7 @@ class DashboardPage(QWidget):
         for s in sales:
             add_row("#10B981", f"Vente  ·  Facture {s['invoice_number']}  —  {s['total']:,.0f} DA")
         for p in purchases:
-            add_row("#F59E0B", f"Achat  ·  #{p['id']}  —  {p['total']:,.0f} DA")
+            add_row("#F59E0B", f"Achat  ·  #{p['product_name']}  —  {p['total']:,.0f} DA")
 
     def _load_quick_info(self):
         stats      = self.db.get_statistics() or {}
