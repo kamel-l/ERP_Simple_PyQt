@@ -45,7 +45,7 @@ class PaymentDialog(QDialog):
 
         self.setWindowTitle("💳 Encaissement")
         self.setMinimumWidth(700)
-        self.setMinimumHeight(600)
+        self.setMinimumHeight(1000)
         self.setStyleSheet(f"QDialog {{ background-color: {COLORS['bg_medium']}; }}")
 
         self._setup_ui()
