@@ -155,19 +155,24 @@ class Database:
         """)
         
         # Table des détails d'achats
+        # Structure corrigée : product_id (INTEGER, clé étrangère correcte)
+        # ET product_name (TEXT, pour affichage rapide sans JOIN)
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS purchase_items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                purchase_id INTEGER NOT NULL,
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                purchase_id  INTEGER NOT NULL,
+                product_id   INTEGER,
                 product_name TEXT,
-                quantity INTEGER NOT NULL,
-                unit_price REAL NOT NULL,
-                total REAL NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                quantity     INTEGER NOT NULL,
+                unit_price   REAL    NOT NULL,
+                total        REAL    NOT NULL,
+                created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
-                FOREIGN KEY (product_name) REFERENCES products(name)
+                FOREIGN KEY (product_id)  REFERENCES products(id)
             )
         """)
+        # Migration transparente pour les bases existantes
+        self._migrate_purchase_items()
         
         # Table des mouvements de stock
         self.cursor.execute("""
@@ -208,7 +213,81 @@ class Database:
         
         self.conn.commit()
         print("✅ Tables créées avec succès")
-    
+
+    def _migrate_purchase_items(self):
+        """
+        Migration robuste de purchase_items pour les bases existantes.
+        Gère tous les cas :
+          - Ancienne base : product_name TEXT seulement → ajoute product_id
+          - Base migrée Bug2 : product_id seulement, product_name manquante → rajoute product_name
+          - Base déjà complète : les deux colonnes existent → ne fait rien
+        """
+        try:
+            self.cursor.execute("PRAGMA table_info(purchase_items)")
+            cols = {row[1] for row in self.cursor.fetchall()}
+
+            # Ajouter product_id si manquant
+            if 'product_id' not in cols:
+                self.cursor.execute(
+                    "ALTER TABLE purchase_items ADD COLUMN product_id INTEGER")
+                # Remplir product_id depuis le nom via JOIN products
+                self.cursor.execute("""
+                    UPDATE purchase_items
+                    SET product_id = (
+                        SELECT id FROM products WHERE name = purchase_items.product_name
+                    )
+                    WHERE product_id IS NULL
+                """)
+                self.conn.commit()
+                print("🔧 Migration : colonne product_id ajoutée à purchase_items")
+
+            # Rajouter product_name si elle a été supprimée par la correction Bug2
+            if 'product_name' not in cols:
+                self.cursor.execute(
+                    "ALTER TABLE purchase_items ADD COLUMN product_name TEXT")
+                # Remplir depuis le nom du produit via product_id
+                self.cursor.execute("""
+                    UPDATE purchase_items
+                    SET product_name = (
+                        SELECT name FROM products WHERE id = purchase_items.product_id
+                    )
+                    WHERE product_name IS NULL
+                """)
+                self.conn.commit()
+                print("🔧 Migration : colonne product_name restaurée dans purchase_items")
+
+        except Exception as e:
+            print(f"⚠️  Migration purchase_items (non bloquant) : {e}")
+
+    def get_best_day(self):
+        """
+        Calcule le meilleur jour de vente depuis la base de données.
+        strftime('%w') : '0'=Dimanche, '1'=Lundi, ..., '6'=Samedi
+        Retourne le nom du jour en français, ou '—' si aucune vente.
+        """
+        JOURS = {
+            '0': 'Dimanche', '1': 'Lundi',    '2': 'Mardi',
+            '3': 'Mercredi', '4': 'Jeudi',    '5': 'Vendredi',
+            '6': 'Samedi',
+        }
+        try:
+            self.cursor.execute("""
+                SELECT
+                    strftime('%w', sale_date) AS day_num,
+                    COUNT(*)                  AS nb_ventes,
+                    SUM(total)                AS total_da
+                FROM sales
+                GROUP BY day_num
+                ORDER BY nb_ventes DESC, total_da DESC
+                LIMIT 1
+            """)
+            row = self.cursor.fetchone()
+            if row:
+                return JOURS.get(row['day_num'], '—')
+        except Exception as e:
+            print(f"⚠️  get_best_day : {e}")
+        return '—'
+
     # ==================== CLIENTS ====================
     
     def add_client(self, name, phone="", email="", address="", nif=""):
@@ -577,12 +656,13 @@ class Database:
             for item in items:
                 item_total = item['quantity'] * item['unit_price']
                 
+                # Insérer product_id ET product_name pour cohérence et affichage
                 self.cursor.execute("""
-                    INSERT INTO purchase_items 
-                    (purchase_id, product_name, quantity, unit_price, total)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (purchase_id, item['product_name'], item['quantity'], 
-                    item['unit_price'], item_total))
+                    INSERT INTO purchase_items
+                    (purchase_id, product_id, product_name, quantity, unit_price, total)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (purchase_id, item['product_id'], item['product_name'],
+                    item['quantity'], item['unit_price'], item_total))
                 
                 # Augmenter le stock avec l'ID du produit
                 self.update_stock(
@@ -601,16 +681,31 @@ class Database:
             return None
     
     def get_all_purchases(self, limit=None):
-        """Récupère tous les achats (du plus récent au plus ancien)"""
+        """
+        Récupère tous les achats avec le nom du produit et du fournisseur.
+        - product_name vient directement de purchase_items (stocké à l'insertion)
+        - JOIN purchases pour accéder à supplier_id
+        - JOIN suppliers pour le nom du fournisseur
+        """
         query = """
-            SELECT p.*, s.name as supplier_name
-            FROM purchase_items p
-            LEFT JOIN suppliers s ON p.purchase_id = s.id
-            ORDER BY p. created_at DESC  -- Plus récent d'abord
+            SELECT
+                pi.id,
+                pi.purchase_id,
+                pi.product_id,
+                pi.product_name,
+                pi.quantity,
+                pi.unit_price,
+                pi.total,
+                pi.created_at,
+                pu.payment_method,
+                s.name AS supplier_name
+            FROM purchase_items pi
+            JOIN  purchases pu ON pi.purchase_id = pu.id
+            LEFT JOIN suppliers s  ON pu.supplier_id = s.id
+            ORDER BY pi.created_at DESC
         """
         if limit:
             query += f" LIMIT {limit}"
-        
         self.cursor.execute(query)
         return [dict(row) for row in self.cursor.fetchall()]
     

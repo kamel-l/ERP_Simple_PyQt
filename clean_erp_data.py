@@ -450,8 +450,97 @@ def interactive_menu():
 # ============================================================================
 # EXÉCUTION
 # ============================================================================
-def run_full_cleanup():
-    main()   # أو أي اسم الاستدعاء الرئيسي عندك
+def run_full_cleanup(db_path="erp_database.db"):
+    """
+    Point d'entrée appelé depuis main.py (interface graphique).
+
+    Contrairement à main() qui utilise input() en ligne de commande,
+    cette fonction opère silencieusement et renvoie un rapport sous
+    forme de dict — les confirmations sont gérées côté PyQt6.
+
+    Args:
+        db_path : chemin vers la base de données ERP (doit correspondre
+                  au db_path utilisé par get_database())
+
+    Returns:
+        dict  {"success": bool, "backup_path": str|None,
+               "cleaned": dict[table->count], "message": str}
+    """
+    import shutil
+    from pathlib import Path
+    from datetime import datetime
+
+    result = {
+        "success":     False,
+        "backup_path": None,
+        "cleaned":     {},
+        "message":     "",
+    }
+
+    db_file = Path(db_path)
+
+    # ── 1. Sauvegarde automatique avant toute suppression ─────────────
+    backup_dir = db_file.parent / "backups"
+    backup_dir.mkdir(exist_ok=True)
+    ts          = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = backup_dir / f"{db_file.stem}_avant_nettoyage_{ts}.db"
+
+    try:
+        if db_file.exists() and db_file.stat().st_size > 0:
+            shutil.copy2(db_path, backup_path)
+            result["backup_path"] = str(backup_path)
+            print(f"✅ Sauvegarde créée : {backup_path}")
+        else:
+            print("⚠️  Base introuvable ou vide — sauvegarde ignorée")
+    except Exception as e:
+        print(f"⚠️  Sauvegarde échouée (non bloquant) : {e}")
+
+    # ── 2. Nettoyage via db_manager (transactions correctes) ──────────
+    try:
+        # Importer ici pour éviter une dépendance circulaire au niveau module
+        from db_manager import get_database
+        db = get_database(db_path)
+
+        # Ordre respectant les clés étrangères (enfants avant parents)
+        tables = [
+            "return_items", "returns",
+            "stock_movements",
+            "purchase_items", "purchases",
+            "sale_items",     "sales",
+            "products",       "categories",
+            "suppliers",      "clients",
+            "settings",
+        ]
+
+        cleaned = {}
+        for table in tables:
+            try:
+                db.cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                n = db.cursor.fetchone()[0]
+                db.cursor.execute(f"DELETE FROM {table}")
+                # Réinitialiser l'auto-increment
+                db.cursor.execute(
+                    "DELETE FROM sqlite_sequence WHERE name=?", (table,))
+                cleaned[table] = n
+                print(f"  🗑️  {table:<22} {n:>6} ligne(s) supprimée(s)")
+            except Exception as e:
+                print(f"  ⚠️  {table:<22} ignoré ({e})")
+
+        db.conn.commit()
+        result["cleaned"]  = cleaned
+        result["success"]  = True
+        total = sum(cleaned.values())
+        result["message"] = (
+            f"Nettoyage terminé : {total} enregistrement(s) supprimé(s).\n"
+            f"Sauvegarde : {result['backup_path'] or 'non créée'}"
+        )
+        print(f"\n✅ Nettoyage terminé — {total} enregistrement(s) supprimé(s)")
+
+    except Exception as e:
+        result["message"] = f"Erreur lors du nettoyage : {e}"
+        print(f"\n❌ {result['message']}")
+
+    return result
 
 
 if __name__ == "__main__":

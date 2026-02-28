@@ -7,6 +7,11 @@ from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
+try:
+    from returns import ReturnDialog
+    _RETURNS_AVAILABLE = True
+except ImportError:
+    _RETURNS_AVAILABLE = False
 from datetime import datetime, timedelta
 from PyQt6.QtWidgets import QFileDialog
 
@@ -713,7 +718,16 @@ class SalesHistoryPage(QWidget):
         self.view_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.view_btn.setMinimumHeight(40)
 
+        # Bouton Créer un Avoir (Proposition 5)
+        self.return_btn = QPushButton("📦 Créer un Avoir")
+        self.return_btn.setStyleSheet(BUTTON_STYLES['danger'])
+        self.return_btn.clicked.connect(self.create_return)
+        self.return_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.return_btn.setMinimumHeight(40)
+        self.return_btn.setFixedWidth(160)
+
         actions_layout.addStretch()
+        actions_layout.addWidget(self.return_btn)
         actions_layout.addWidget(self.view_btn)
 
         # Charger les données
@@ -883,20 +897,38 @@ class SalesHistoryPage(QWidget):
         """Affiche les détails d'une vente dans un dialogue moderne"""
         selected = self.table.currentRow()
         if selected < 0:
-            QMessageBox.warning(
-                self,
-                "Attention",
-                "Veuillez sélectionner une vente!"
-            )
+            QMessageBox.warning(self, "Attention", "Veuillez sélectionner une vente!")
             return
-        
+
         sale_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
         sale = self.db.get_sale_by_id(sale_id)
-        
+
         if not sale:
             QMessageBox.critical(self, "Erreur", "Vente introuvable!")
             return
-        
-        # Ouvrir le dialogue moderne
+
         dialog = InvoiceDetailsDialog(sale, self)
+        dialog.exec()
+
+    def create_return(self):
+        """Ouvre le dialogue de création d'un avoir (Proposition 5)."""
+        if not _RETURNS_AVAILABLE:
+            QMessageBox.warning(self, "Module manquant",
+                "Le module de retours (returns.py) n'est pas installé.")
+            return
+
+        selected = self.table.currentRow()
+        if selected < 0:
+            QMessageBox.warning(self, "Attention",
+                "Veuillez sélectionner une vente pour créer un avoir.")
+            return
+
+        sale_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
+        sale = self.db.get_sale_by_id(sale_id)
+        if not sale:
+            QMessageBox.critical(self, "Erreur", "Vente introuvable!")
+            return
+
+        dialog = ReturnDialog(sale, self)
+        dialog.return_created.connect(lambda _: self.load_sales())
         dialog.exec()

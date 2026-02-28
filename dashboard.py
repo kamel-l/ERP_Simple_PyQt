@@ -465,7 +465,9 @@ class DashboardPage(QWidget):
         for s in sales:
             add_row("#10B981", f"Vente  ·  Facture {s['invoice_number']}  —  {s['total']:,.0f} DA")
         for p in purchases:
-            add_row("#F59E0B", f"Achat  ·  #{p['product_name']}  —  {p['total']:,.0f} DA")
+            # product_name est maintenant fourni par le JOIN products dans get_all_purchases()
+            nom = p.get('product_name') or f"Produit #{p.get('product_id', '?')}"
+            add_row("#F59E0B", f"Achat  ·  {nom}  —  {p['total']:,.0f} DA")
 
     def _load_quick_info(self):
         stats      = self.db.get_statistics() or {}

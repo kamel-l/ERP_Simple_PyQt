@@ -26,7 +26,6 @@ from settings import SettingsPage
 from statistics_view import StatisticsPage
 from sales_history import SalesHistoryPage
 from PyQt6.QtGui import QAction
-from clean_erp_data import run_full_cleanup
 from db_manager import get_database
 
 class MainWindow(QMainWindow):
@@ -371,19 +370,69 @@ class MainWindow(QMainWindow):
                 """)
 
     def run_erp_cleanup(self):
-        from clean_erp_data import run_full_cleanup
+        """
+        Lance le nettoyage complet de la base de données ERP.
+
+        Corrections Bug 1 :
+          - L'import est local : plus d'ImportError au démarrage si le fichier manque.
+          - Boîte de confirmation PyQt6 remplace les input() bloquants de clean_erp_data.py.
+          - Le résultat renvoyé par run_full_cleanup() est affiché à l'utilisateur.
+        """
+        # ── Confirmation explicite avant toute suppression ────────────
+        confirm = QMessageBox.warning(
+            self,
+            "⚠️  Nettoyage ERP — Confirmation requise",
+            "Cette action va supprimer TOUTES les données de l'application :\n\n"
+            "  • Clients, Produits, Catégories\n"
+            "  • Ventes, Achats, Factures\n"
+            "  • Historique des mouvements de stock\n\n"
+            "Une sauvegarde automatique sera créée avant la suppression.\n\n"
+            "⚠️  Cette opération est IRRÉVERSIBLE !\n\n"
+            "Voulez-vous continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+
+        # ── Import local : ne plante PAS si le fichier est absent ─────
         try:
-            run_full_cleanup()
-            QMessageBox.information(
-                self,
-                "Succès",
-                "Le nettoyage ERP a été effectué avec succès."
-            )
-        except Exception as e:
+            from clean_erp_data import run_full_cleanup
+        except ImportError:
             QMessageBox.critical(
                 self,
-                "Erreur",
-                f"Une erreur est survenue lors du nettoyage:\n{e}"
+                "Module manquant",
+                "Le fichier clean_erp_data.py est introuvable.\n"
+                "Vérifiez qu'il est bien présent dans le même dossier que main.py."
+            )
+            return
+
+        # ── Exécution ──────────────────────────────────────────────────
+        try:
+            result = run_full_cleanup(db_path="erp_database.db")
+
+            if result.get("success"):
+                total  = sum(result.get("cleaned", {}).values())
+                backup = result.get("backup_path") or "non créée"
+                QMessageBox.information(
+                    self,
+                    "✅ Nettoyage terminé",
+                    f"Le nettoyage a été effectué avec succès.\n\n"
+                    f"📊 {total} enregistrement(s) supprimé(s)\n"
+                    f"💾 Sauvegarde : {backup}"
+                )
+            else:
+                QMessageBox.warning(
+                    self,
+                    "⚠️  Nettoyage partiel",
+                    f"Le nettoyage s'est terminé avec des erreurs :\n\n"
+                    f"{result.get('message', 'Erreur inconnue')}"
+                )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Erreur",
+                f"Une erreur inattendue est survenue :\n\n{e}"
             )
 
     def show_about(self):
