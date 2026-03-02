@@ -24,8 +24,18 @@ COLORS = {
     'accent' : '#32D599' ,
     'accent_light' : '#60A5FA' ,
     'bg_card_hover' : '#A815F3' ,
-    'bg_input' : '#F438B6' , 
+    'bg_input' : '#F438B6' ,
+    'BG_PAGE'   : "#0F1117",
+    'BG_CARD'   : "#1A1D27",
+    'BG_DEEP'   : "#13151F",
+    'BORDER'    : "rgba(255,255,255,0.07)",
+    'TXT_PRI'   : "#F1F5F9",
+    'TXT_SEC'   : "rgba(255,255,255,0.45)",
+    'TXT_MUTED' : "rgba(255,255,255,0.25)", 
 }
+     
+
+
 
 # ==================== STYLES DE BOUTONS ====================
 BUTTON_STYLES = {
@@ -133,8 +143,8 @@ CARD_STYLE = f"""
 # ==================== STYLES DE TABLEAUX ====================
 TABLE_STYLE = f"""
     QTableWidget {{
-        background-color: {COLORS['bg_medium']};
-        alternate-background-color: {COLORS['bg_light']};
+        background-color: {COLORS['BG_CARD']};
+        alternate-background-color: {COLORS['BG_CARD']};
         border: 1px solid {COLORS['border']};
         border-radius: 8px;
         gridline-color: {COLORS['border']};
