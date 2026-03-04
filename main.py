@@ -27,6 +27,7 @@ from statistics_view import StatisticsPage
 from sales_history import SalesHistoryPage
 from PyQt6.QtGui import QAction
 from db_manager import get_database
+from advanced_analytics_view import AdvancedAnalyticsPage
 
 class MainWindow(QMainWindow):
     """Fenêtre principale de l'application"""
@@ -107,216 +108,192 @@ class MainWindow(QMainWindow):
         }
     
     def create_sidebar(self):
-        """Crée la barre latérale de navigation moderne"""
+        """Crée la barre latérale avec icônes et labels"""
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(240)
-        sidebar.setStyleSheet("""
-            QFrame#sidebar {
-                background: #0F1117;
-                border-right: 1px solid rgba(255,255,255,0.07);
-            }
+        sidebar.setFixedWidth(200)
+        sidebar.setStyleSheet(f"""
+            QFrame#sidebar {{
+                background: {COLORS['BG_PAGE']};
+                border-right: 2px solid {COLORS['primary']}88;
+            }}
         """)
 
         layout = QVBoxLayout(sidebar)
         layout.setSpacing(0)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(0, 16, 0, 16)
 
-        logo = self.create_logo()
-        layout.addWidget(logo)
+        # Logo section
+        logo_frame = QFrame()
+        logo_frame.setStyleSheet("background: transparent; border: none;")
+        logo_layout = QVBoxLayout(logo_frame)
+        logo_layout.setContentsMargins(8, 0, 8, 12)
+        logo_layout.setSpacing(0)
+        
+        logo_label = QLabel()
+        logo_label.setFixedSize(90, 90)
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_label.setStyleSheet(f"""
+            QLabel {{
+                background: {COLORS['BG_CARD']};
+                border-radius: 12px;
+                border: 2px solid {COLORS['BORDER']};
+            }}
+        """)
+        
+        # Charger le logo depuis les settings
+        db = get_database()
+        logo_path = db.get_setting('logo_path', '')
+        from PyQt6.QtGui import QPixmap
+        if logo_path:
+            try:
+                pixmap = QPixmap(logo_path)
+                if not pixmap.isNull():
+                    scaled_pixmap = pixmap.scaledToHeight(90, Qt.TransformationMode.SmoothTransformation)
+                    logo_label.setPixmap(scaled_pixmap)
+                    print(f"✅ Logo chargé: {logo_path}")
+                else:
+                    raise Exception("QPixmap invalide - image non reconnue")
+            except Exception as e:
+                print(f"⚠️ Erreur logo: {e}")
+                logo_label.setText("ERP")
+                logo_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+                logo_label.setStyleSheet(f"""
+                    QLabel {{
+                        background: {COLORS['BG_CARD']};
+                        border-radius: 12px;
+                        border: 2px solid {COLORS['BORDER']};
+                        color: {COLORS['primary']};
+                    }}
+                """)
+        else:
+            logo_label.setText("ERP")
+            logo_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+            logo_label.setStyleSheet(f"""
+                QLabel {{
+                    background: {COLORS['BG_CARD']};
+                    border-radius: 12px;
+                    border: 2px solid {COLORS['BORDER']};
+                    color: {COLORS['primary']};
+                }}
+            """)
+        
+        logo_layout.addWidget(logo_label)
+        layout.addWidget(logo_frame)
+        
+        # Séparateur
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background: {COLORS['BORDER']}; border: none;")
+        layout.addWidget(sep)
 
         nav_widget = QWidget()
         nav_widget.setObjectName("nav_widget")
         nav_widget.setStyleSheet("QWidget#nav_widget { background: transparent; }")
         nav_layout = QVBoxLayout(nav_widget)
-        nav_layout.setSpacing(2)
-        nav_layout.setContentsMargins(12, 8, 12, 8)
+        nav_layout.setSpacing(4)
+        nav_layout.setContentsMargins(8, 0, 8, 0)
 
         self.nav_buttons = {}
 
-        self._add_section_label(nav_layout, "PRINCIPAL")
         main_items = [
-            ("dashboard",  "📊", "Tableau de Bord",  "#3B82F6"),
-            ("clients",    "👥", "Clients",           "#8B5CF6"),
-            ("products",   "📦", "Produits",          "#10B981"),
-            ("sales",      "💰", "Point de Vente",    "#F59E0B"),
-            ("purchases",  "🛒", "Achats",            "#EF4444"),
+            ("dashboard",  "📊", "Tableau de Bord",  COLORS['primary']),
+            ("clients",    "👥", "Clients",           COLORS['secondary']),
+            ("products",   "📦", "Produits",          COLORS['success']),
+            ("sales",      "💰", "Point de Vente",    COLORS['warning']),
+            ("purchases",  "🛒", "Achats",            COLORS['danger']),
         ]
         for key, icon, label, color in main_items:
-            btn = self.create_nav_button(icon, label, key, color)
+            btn = self.create_compact_nav_button(icon, label, key, color)
             nav_layout.addWidget(btn)
             self.nav_buttons[key] = btn
 
-        self._add_section_label(nav_layout, "RAPPORTS")
+        nav_layout.addSpacing(12)
+
         report_items = [
-            ("history",    "🗂", "Historique Ventes", "#06B6D4"),
-            ("statistics", "📈", "Statistiques",      "#06B6D4"),
+            ("history",    "📂", "Historique Ventes", COLORS['info']),
+            ("statistics", "📈", "Statistiques",      COLORS['info']),
         ]
         for key, icon, label, color in report_items:
-            btn = self.create_nav_button(icon, label, key, color)
+            btn = self.create_compact_nav_button(icon, label, key, color)
             nav_layout.addWidget(btn)
             self.nav_buttons[key] = btn
 
-        self._add_section_label(nav_layout, "SYSTEME")
-        settings_btn = self.create_nav_button("⚙️", "Paramètres", "settings", "#94A3B8")
+        nav_layout.addSpacing(12)
+        settings_btn = self.create_compact_nav_button("⚙️", "Paramètres", "settings", COLORS['secondary_dark'])
         nav_layout.addWidget(settings_btn)
         self.nav_buttons["settings"] = settings_btn
 
         nav_layout.addStretch()
         layout.addWidget(nav_widget)
         layout.addStretch()
-        layout.addWidget(self.create_user_info())
 
         return sidebar
 
-    def _add_section_label(self, layout, text):
-        """Ajoute un label de section dans la sidebar"""
-        lbl = QLabel(text)
-        lbl.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        lbl.setStyleSheet("color: rgba(255,255,255,0.25); background: transparent; padding: 14px 8px 4px 8px;")
-        layout.addWidget(lbl)
-
-    def create_logo(self):
-        """Logo moderne en haut de la sidebar"""
-        logo_frame = QFrame()
-        logo_frame.setObjectName("logo_frame")
-        logo_frame.setFixedHeight(75)
-        logo_frame.setStyleSheet("""
-            QFrame#logo_frame {
-                background: transparent;
-                border-bottom: 1px solid rgba(255,255,255,0.07);
-            }
-        """)
-
-        row = QHBoxLayout(logo_frame)
-        row.setContentsMargins(16, 0, 16, 0)
-        row.setSpacing(12)
-
-        # Badge icône
-        badge = QLabel("E")
-        badge.setFixedSize(38, 38)
-        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge.setFont(QFont("Segoe UI", 17, QFont.Weight.Bold))
-        badge.setStyleSheet("""
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 #3B82F6, stop:1 #1D4ED8);
-            color: white;
-            border-radius: 10px;
-            border: none;
-        """)
-        row.addWidget(badge)
-
-        # Texte
-        text_col = QVBoxLayout()
-        text_col.setSpacing(0)
-
-        title = QLabel("ERP Pro")
-        title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        title.setStyleSheet("color: white; background: transparent; border: none;")
-        text_col.addWidget(title)
-
-        subtitle = QLabel("Gestion Professionnelle")
-        subtitle.setFont(QFont("Segoe UI", 8))
-        subtitle.setStyleSheet("color: rgba(255,255,255,0.35); background: transparent; border: none;")
-        text_col.addWidget(subtitle)
-
-        row.addLayout(text_col)
-        row.addStretch()
-
-        return logo_frame
-
-    def create_nav_button(self, icon, label, key, color):
-        """Crée un bouton de navigation moderne"""
-        btn = QPushButton(f"  {icon}   {label}")
+    def create_compact_nav_button(self, icon, label, key, color):
+        """Crée un bouton de navigation avec icône et label"""
+        btn = QPushButton(f"{icon}  {label}")
         btn.setFont(QFont("Segoe UI", 11))
-        btn.setMinimumHeight(42)
+        btn.setFixedHeight(50)
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setProperty("nav_key", key)
         btn.setProperty("nav_color", color)
-        btn.setProperty("nav_icon", icon)
-        btn.setProperty("nav_label", label)
         btn.setStyleSheet(f"""
             QPushButton {{
                 background: transparent;
-                color: rgba(255,255,255,0.45);
-                border: none;
-                border-radius: 10px;
+                border-left: 4px solid transparent;
+                color: {COLORS['TXT_SEC']};
                 text-align: left;
-                padding-left: 10px;
+                padding-left: 12px;
+                font-weight: 500;
             }}
             QPushButton:hover {{
-                background: rgba(255,255,255,0.06);
-                color: rgba(255,255,255,0.85);
+                background: {color}15;
+                border-left: 4px solid {color}66;
+                color: {COLORS['TXT_PRI']};
             }}
         """)
         btn.clicked.connect(lambda: self.show_page(key))
         return btn
 
-    def create_user_info(self):
-        """Carte utilisateur moderne en bas de la sidebar"""
-        card = QFrame()
-        card.setObjectName("user_card")
-        card.setStyleSheet("""
-            QFrame#user_card {
-                background: rgba(255,255,255,0.05);
-                border-top: 1px solid rgba(255,255,255,0.07);
-            }
-        """)
-        card_layout = QHBoxLayout(card)
-        card_layout.setContentsMargins(16, 14, 16, 14)
-        card_layout.setSpacing(12)
+    def update_nav_buttons(self, active_key):
+        """Met à jour l'apparence des onglets verticaux (barre colorée à gauche)"""
+        for key, btn in self.nav_buttons.items():
+            color = btn.property("nav_color")
 
-        # Avatar circulaire
-        avatar = QLabel("👤")
-        avatar.setFixedSize(38, 38)
-        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        avatar.setFont(QFont("Segoe UI", 18))
-        avatar.setStyleSheet("""
-            background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 #3B82F6, stop:1 #8B5CF6);
-            border-radius: 19px;
-            border: none;
-        """)
-        card_layout.addWidget(avatar)
-
-        # Infos texte
-        info_col = QVBoxLayout()
-        info_col.setSpacing(1)
-
-        name_lbl = QLabel("Administrateur")
-        name_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        name_lbl.setStyleSheet("color: rgba(255,255,255,0.90); background: transparent; border: none;")
-        info_col.addWidget(name_lbl)
-
-        role_lbl = QLabel("Accès Complet")
-        role_lbl.setFont(QFont("Segoe UI", 9))
-        role_lbl.setStyleSheet("color: rgba(255,255,255,0.35); background: transparent; border: none;")
-        info_col.addWidget(role_lbl)
-
-        card_layout.addLayout(info_col)
-        card_layout.addStretch()
-
-        # Bouton à propos compact
-        about_btn = QPushButton("ℹ")
-        about_btn.setFixedSize(28, 28)
-        about_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        about_btn.setStyleSheet("""
-            QPushButton {
-                background: rgba(255,255,255,0.07);
-                color: rgba(255,255,255,0.4);
-                border: none;
-                border-radius: 14px;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background: rgba(59,130,246,0.3);
-                color: white;
-            }
-        """)
-        about_btn.clicked.connect(self.show_about)
-        card_layout.addWidget(about_btn)
-
-        return card
+            if key == active_key:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {color}20;
+                        border-left: 4px solid {color};
+                        color: {COLORS['TXT_PRI']};
+                        text-align: left;
+                        padding-left: 12px;
+                        font-weight: bold;
+                    }}
+                    QPushButton:hover {{
+                        background: {color}25;
+                        border-left: 4px solid {color};
+                        color: {COLORS['TXT_PRI']};
+                    }}
+                """)
+            else:
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: transparent;
+                        border-left: 4px solid transparent;
+                        color: {COLORS['TXT_SEC']};
+                        text-align: left;
+                        padding-left: 12px;
+                        font-weight: 500;
+                    }}
+                    QPushButton:hover {{
+                        background: {color}15;
+                        border-left: 4px solid {color}66;
+                        color: {COLORS['TXT_PRI']};
+                    }}
+                """)
 
     def show_page(self, key):
         """Affiche une page spécifique"""
@@ -328,47 +305,6 @@ class MainWindow(QMainWindow):
             # Mettre à jour le titre de la fenêtre
             self.setWindowTitle(f"ERP Pro - {page_info['title']}")
     
-    def update_nav_buttons(self, active_key):
-        """Met à jour l'apparence des boutons de navigation"""
-        for key, btn in self.nav_buttons.items():
-            color = btn.property("nav_color")
-            icon  = btn.property("nav_icon")
-            label = btn.property("nav_label")
-
-            if key == active_key:
-                btn.setStyleSheet(f"""
-                    QPushButton {{
-                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                            stop:0 {color}22, stop:1 transparent);
-                        color: {color};
-                        border: none;
-                        border-left: 3px solid {color};
-                        border-radius: 10px;
-                        text-align: left;
-                        padding-left: 10px;
-                        font-weight: bold;
-                    }}
-                    QPushButton:hover {{
-                        background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                            stop:0 {color}33, stop:1 transparent);
-                    }}
-                """)
-            else:
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background: transparent;
-                        color: rgba(255,255,255,0.45);
-                        border: none;
-                        border-radius: 10px;
-                        text-align: left;
-                        padding-left: 10px;
-                    }
-                    QPushButton:hover {
-                        background: rgba(255,255,255,0.06);
-                        color: rgba(255,255,255,0.85);
-                    }
-                """)
-
     def run_erp_cleanup(self):
         """
         Lance le nettoyage complet de la base de données ERP.

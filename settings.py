@@ -20,7 +20,7 @@ CARD_STYLE  = SETTINGS_CARD_STYLE
 INPUT_STYLE = SETTINGS_INPUT_STYLE
 COMBO_STYLE = SETTINGS_COMBO_STYLE
 
-def make_btn(text, color="#3B82F6", text_color="white", outlined=False):
+def make_btn(text, color="#6366F1", text_color="white", outlined=False):
     """Crée un bouton stylisé."""
     btn = QPushButton(text)
     btn.setMinimumHeight(42)
@@ -75,7 +75,7 @@ class SectionCard(QFrame):
 
         title_lbl = QLabel(title)
         title_lbl.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        title_lbl.setStyleSheet("color: #F1F5F9; background: transparent; border: none;")
+        title_lbl.setStyleSheet(f"color: {COLORS['text_primary']}; background: transparent; border: none;")
         hdr.addWidget(title_lbl)
         hdr.addStretch()
 
@@ -85,7 +85,7 @@ class SectionCard(QFrame):
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setFixedHeight(1)
-        sep.setStyleSheet("background: rgba(255,255,255,0.07); border: none;")
+        sep.setStyleSheet(f"background: {COLORS['BORDER']}; border: none;")
         self._layout.addWidget(sep)
 
     def body(self):
@@ -100,7 +100,7 @@ class FieldRow(QHBoxLayout):
 
         lbl = QLabel(label_text)
         lbl.setFont(QFont("Segoe UI", 11))
-        lbl.setStyleSheet("color: rgba(255,255,255,0.50); background: transparent; border: none;")
+        lbl.setStyleSheet(f"color: {COLORS['text_secondary']}; background: transparent; border: none;")
         lbl.setFixedWidth(170)
 
         self.addWidget(lbl)
@@ -142,29 +142,29 @@ class TabBar(QFrame):
         for i, btn in enumerate(self._btns):
             if i == idx:
                 btn.setChecked(True)
-                btn.setStyleSheet("""
-                    QPushButton {
-                        background: #3B82F6;
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        background: {COLORS['primary']};
                         color: white;
                         border: none;
                         border-radius: 9px;
                         padding: 0 20px;
-                    }
+                    }}
                 """)
             else:
                 btn.setChecked(False)
-                btn.setStyleSheet("""
-                    QPushButton {
+                btn.setStyleSheet(f"""
+                    QPushButton {{
                         background: rgba(255,255,255,0.06);
-                        color: rgba(255,255,255,0.45);
+                        color: {COLORS['text_secondary']};
                         border: none;
                         border-radius: 9px;
                         padding: 0 20px;
-                    }
-                    QPushButton:hover {
+                    }}
+                    QPushButton:hover {{
                         background: rgba(255,255,255,0.10);
-                        color: rgba(255,255,255,0.80);
-                    }
+                        color: {COLORS['text_primary']};
+                    }}
                 """)
         self._callbacks[idx]()
 
@@ -177,7 +177,7 @@ class SettingsPage(QWidget):
     def __init__(self):
         super().__init__()
         self.db = get_database()
-        self.setStyleSheet("background: #0F1117;")
+        self.setStyleSheet(f"background: {COLORS['BG_PAGE']};")
 
         root = QVBoxLayout(self)
         root.setContentsMargins(32, 28, 32, 28)
@@ -191,23 +191,23 @@ class SettingsPage(QWidget):
 
         page_title = QLabel("Paramètres")
         page_title.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
-        page_title.setStyleSheet("color: #F1F5F9; background: transparent;")
+        page_title.setStyleSheet(f"color: {COLORS['text_primary']}; background: transparent;")
         title_col.addWidget(page_title)
 
         page_sub = QLabel("Configuration de votre système ERP")
         page_sub.setFont(QFont("Segoe UI", 12))
-        page_sub.setStyleSheet("color: rgba(255,255,255,0.35); background: transparent;")
+        page_sub.setStyleSheet(f"color: {COLORS['text_secondary']}; background: transparent;")
         title_col.addWidget(page_sub)
 
         hdr_row.addLayout(title_col)
         hdr_row.addStretch()
 
         # Boutons d'action globaux (en-tête)
-        self.reset_btn = make_btn("↺  Réinitialiser", "#64748B", outlined=True)
+        self.reset_btn = make_btn("↺  Réinitialiser", COLORS['secondary_dark'], outlined=True)
         self.reset_btn.setFixedWidth(150)
         self.reset_btn.clicked.connect(self.reset_settings)
 
-        self.save_btn = make_btn("✓  Enregistrer", "#10B981")
+        self.save_btn = make_btn("✓  Enregistrer", COLORS['success'])
         self.save_btn.setFixedWidth(170)
         self.save_btn.clicked.connect(self.save_settings)
 
@@ -281,6 +281,47 @@ class SettingsPage(QWidget):
         card_ent = SectionCard("🏢", "Informations de l'Entreprise")
         body = card_ent.body()
 
+        # Logo preview
+        logo_layout = QHBoxLayout()
+        self.logo_preview = QLabel()
+        self.logo_preview.setFixedSize(80, 80)
+        self.logo_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.logo_preview.setStyleSheet(f"""
+            QLabel {{
+                background: {COLORS['BG_CARD']};
+                border-radius: 10px;
+                border: 2px solid {COLORS['BORDER']};
+            }}
+        """)
+        
+        logo_path = self.db.get_setting('logo_path', '')
+        from PyQt6.QtGui import QPixmap
+        if logo_path:
+            try:
+                pixmap = QPixmap(logo_path)
+                if not pixmap.isNull():
+                    scaled_pixmap = pixmap.scaledToHeight(80, Qt.TransformationMode.SmoothTransformation)
+                    self.logo_preview.setPixmap(scaled_pixmap)
+                else:
+                    self.logo_preview.setText("📷")
+                    self.logo_preview.setFont(QFont("Segoe UI", 32))
+            except Exception as e:
+                print(f"Erreur chargement logo: {e}")
+                self.logo_preview.setText("📷")
+                self.logo_preview.setFont(QFont("Segoe UI", 32))
+        else:
+            self.logo_preview.setText("📷")
+            self.logo_preview.setFont(QFont("Segoe UI", 32))
+        
+        logo_btn = make_btn("🖼️  Changer Logo", COLORS['primary'], outlined=True)
+        logo_btn.clicked.connect(self.change_logo)
+        
+        logo_layout.addWidget(self.logo_preview)
+        logo_layout.addWidget(logo_btn)
+        logo_layout.addStretch()
+        body.addLayout(logo_layout)
+        body.addSpacing(12)
+
         fields_ent = [
             ("Nom de l'entreprise",  company_name,    "company_name"),
             ("Adresse",              company_address, "address"),
@@ -333,13 +374,13 @@ class SettingsPage(QWidget):
 
         desc = QLabel("Choisissez le thème qui vous convient le mieux.")
         desc.setFont(QFont("Segoe UI", 11))
-        desc.setStyleSheet("color: rgba(255,255,255,0.40); background: transparent; border: none;")
+        desc.setStyleSheet(f"color: {COLORS['text_secondary']}; background: transparent; border: none;")
         body.addWidget(desc)
 
         row = QHBoxLayout()
         lbl = QLabel("Thème actif")
         lbl.setFont(QFont("Segoe UI", 11))
-        lbl.setStyleSheet("color: rgba(255,255,255,0.50); background: transparent; border: none;")
+        lbl.setStyleSheet(f"color: {COLORS['text_secondary']}; background: transparent; border: none;")
         lbl.setFixedWidth(170)
 
         self.theme_combo = QComboBox()
@@ -374,21 +415,21 @@ class SettingsPage(QWidget):
 
         desc_bk = QLabel("Créez ou restaurez une copie de sécurité complète de vos données.")
         desc_bk.setFont(QFont("Segoe UI", 11))
-        desc_bk.setStyleSheet("color: rgba(255,255,255,0.40); background: transparent; border: none;")
+        desc_bk.setStyleSheet(f"color: {COLORS['text_secondary']}; background: transparent; border: none;")
         body_bk.addWidget(desc_bk)
 
         last_backup = self.db.get_setting('last_backup_date', 'Aucune sauvegarde')
         self.last_backup_label = QLabel(f"📅 Dernière sauvegarde : {last_backup}")
         self.last_backup_label.setFont(QFont("Segoe UI", 10))
         self.last_backup_label.setStyleSheet(
-            "color: rgba(255,255,255,0.30); background: transparent; border: none;")
+            f"color: {COLORS['TXT_MUTED']}; background: transparent; border: none;")
         body_bk.addWidget(self.last_backup_label)
 
         bk_btns = QHBoxLayout()
         bk_btns.setSpacing(10)
-        btn_create = make_btn("💾  Créer une Sauvegarde", "#10B981")
+        btn_create = make_btn("💾  Créer une Sauvegarde", COLORS['success'])
         btn_create.clicked.connect(self.create_backup)
-        btn_restore = make_btn("📂  Restaurer", "#3B82F6", outlined=True)
+        btn_restore = make_btn("📂  Restaurer", COLORS['primary'], outlined=True)
         btn_restore.clicked.connect(self.restore_backup)
         bk_btns.addWidget(btn_create)
         bk_btns.addWidget(btn_restore)
@@ -408,10 +449,10 @@ class SettingsPage(QWidget):
 
         stats_btns = QHBoxLayout()
         stats_btns.setSpacing(10)
-        btn_refresh = make_btn("🔄  Actualiser", "#64748B", outlined=True)
+        btn_refresh = make_btn("🔄  Actualiser", COLORS['secondary_dark'], outlined=True)
         btn_refresh.setFixedWidth(160)
         btn_refresh.clicked.connect(self.refresh_stats)
-        btn_test = make_btn("🧪  Données de Test", "#8B5CF6")
+        btn_test = make_btn("🧪  Données de Test", COLORS['secondary'])
         btn_test.setFixedWidth(200)
         btn_test.clicked.connect(self.generate_test_data)
         stats_btns.addWidget(btn_refresh)
@@ -424,21 +465,21 @@ class SettingsPage(QWidget):
         # ── Carte Danger ──
         card_danger = SectionCard("⚠️", "Zone de Danger")
         body_danger = card_danger.body()
-        card_danger.setStyleSheet("""
-            QFrame {
-                background: #1A1215;
+        card_danger.setStyleSheet(f"""
+            QFrame {{
+                background: rgba(239,68,68,0.10);
                 border-radius: 14px;
-                border: 1px solid rgba(239,68,68,0.25);
-            }
+                border: 1px solid {COLORS['danger']}33;
+            }}
         """)
 
         warn_lbl = QLabel("Cette action supprimera définitivement toutes les données (clients, produits, ventes, achats, historique). Elle est irréversible.")
         warn_lbl.setWordWrap(True)
         warn_lbl.setFont(QFont("Segoe UI", 11))
-        warn_lbl.setStyleSheet("color: rgba(255,255,255,0.40); background: transparent; border: none;")
+        warn_lbl.setStyleSheet(f"color: {COLORS['text_secondary']}; background: transparent; border: none;")
         body_danger.addWidget(warn_lbl)
 
-        btn_clean = make_btn("🗑️  Nettoyer la Base de Données", "#EF4444")
+        btn_clean = make_btn("🗑️  Nettoyer la Base de Données", COLORS['danger'])
         btn_clean.setFixedWidth(280)
         btn_clean.clicked.connect(self.cleanup_database)
         body_danger.addWidget(btn_clean)
@@ -457,9 +498,9 @@ class SettingsPage(QWidget):
         item = QFrame()
         item.setStyleSheet(f"""
             QFrame {{
-                background: #0F1117;
+                background: {COLORS['BG_CARD']};
                 border-radius: 10px;
-                border: 1px solid rgba(255,255,255,0.07);
+                border: 1px solid {COLORS['BORDER']};
             }}
         """)
         il = QVBoxLayout(item)
@@ -481,7 +522,7 @@ class SettingsPage(QWidget):
 
         tl = QLabel(label)
         tl.setFont(QFont("Segoe UI", 10))
-        tl.setStyleSheet("color: rgba(255,255,255,0.35); border: none; background: transparent;")
+        tl.setStyleSheet(f"color: {COLORS['text_secondary']}; border: none; background: transparent;")
         tl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         il.addWidget(tl)
 
@@ -495,10 +536,10 @@ class SettingsPage(QWidget):
 
         stats = self.db.get_statistics()
         items = [
-            ("👥", "Clients",  stats['total_clients'],   "#8B5CF6"),
-            ("📦", "Produits", stats['total_products'],  "#10B981"),
-            ("💰", "Ventes",   stats['total_sales'],     "#3B82F6"),
-            ("🛒", "Achats",   stats['total_purchases'], "#F59E0B"),
+            ("👥", "Clients",  stats['total_clients'],   COLORS['secondary']),
+            ("📆", "Produits", stats['total_products'],  COLORS['success']),
+            ("💰", "Ventes",   stats['total_sales'],     COLORS['primary']),
+            ("🛍️", "Achats",   stats['total_purchases'], COLORS['warning']),
         ]
         for icon, label, value, color in items:
             self.stats_grid.addWidget(self.create_stat_item(icon, label, value, color))
@@ -623,3 +664,31 @@ class SettingsPage(QWidget):
             self.currency.setText("DA (Dinar Algérien)")
             self.vat.setText("19")
             self.vat_number.setText("123456789012345")
+
+    def change_logo(self):
+        """Change le logo de l'entreprise"""
+        filename, _ = QFileDialog.getOpenFileName(
+            self, "Choisir un logo", "",
+            "Images (*.png *.jpg *.jpeg *.bmp);;Tous (*.*)"
+        )
+        if filename:
+            try:
+                from PyQt6.QtGui import QPixmap
+                
+                # Chargez et validez l'image avec QPixmap
+                pixmap = QPixmap(filename)
+                if pixmap.isNull():
+                    QMessageBox.critical(self, "❌ Erreur", "La file n'est pas une image valide.")
+                    return
+                
+                # Resize et affichage
+                scaled_pixmap = pixmap.scaledToHeight(80, Qt.TransformationMode.SmoothTransformation)
+                self.logo_preview.setPixmap(scaled_pixmap)
+                
+                # Sauvegardez le chemin complet
+                self.db.set_setting('logo_path', filename)
+                print(f"✅ Logo sauvegardé: {filename}")
+                QMessageBox.information(self, "✅ Logo changé", f"Logo mis à jour avec succès.\n\nChemin: {filename}")
+            except Exception as e:
+                print(f"Erreur: {e}")
+                QMessageBox.critical(self, "❌ Erreur", f"Impossible de charger l'image :\n{str(e)}")

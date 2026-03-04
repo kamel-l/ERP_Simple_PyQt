@@ -17,7 +17,7 @@ class ClientDialog(QDialog):
         self.setMinimumWidth(500)
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {COLORS['BG_CARD']};
+                background-color: {COLORS['bg_card']};
             }}
             QLabel {{
                 color: {COLORS['text_primary']};
@@ -100,7 +100,7 @@ class ClientsPage(QWidget):
         # ------------------- HEADER -------------------
         title = QLabel("👥 Gestion des Clients")
         title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['BG_CARD']}; margin-bottom: 5px;")
+        title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 5px;")
         layout.addWidget(title)
 
         subtitle = QLabel("Gérez vos clients et leurs informations")
@@ -141,7 +141,7 @@ class ClientsPage(QWidget):
 
         # ------------------- CLIENT TABLE -------------------
         table_container = QFrame()
-        table_container.setStyleSheet(f"QFrame#inv {{ background:{'BG_CARD'}; border-radius:16px; border:1px solid {'BORDER'}; }}")
+        table_container.setStyleSheet(f"QFrame#inv {{ background:{COLORS['BG_CARD']}; border-radius:16px; border:1px solid {COLORS['BORDER']}; }}")
         table_layout = QVBoxLayout()
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
@@ -155,14 +155,14 @@ class ClientsPage(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setStyleSheet(TABLE_STYLE + f"""
             QHeaderView::section {{
-                background-color: {COLORS['BG_CARD']};
+                background-color: {COLORS['BG_DEEP']};
                 color: {COLORS['text_primary']};
                 font-size: 13px;
                 font-weight: bold;
                 padding: 10px 8px;
                 border: none;
-                border-right: 1px solid {COLORS['BG_CARD']};
-                border-bottom: 2px solid {COLORS['BG_CARD']};
+                border-right: 1px solid {COLORS['BORDER']};
+                border-bottom: 2px solid {COLORS['primary']};
             }}
             QHeaderView::section:last {{
                 border-right: none;
@@ -200,30 +200,32 @@ class ClientsPage(QWidget):
     def build_stat_card(self, title, value, color):
         """Construit une petite carte de statistique"""
         card = QFrame()
+        card.setObjectName("stat")
         card.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['BG_CARD']}, stop:1 #242424);
-                border-radius: 10px;
-                border: 1px solid {COLORS['border']};
-               
+            QFrame#stat {{
+                background: {COLORS['BG_CARD']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['BORDER']};
+            }}
+            QFrame#stat:hover {{
+                border: 1px solid {COLORS['primary']};
             }}
         """)
-        card.setFixedHeight(80)
-        card.setMinimumWidth(180)
+        card.setFixedHeight(90)
+        card.setMinimumWidth(160)
 
         card_layout = QVBoxLayout()
         card.setLayout(card_layout)
-        card_layout.setSpacing(5)
-        card_layout.setContentsMargins(15, 10, 15, 10)
+        card_layout.setSpacing(8)
+        card_layout.setContentsMargins(16, 14, 16, 14)
 
         title_label = QLabel(title)
         title_label.setFont(QFont("Segoe UI", 11))
-        title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
+        title_label.setStyleSheet(f"color: {COLORS['TXT_SEC']}; border: none;")
         card_layout.addWidget(title_label)
 
         value_label = QLabel(str(value))
-        value_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
+        value_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
         value_label.setStyleSheet(f"color: {color}; border: none;")
         card_layout.addWidget(value_label)
 

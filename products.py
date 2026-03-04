@@ -264,16 +264,16 @@ class ProductsPage(QWidget):
         self.refresh_btn.setFixedHeight(45)
         self.refresh_btn.setFixedWidth(130)
         self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.refresh_btn.setStyleSheet("""
-            QPushButton {
-                background: #3B82F6;
+        self.refresh_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {COLORS['primary']};
                 color: white;
                 border: none;
                 border-radius: 10px;
                 padding: 0 18px;
-            }
-            QPushButton:hover  { background: #2563EB; }
-            QPushButton:pressed{ background: #1D4ED8; }
+            }}
+            QPushButton:hover  {{ background: {COLORS['primary_dark']}; }}
+            QPushButton:pressed{{ background: #4338CA; }}
         """)
         self.refresh_btn.clicked.connect(self.refresh_page)
         search_layout.addWidget(self.refresh_btn)
@@ -282,9 +282,9 @@ class ProductsPage(QWidget):
         table_container = QFrame()
         table_container.setStyleSheet(f"""
             QFrame {{
-                background: {COLORS['bg_card']};
+                background: {COLORS['BG_CARD']};
                 border-radius: 12px;
-                border: 1px solid {COLORS['border']};
+                border: 1px solid {COLORS['BORDER']};
                 padding: 0px;
             }}
         """)
@@ -306,13 +306,13 @@ class ProductsPage(QWidget):
         # Appliquer TABLE_STYLE en DERNIER pour que le header soit visible
         self.table.setStyleSheet(TABLE_STYLE + f"""
             QHeaderView::section {{
-                background-color: {COLORS['bg_light']};
+                background-color: {COLORS['BG_DEEP']};
                 color: {COLORS['text_primary']};
                 font-size: 13px;
                 font-weight: bold;
                 padding: 10px 8px;
                 border: none;
-                border-right: 1px solid {COLORS['border']};
+                border-right: 1px solid {COLORS['BORDER']};
                 border-bottom: 2px solid {COLORS['primary']};
             }}
             QHeaderView::section:first {{
@@ -374,30 +374,32 @@ class ProductsPage(QWidget):
     def build_stat_card(self, title, value, color):
         """Construit une carte de statistique"""
         card = QFrame()
+        card.setObjectName("stat")
         card.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 10px;
-                border: 1px solid {COLORS['border']};
-               
+            QFrame#stat {{
+                background: {COLORS['BG_CARD']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['BORDER']};
+            }}
+            QFrame#stat:hover {{
+                border: 1px solid {COLORS['primary']};
             }}
         """)
-        card.setFixedHeight(80)
-        card.setMinimumWidth(180)
+        card.setFixedHeight(90)
+        card.setMinimumWidth(160)
 
         card_layout = QVBoxLayout()
         card.setLayout(card_layout)
-        card_layout.setSpacing(5)
-        card_layout.setContentsMargins(15, 10, 15, 10)
+        card_layout.setSpacing(8)
+        card_layout.setContentsMargins(16, 14, 16, 14)
 
         title_label = QLabel(title)
         title_label.setFont(QFont("Segoe UI", 11))
-        title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
+        title_label.setStyleSheet(f"color: {COLORS['TXT_SEC']}; border: none;")
         card_layout.addWidget(title_label)
 
         value_label = QLabel(str(value))
-        value_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
+        value_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
         value_label.setStyleSheet(f"color: {color}; border: none;")
         card_layout.addWidget(value_label)
 

@@ -6,27 +6,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, QObject, pyqtProperty, QPropertyAnimation, QEasingCurve
 from db_manager import get_database
+from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 
 
 # ─────────────────────────────────────────────────────────────
 #  Constantes de style
 # ─────────────────────────────────────────────────────────────
 
-BG_PAGE   = "#0F1117"
-BG_CARD   = "#1A1D27"
-BG_DEEP   = "#13151F"
-BORDER    = "rgba(255,255,255,0.07)"
-TXT_PRI   = "#F1F5F9"
-TXT_SEC   = "rgba(255,255,255,0.45)"
-TXT_MUTED = "rgba(255,255,255,0.25)"
 
-CARD_BASE = f"""
-    QFrame {{
-        background: {BG_CARD};
-        border-radius: 16px;
-        border: 1px solid {BORDER};
-    }}
-"""
 
 
 # ─────────────────────────────────────────────────────────────
@@ -67,7 +54,7 @@ def animate_value(label, target, suffix="", duration=800):
 def section_label(text):
     lbl = QLabel(text)
     lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-    lbl.setStyleSheet(f"color: {TXT_MUTED}; background: transparent; letter-spacing: 1px;")
+    lbl.setStyleSheet(f"color: {COLORS['TXT_MUTED']}; background: transparent; letter-spacing: 1px;")
     return lbl
 
 
@@ -75,7 +62,7 @@ def divider():
     line = QFrame()
     line.setFrameShape(QFrame.Shape.HLine)
     line.setFixedHeight(1)
-    line.setStyleSheet(f"background: {BORDER}; border: none;")
+    line.setStyleSheet(f"background: {COLORS['BORDER']}; border: none;")
     return line
 
 
@@ -87,7 +74,7 @@ class DashboardPage(QWidget):
     def __init__(self):
         super().__init__()
         self.db = get_database()
-        self.setStyleSheet(f"background: {BG_PAGE};")
+        self.setStyleSheet(f"background: {COLORS['BG_PAGE']};")
 
         # Zone de défilement globale
         scroll = QScrollArea()
@@ -124,14 +111,14 @@ class DashboardPage(QWidget):
         col = QVBoxLayout()
         col.setSpacing(3)
 
-        title = QLabel("Tableau de Bord")
+        title = QLabel(" 📊 Tableau de Bord")
         title.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {TXT_PRI}; background: transparent;")
+        title.setStyleSheet(f"color: {COLORS['TXT_PRI']}; background: transparent;")
         col.addWidget(title)
 
         sub = QLabel("Vue d'ensemble de l'activité en temps réel")
         sub.setFont(QFont("Segoe UI", 11))
-        sub.setStyleSheet(f"color: {TXT_SEC}; background: transparent;")
+        sub.setStyleSheet(f"color: {COLORS['TXT_SEC']}; background: transparent;")
         col.addWidget(sub)
 
         row.addLayout(col)
@@ -145,14 +132,14 @@ class DashboardPage(QWidget):
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setStyleSheet("""
             QPushButton {
-                background: #3B82F6;
+                background: #6366F1;
                 color: white;
                 border: none;
                 border-radius: 10px;
                 padding: 0 18px;
             }
-            QPushButton:hover  { background: #2563EB; }
-            QPushButton:pressed{ background: #1D4ED8; }
+            QPushButton:hover  { background: #4F46E5; }
+            QPushButton:pressed{ background: #4338CA; }
         """)
         btn.clicked.connect(self.refresh)
         row.addWidget(btn)
@@ -165,10 +152,10 @@ class DashboardPage(QWidget):
         row.setSpacing(16)
 
         kpis = [
-            ("Ventes Totales",  "0",  "#3B82F6", "💳", " DA"),
+            ("Ventes Totales",  "0",  "#6366F1", "💳", " DA"),
             ("Achats",          "0",  "#F59E0B", "🛒", " DA"),
-            ("Bénéfice Net",    "0",  "#10B981", "📈", " DA"),
-            ("Clients",         "0",  "#8B5CF6", "👥", ""),
+            ("Bénéfice Net",    "0",  "#A855F7", "📈", " DA"),
+            ("Clients",         "0",  "#06B6D4", "👥", ""),
         ]
         self._kpi_cards = []
         for title, val, color, icon, suffix in kpis:
@@ -183,9 +170,9 @@ class DashboardPage(QWidget):
         card.setObjectName("kpi")
         card.setStyleSheet(f"""
             QFrame#kpi {{
-                background: {BG_CARD};
+                background: {COLORS['BG_CARD']};
                 border-radius: 16px;
-                border: 1px solid {BORDER};
+                border: 1px solid {COLORS['BORDER']};
             }}
         """)
         card.setMinimumHeight(130)
@@ -213,7 +200,7 @@ class DashboardPage(QWidget):
 
         lbl_title = QLabel(title)
         lbl_title.setFont(QFont("Segoe UI", 11))
-        lbl_title.setStyleSheet(f"color: {TXT_SEC}; background: transparent; border: none;")
+        lbl_title.setStyleSheet(f"color: {COLORS['TXT_SEC']}; background: transparent; border: none;")
         top.addWidget(lbl_title)
         top.addStretch()
 
@@ -248,7 +235,7 @@ class DashboardPage(QWidget):
         # Activités récentes (2/3)
         act_card = QFrame()
         act_card.setObjectName("act")
-        act_card.setStyleSheet(f"QFrame#act {{ background:{BG_CARD}; border-radius:16px; border:1px solid {BORDER}; }}")
+        act_card.setStyleSheet(f"QFrame#act {{ background:{COLORS['BG_CARD']}; border-radius:16px; border:1px solid {COLORS['BORDER']}; }}")
         act_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         act_layout = QVBoxLayout(act_card)
         act_layout.setContentsMargins(20, 18, 20, 18)
@@ -258,7 +245,7 @@ class DashboardPage(QWidget):
         act_hdr = QHBoxLayout()
         act_title = QLabel("Activités Récentes")
         act_title.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        act_title.setStyleSheet(f"color: {TXT_PRI}; background:transparent; border:none;")
+        act_title.setStyleSheet(f"color: {COLORS['TXT_PRI']}; background:transparent; border:none;")
         act_hdr.addWidget(act_title)
         act_hdr.addStretch()
         act_layout.addLayout(act_hdr)
@@ -276,8 +263,8 @@ class DashboardPage(QWidget):
         info_col.setSpacing(16)
 
         infos = [
-            ("Ventes Aujourd'hui", "0 DA",       "#3B82F6", "📅"),
-            ("Top Client",         "—",           "#10B981", "🏆"),
+            ("Ventes Aujourd'hui", "0 DA",       "#6366F1", "📅"),
+            ("Top Client",         "—",           "#A855F7", "🏆"),
             ("Stock Faible",       "0 produits",  "#F59E0B", "⚠️"),
         ]
         self._info_cards = []
@@ -292,7 +279,7 @@ class DashboardPage(QWidget):
     def _make_info_card(self, icon, title, value, color):
         card = QFrame()
         card.setObjectName("info")
-        card.setStyleSheet(f"QFrame#info {{ background:{BG_CARD}; border-radius:14px; border:1px solid {BORDER}; }}")
+        card.setStyleSheet(f"QFrame#info {{ background:{COLORS['BG_CARD']}; border-radius:14px; border:1px solid {COLORS['BORDER']}; }}")
         card.setFixedHeight(90)
 
         layout = QHBoxLayout(card)
@@ -317,7 +304,7 @@ class DashboardPage(QWidget):
 
         lbl_t = QLabel(title)
         lbl_t.setFont(QFont("Segoe UI", 9))
-        lbl_t.setStyleSheet(f"color:{TXT_SEC}; background:transparent; border:none;")
+        lbl_t.setStyleSheet(f"color:{COLORS['TXT_SEC']}; background:transparent; border:none;")
         txt.addWidget(lbl_t)
 
         lbl_v = QLabel(value)
@@ -335,7 +322,7 @@ class DashboardPage(QWidget):
     def _build_invoice_table(self):
         card = QFrame()
         card.setObjectName("inv")
-        card.setStyleSheet(f"QFrame#inv {{ background:{BG_CARD}; border-radius:16px; border:1px solid {BORDER}; }}")
+        card.setStyleSheet(f"QFrame#inv {{ background:{COLORS['BG_CARD']}; border-radius:16px; border:1px solid {COLORS['BORDER']}; }}")
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 18, 20, 18)
@@ -345,12 +332,12 @@ class DashboardPage(QWidget):
         hdr = QHBoxLayout()
         t = QLabel("Dernières Factures")
         t.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        t.setStyleSheet(f"color:{TXT_PRI}; background:transparent; border:none;")
+        t.setStyleSheet(f"color:{COLORS['TXT_PRI']}; background:transparent; border:none;")
         hdr.addWidget(t)
         hdr.addStretch()
         nb = QLabel("10 dernières")
         nb.setFont(QFont("Segoe UI", 9))
-        nb.setStyleSheet(f"color:{TXT_MUTED}; background:transparent; border:none;")
+        nb.setStyleSheet(f"color:{COLORS['TXT_MUTED']}; background:transparent; border:none;")
         hdr.addWidget(nb)
         layout.addLayout(hdr)
         layout.addWidget(divider())
@@ -371,18 +358,18 @@ class DashboardPage(QWidget):
             QTableWidget {{
                 background: transparent;
                 alternate-background-color: rgba(255,255,255,0.03);
-                color: {TXT_PRI};
+                color: {COLORS['TXT_PRI']};
                 border: none;
                 font-size: 12px;
             }}
             QHeaderView::section {{
-                background: {BG_DEEP};
-                color: {TXT_SEC};
+                background: {COLORS['BG_DEEP']};
+                color: {COLORS['TXT_SEC']};
                 font-size: 11px;
                 font-weight: bold;
                 padding: 10px 8px;
                 border: none;
-                border-bottom: 1px solid {BORDER};
+                border-bottom: 1px solid {COLORS['BORDER']};
                 text-transform: uppercase;
             }}
             QTableWidget::item {{
@@ -390,8 +377,8 @@ class DashboardPage(QWidget):
                 border-bottom: 1px solid rgba(255,255,255,0.04);
             }}
             QTableWidget::item:selected {{
-                background: rgba(59,130,246,0.15);
-                color: #93C5FD;
+                background: rgba(99,102,241,0.15);
+                color: #A855F7;
             }}
         """)
 
@@ -432,7 +419,7 @@ class DashboardPage(QWidget):
         if not sales and not purchases:
             empty = QLabel("Aucune activité récente")
             empty.setFont(QFont("Segoe UI", 11))
-            empty.setStyleSheet(f"color:{TXT_MUTED}; padding: 12px; background:transparent;")
+            empty.setStyleSheet(f"color:{COLORS['TXT_MUTED']}; padding: 12px; background:transparent;")
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._activities_layout.addWidget(empty)
             return
@@ -456,14 +443,14 @@ class DashboardPage(QWidget):
 
             lbl = QLabel(text)
             lbl.setFont(QFont("Segoe UI", 11))
-            lbl.setStyleSheet(f"color: rgba(255,255,255,0.70); background:transparent; border:none;")
+            lbl.setStyleSheet(f"color: {COLORS['TXT_SEC']}; background:transparent; border:none;")
             rl.addWidget(lbl)
             rl.addStretch()
 
             self._activities_layout.addWidget(row_w)
 
         for s in sales:
-            add_row("#10B981", f"Vente  ·  Facture {s['invoice_number']}  —  {s['total']:,.0f} DA")
+            add_row("#6366F1", f"Vente  ·  Facture {s['invoice_number']}  —  {s['total']:,.0f} DA")
         for p in purchases:
             # product_name est maintenant fourni par le JOIN products dans get_all_purchases()
             nom = p.get('product_name') or f"Produit #{p.get('product_id', '?')}"
@@ -490,11 +477,11 @@ class DashboardPage(QWidget):
             pay    = sale.get("payment_method", sale.get("payment_mode", "—"))
 
             cells = [
-                (sale["invoice_number"], TXT_PRI),
-                (client,                 TXT_SEC),
-                (f"{sale['total']:,.0f} DA", "#10B981"),
-                (date,                   TXT_SEC),
-                (pay,                    TXT_SEC),
+                (sale["invoice_number"], 'TXT_PRI'),
+                (client,                 'TXT_SEC'),
+                (f"{sale['total']:,.0f} DA", "#2ECC71"),
+                (date,                   'TXT_SEC'),
+                (pay,                    'TXT_SEC'),
             ]
 
             for col, (val, color) in enumerate(cells):

@@ -1,40 +1,50 @@
 """
 Module de styles réutilisables pour l'application
-Design moderne et professionnel
+Design moderne et vif — Palette Bleu Électrique + Cyan
 """
 
 # ==================== COULEURS ====================
 COLORS = {
-    'primary': '#A855F7',        # Violet améthyste
-    'primary_dark': '#9333EA',
-    'secondary': '#EC4899',      # Rose magenta
-    'success': '#34D399',        # Vert menthe
-    'warning': '#FBBF24',        # Or
-    'danger': '#F472B6',         # Rose rouge
-    'info': '#60A5FA',           # Bleu pervenche
-    'bg_dark': '#415a77',        # Violet très sombre
-    'bg_medium': '#2A1A33',
-    'bg_light': '#3D2847',
-    'bg_card': '#2A1A33',
-    'text_primary': '#FAF5FF',
-    'text_secondary': '#F3E8FF',
-    'text_tertiary': '#D8B4FE',
-    'border': '#4C2F5E',
-    'border_light': '#5E3A73',
-    'accent' : '#32D599' ,
-    'accent_light' : '#60A5FA' ,
-    'bg_card_hover' : '#A815F3' ,
-    'bg_input' : '#F438B6' ,
-    'BG_PAGE'   : "#0F1117",
-    'BG_CARD'   : "#1A1D27",
-    'BG_DEEP'   : "#13151F",
-    'BORDER'    : "rgba(255,255,255,0.07)",
-    'TXT_PRI'   : "#F1F5F9",
-    'TXT_SEC'   : "rgba(255,255,255,0.45)",
-    'TXT_MUTED' : "rgba(255,255,255,0.25)", 
-}
-     
+    # Couleurs principales Blue & Purple
+    'primary':        '#6366F1',        # Bleu indigo vif
+    'primary_dark':   '#4F46E5',        # Bleu indigo foncé
+    'primary_light':  '#818CF8',        # Bleu indigo clair
+    'secondary':      '#A855F7',        # Purple éclatant
+    'secondary_dark': '#9333EA',        # Purple foncé
 
+    # Statuts
+    'success':        '#10B981',        # Vert succès
+    'warning':        '#F59E0B',        # Jaune vif
+    'danger':         '#EF4444',        # Rouge vif
+    'info':           '#06B6D4',        # Cyan info
+
+    # Fonds bleu profond
+    'bg_dark':        '#0F172A',        # Fond principal
+    'bg_medium':      '#1E293B',        # Fond cartes
+    'bg_light':       '#334155',        # Fond hover / inputs
+    'bg_card':        '#1E293B',
+
+    # Textes
+    'text_primary':   '#F8FAFC',        # Blanc froid
+    'text_secondary': '#CBD5E1',        # Gris-bleu doux
+    'text_tertiary':  '#818CF8',        # Bleu indigo (accents texte)
+
+    # Bordures
+    'border':         'rgba(99,102,241,0.20)',        # Bordure bleu subtile
+    'border_light':   '#A855F7',        # Bordure purple hover
+
+    # Inputs
+    'bg_input':       '#1E293B',
+
+    # Alias uppercase
+    'BG_PAGE':        '#0F172A',
+    'BG_CARD':        '#1E293B',
+    'BG_DEEP':        '#0A0F1F',
+    'BORDER':         'rgba(99,102,241,0.20)',
+    'TXT_PRI':        '#F8FAFC',
+    'TXT_SEC':        'rgba(203,213,225,0.85)',
+    'TXT_MUTED':      'rgba(126,139,141,0.50)',
+}
 
 
 # ==================== STYLES DE BOUTONS ====================
@@ -53,21 +63,21 @@ BUTTON_STYLES = {
         }}
         QPushButton:hover {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #1A94FF, stop:1 #0A84FF);
+                stop:0 {COLORS['primary_light']}, stop:1 {COLORS['primary']});
         }}
         QPushButton:pressed {{
             background: {COLORS['primary_dark']};
         }}
         QPushButton:disabled {{
-            background: #3A3A3C;
-            color: #8E8E93;
+            background: #1A7272;
+            color: #555570;
         }}
     """,
-    
+
     'success': f"""
         QPushButton {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS['success']}, stop:1 #28C248);
+                stop:0 {COLORS['success']}, stop:1 #059669);
             color: white;
             border: none;
             border-radius: 8px;
@@ -78,17 +88,17 @@ BUTTON_STYLES = {
         }}
         QPushButton:hover {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #40E168, stop:1 {COLORS['success']});
+                stop:0 #34D399, stop:1 {COLORS['success']});
         }}
         QPushButton:pressed {{
-            background: #28C248;
+            background: #059669;
         }}
     """,
-    
+
     'danger': f"""
         QPushButton {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS['danger']}, stop:1 #D93D32);
+                stop:0 {COLORS['danger']}, stop:1 #DC2626);
             color: white;
             border: none;
             border-radius: 8px;
@@ -99,18 +109,18 @@ BUTTON_STYLES = {
         }}
         QPushButton:hover {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #FF5549, stop:1 {COLORS['danger']});
+                stop:0 #F87171, stop:1 {COLORS['danger']});
         }}
         QPushButton:pressed {{
-            background: #D93D32;
+            background: #DC2626;
         }}
     """,
-    
+
     'secondary': f"""
         QPushButton {{
             background: transparent;
-            color: {COLORS['primary']};
-            border: 2px solid {COLORS['primary']};
+            color: {COLORS['secondary']};
+            border: 2px solid {COLORS['secondary']};
             border-radius: 8px;
             padding: 10px 20px;
             font-size: 14px;
@@ -118,11 +128,12 @@ BUTTON_STYLES = {
             min-height: 36px;
         }}
         QPushButton:hover {{
-            background: rgba(10, 132, 255, 0.1);
-            border-color: #1A94FF;
+            background: rgba(168,85,247,0.12);
+            border-color: #D8B4FE;
+            color: #D8B4FE;
         }}
         QPushButton:pressed {{
-            background: rgba(10, 132, 255, 0.2);
+            background: rgba(168,85,247,0.25);
         }}
     """,
 }
@@ -131,12 +142,12 @@ BUTTON_STYLES = {
 CARD_STYLE = f"""
     QFrame {{
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 {COLORS['bg_card']}, stop:1 #242424);
+            stop:0 {COLORS['bg_card']}, stop:1 {COLORS['bg_dark']});
         border-radius: 12px;
         border: 1px solid {COLORS['border']};
     }}
     QFrame:hover {{
-        border: 1px solid {COLORS['border_light']};
+        border: 1px solid {COLORS['primary']};
     }}
 """
 
@@ -144,19 +155,19 @@ CARD_STYLE = f"""
 TABLE_STYLE = f"""
     QTableWidget {{
         background-color: {COLORS['BG_CARD']};
-        alternate-background-color: {COLORS['BG_CARD']};
+        alternate-background-color: #0F5252;
         border: 1px solid {COLORS['border']};
         border-radius: 8px;
-        gridline-color: {COLORS['border']};
+        gridline-color: #1A6B6B;
         color: {COLORS['text_primary']};
-        selection-background-color: {COLORS['primary']};
+        selection-background-color: {COLORS['primary_dark']};
     }}
     QTableWidget::item {{
         padding: 8px;
         border: none;
     }}
     QTableWidget::item:selected {{
-        background-color: {COLORS['primary']};
+        background-color: {COLORS['primary_dark']};
         color: white;
     }}
     QTableWidget::item:hover {{
@@ -164,8 +175,8 @@ TABLE_STYLE = f"""
     }}
     QHeaderView::section {{
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 {COLORS['bg_light']}, stop:1 {COLORS['bg_medium']});
-        color: {COLORS['text_primary']};
+            stop:0 #0F5555, stop:1 {COLORS['bg_medium']});
+        color: {COLORS['primary_light']};
         padding: 10px;
         border: none;
         border-bottom: 2px solid {COLORS['primary']};
@@ -174,13 +185,14 @@ TABLE_STYLE = f"""
     }}
     QHeaderView::section:hover {{
         background: {COLORS['bg_light']};
+        color: {COLORS['secondary']};
     }}
 """
 
 # ==================== STYLES DE CHAMPS DE SAISIE ====================
 INPUT_STYLE = f"""
     QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit {{
-        background-color: {COLORS['bg_light']};
+        background-color: {COLORS['secondary_dark']};
         border: 2px solid {COLORS['border']};
         border-radius: 8px;
         padding: 8px 12px;
@@ -190,7 +202,7 @@ INPUT_STYLE = f"""
     }}
     QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QTextEdit:focus {{
         border: 2px solid {COLORS['primary']};
-        background-color: {COLORS['bg_medium']};
+        background-color: {COLORS['bg_light']};
     }}
     QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover, QTextEdit:hover {{
         border: 2px solid {COLORS['border_light']};
@@ -203,13 +215,13 @@ INPUT_STYLE = f"""
         image: none;
         border-left: 5px solid transparent;
         border-right: 5px solid transparent;
-        border-top: 5px solid {COLORS['text_tertiary']};
+        border-top: 5px solid {COLORS['secondary']};
         margin-right: 10px;
     }}
     QComboBox QAbstractItemView {{
         background-color: {COLORS['bg_light']};
         border: 1px solid {COLORS['border']};
-        selection-background-color: {COLORS['primary']};
+        selection-background-color: {COLORS['primary_dark']};
         color: {COLORS['text_primary']};
     }}
     QSpinBox::up-button, QDoubleSpinBox::up-button {{
@@ -256,7 +268,7 @@ RADIO_STYLE = f"""
         image: url(:/icons/check.png);
     }}
     QRadioButton::indicator:hover {{
-        border-color: {COLORS['primary']};
+        border-color: {COLORS['secondary']};
         background-color: {COLORS['bg_medium']};
     }}
 """
@@ -277,19 +289,19 @@ DIALOG_STYLE = f"""
     }}
     QLabel#subtitle {{
         font-size: 11px;
-        color: {COLORS['text_tertiary']};
+        color: {COLORS['secondary']};
     }}
     QFrame#header {{
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 {COLORS['success']}, stop:1 {COLORS['primary']});
+            stop:0 {COLORS['primary_dark']}, stop:1 {COLORS['secondary_dark']});
         border-radius: 10px;
         padding: 20px;
     }}
     QFrame#amountFrame {{
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-            stop:0 {COLORS['bg_card']}, stop:1 #242424);
+            stop:0 {COLORS['bg_card']}, stop:1 {COLORS['bg_dark']});
         border-radius: 12px;
-        border: 3px solid {COLORS['success']};
+        border: 3px solid {COLORS['primary']};
         padding: 20px;
     }}
     QFrame#paymentFrame {{
@@ -318,7 +330,7 @@ SCROLLBAR_STYLE = f"""
         min-height: 20px;
     }}
     QScrollBar::handle:vertical:hover {{
-        background: {COLORS['border_light']};
+        background: {COLORS['primary']};
     }}
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
         height: 0px;
@@ -335,7 +347,7 @@ SCROLLBAR_STYLE = f"""
         min-width: 20px;
     }}
     QScrollBar::handle:horizontal:hover {{
-        background: {COLORS['border_light']};
+        background: {COLORS['primary']};
     }}
     QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
         width: 0px;
@@ -348,74 +360,73 @@ def get_kpi_card_style(color):
     return f"""
         QFrame {{
             background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 {COLORS['bg_card']}, stop:1 #242424);
+                stop:0 {COLORS['bg_card']}, stop:1 {COLORS['bg_dark']});
             border-radius: 12px;
             border: 1px solid {COLORS['border']};
             border-left: 4px solid {color};
         }}
         QFrame:hover {{
-            border: 1px solid {COLORS['border_light']};
+            border: 1px solid {COLORS['primary']};
             border-left: 4px solid {color};
             background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 #323232, stop:1 #2A2A2A);
+                stop:0 {COLORS['bg_medium']}, stop:1 {COLORS['bg_dark']});
         }}
     """
 
 
-# ==================== STYLES SETTINGS (anciennement locaux à settings.py) ====================
+# ==================== STYLES SETTINGS ====================
 
-# Couleurs palette sombre cohérente (dashboard / settings / statistics)
 DARK_COLORS = {
-    'bg_page':   "#0F1117",
-    'bg_card':   "#1A1D27",
-    'bg_deep':   "#13151F",
-    'border':    "rgba(255,255,255,0.07)",
-    'txt_pri':   "#F1F5F9",
-    'txt_sec':   "rgba(255,255,255,0.45)",
-    'txt_muted': "rgba(255,255,255,0.25)",
+    'bg_page':   '#0D4A4A',
+    'bg_card':   '#155E5E',
+    'bg_deep':   '#0A3A3A',
+    'border':    'rgba(46,204,113,0.20)',
+    'txt_pri':   '#FFFFFF',
+    'txt_sec':   'rgba(213,232,232,0.85)',
+    'txt_muted': 'rgba(168,213,213,0.50)',
 }
 
 SETTINGS_CARD_STYLE = """
     QFrame {
-        background: #1A1D27;
+        background: #155E5E;
         border-radius: 14px;
-        border: 1px solid rgba(255,255,255,0.07);
+        border: 1px solid rgba(46,204,113,0.20);
     }
 """
 
 SETTINGS_INPUT_STYLE = """
     QLineEdit {
-        background: #0F1117;
-        color: #E2E8F0;
-        border: 1px solid rgba(255,255,255,0.10);
+        background: #0D4A4A;
+        color: #FFFFFF;
+        border: 1px solid rgba(46,204,113,0.30);
         border-radius: 8px;
         padding: 10px 14px;
         font-size: 13px;
-        selection-background-color: #3B82F6;
+        selection-background-color: #2ECC71;
     }
     QLineEdit:focus {
-        border: 1px solid #3B82F6;
-        background: #111827;
+        border: 1px solid #2ECC71;
+        background: #155E5E;
     }
 """
 
 SETTINGS_COMBO_STYLE = """
     QComboBox {
-        background: #0F1117;
-        color: #E2E8F0;
-        border: 1px solid rgba(255,255,255,0.10);
+        background: #0D4A4A;
+        color: #FFFFFF;
+        border: 1px solid rgba(46,204,113,0.30);
         border-radius: 8px;
         padding: 10px 14px;
         font-size: 13px;
         min-height: 42px;
     }
-    QComboBox:focus { border: 1px solid #3B82F6; }
+    QComboBox:focus { border: 1px solid #2ECC71; }
     QComboBox::drop-down { border: none; width: 30px; }
     QComboBox QAbstractItemView {
-        background: #1A1D27;
-        color: #E2E8F0;
-        selection-background-color: #3B82F6;
-        border: 1px solid rgba(255,255,255,0.10);
+        background: #155E5E;
+        color: #FFFFFF;
+        selection-background-color: #27AE60;
+        border: 1px solid rgba(46,204,113,0.20);
     }
 """
 
@@ -426,7 +437,7 @@ GLOBAL_STYLE = f"""
         color: {COLORS['text_primary']};
         font-family: 'Segoe UI', Arial, sans-serif;
     }}
-    
+
     {INPUT_STYLE}
     {TABLE_STYLE}
     {SCROLLBAR_STYLE}
