@@ -5,10 +5,12 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, QSize
-import qdarktheme
+# import qdarktheme
 from styles import COLORS, SETTINGS_CARD_STYLE, SETTINGS_INPUT_STYLE, SETTINGS_COMBO_STYLE
 from db_manager import get_database
 from datetime import datetime
+from PyQt6.QtGui import QFont, QColor, QPainter  # Ajouter QPainter
+from PyQt6.QtCore import Qt, QSize, QFileInfo    # Ajouter QFileInfo
 
 
 # ─────────────────────────────────────────────
@@ -281,7 +283,7 @@ class SettingsPage(QWidget):
         card_ent = SectionCard("🏢", "Informations de l'Entreprise")
         body = card_ent.body()
 
-        # Logo preview
+        # Logo preview - CORRIGÉ
         logo_layout = QHBoxLayout()
         self.logo_preview = QLabel()
         self.logo_preview.setFixedSize(80, 80)
@@ -294,17 +296,38 @@ class SettingsPage(QWidget):
             }}
         """)
         
+        # Charger le logo si existant - CORRIGÉ
         logo_path = self.db.get_setting('logo_path', '')
         from PyQt6.QtGui import QPixmap
-        if logo_path:
+        from PyQt6.QtCore import QFileInfo
+        
+        if logo_path and QFileInfo.exists(logo_path):
             try:
-                pixmap = QPixmap(logo_path)
-                if not pixmap.isNull():
-                    scaled_pixmap = pixmap.scaledToHeight(80, Qt.TransformationMode.SmoothTransformation)
+                pixmap = QPixmap()
+                # Essayer de charger avec le format détecté automatiquement
+                if pixmap.load(logo_path):
+                    scaled_pixmap = pixmap.scaled(80, 80, 
+                                                Qt.AspectRatioMode.KeepAspectRatio, 
+                                                Qt.TransformationMode.SmoothTransformation)
                     self.logo_preview.setPixmap(scaled_pixmap)
                 else:
-                    self.logo_preview.setText("📷")
-                    self.logo_preview.setFont(QFont("Segoe UI", 32))
+                    # Essayer de forcer le format si l'auto-détection échoue
+                    from PyQt6.QtGui import QImageReader
+                    reader = QImageReader(logo_path)
+                    if reader.canRead():
+                        image = reader.read()
+                        if not image.isNull():
+                            pixmap = QPixmap.fromImage(image)
+                            scaled_pixmap = pixmap.scaled(80, 80,
+                                                        Qt.AspectRatioMode.KeepAspectRatio,
+                                                        Qt.TransformationMode.SmoothTransformation)
+                            self.logo_preview.setPixmap(scaled_pixmap)
+                        else:
+                            self.logo_preview.setText("📷")
+                            self.logo_preview.setFont(QFont("Segoe UI", 32))
+                    else:
+                        self.logo_preview.setText("📷")
+                        self.logo_preview.setFont(QFont("Segoe UI", 32))
             except Exception as e:
                 print(f"Erreur chargement logo: {e}")
                 self.logo_preview.setText("📷")
@@ -322,6 +345,7 @@ class SettingsPage(QWidget):
         body.addLayout(logo_layout)
         body.addSpacing(12)
 
+    # Reste du code...
         fields_ent = [
             ("Nom de l'entreprise",  company_name,    "company_name"),
             ("Adresse",              company_address, "address"),
@@ -669,26 +693,96 @@ class SettingsPage(QWidget):
         """Change le logo de l'entreprise"""
         filename, _ = QFileDialog.getOpenFileName(
             self, "Choisir un logo", "",
-            "Images (*.png *.jpg *.jpeg *.bmp);;Tous (*.*)"
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif);;Tous (*.*)"
         )
         if filename:
             try:
-                from PyQt6.QtGui import QPixmap
+                from PyQt6.QtGui import QPixmap, QImageReader
+                from PyQt6.QtCore import QFileInfo
                 
-                # Chargez et validez l'image avec QPixmap
-                pixmap = QPixmap(filename)
-                if pixmap.isNull():
-                    QMessageBox.critical(self, "❌ Erreur", "La file n'est pas une image valide.")
+                # Vérifier que le fichier existe
+                if not QFileInfo.exists(filename):
+                    QMessageBox.critical(self, "❌ Erreur", "Le fichier n'existe pas.")
                     return
                 
-                # Resize et affichage
-                scaled_pixmap = pixmap.scaledToHeight(80, Qt.TransformationMode.SmoothTransformation)
-                self.logo_preview.setPixmap(scaled_pixmap)
-                
-                # Sauvegardez le chemin complet
-                self.db.set_setting('logo_path', filename)
-                print(f"✅ Logo sauvegardé: {filename}")
-                QMessageBox.information(self, "✅ Logo changé", f"Logo mis à jour avec succès.\n\nChemin: {filename}")
+                # Méthode 1: Utiliser QImageReader pour plus de contrôle
+                reader = QImageReader(filename)
+                if reader.canRead():
+                    image = reader.read()
+                    if not image.isNull():
+                        # Convertir QImage en QPixmap
+                        pixmap = QPixmap.fromImage(image)
+                        
+                        # Redimensionner en conservant les proportions
+                        scaled_pixmap = pixmap.scaled(
+                            80, 80,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation
+                        )
+                        
+                        # Créer un pixmap avec le fond de la bonne taille
+                        final_pixmap = QPixmap(80, 80)
+                        final_pixmap.fill(Qt.GlobalColor.transparent)
+                        
+                        # Centrer l'image redimensionnée
+                        from PyQt6.QtCore import QPoint
+                        painter = QPainter(final_pixmap)
+                        x = (80 - scaled_pixmap.width()) // 2
+                        y = (80 - scaled_pixmap.height()) // 2
+                        painter.drawPixmap(QPoint(x, y), scaled_pixmap)
+                        painter.end()
+                        
+                        self.logo_preview.setPixmap(final_pixmap)
+                        
+                        # Sauvegarder le chemin
+                        self.db.set_setting('logo_path', filename)
+                        print(f"✅ Logo sauvegardé: {filename}")
+                        QMessageBox.information(
+                            self, "✅ Logo changé", 
+                            f"Logo mis à jour avec succès."
+                        )
+                    else:
+                        QMessageBox.critical(
+                            self, "❌ Erreur", 
+                            "Impossible de lire l'image (format non supporté)."
+                        )
+                else:
+                    # Méthode 2: Essayer avec QPixmap directement
+                    pixmap = QPixmap(filename)
+                    if not pixmap.isNull():
+                        scaled_pixmap = pixmap.scaled(
+                            80, 80,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation
+                        )
+                        
+                        final_pixmap = QPixmap(80, 80)
+                        final_pixmap.fill(Qt.GlobalColor.transparent)
+                        
+                        from PyQt6.QtCore import QPoint
+                        painter = QPainter(final_pixmap)
+                        x = (80 - scaled_pixmap.width()) // 2
+                        y = (80 - scaled_pixmap.height()) // 2
+                        painter.drawPixmap(QPoint(x, y), scaled_pixmap)
+                        painter.end()
+                        
+                        self.logo_preview.setPixmap(final_pixmap)
+                        
+                        self.db.set_setting('logo_path', filename)
+                        print(f"✅ Logo sauvegardé: {filename}")
+                        QMessageBox.information(
+                            self, "✅ Logo changé", 
+                            f"Logo mis à jour avec succès."
+                        )
+                    else:
+                        QMessageBox.critical(
+                            self, "❌ Erreur", 
+                            "Le fichier n'est pas une image valide ou le format n'est pas supporté."
+                        )
+                        
             except Exception as e:
                 print(f"Erreur: {e}")
-                QMessageBox.critical(self, "❌ Erreur", f"Impossible de charger l'image :\n{str(e)}")
+                QMessageBox.critical(
+                    self, "❌ Erreur", 
+                    f"Impossible de charger l'image :\n{str(e)}"
+                )

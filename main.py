@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt
-import qdarktheme
+# import qdarktheme
 
 # Importer le système de styles
 from styles import COLORS, BUTTON_STYLES
