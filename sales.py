@@ -19,9 +19,11 @@ class AddProductDialog(QDialog):
         
         self.db = get_database()
         self.selected_product = None
+        self.all_products = []
         
         self.setWindowTitle("🛒 Ajouter un Article à la Facture")
-        self.setMinimumWidth(600)
+        self.setFixedWidth(700)
+        self.setFixedHeight(920)
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {COLORS['bg_medium']};
@@ -34,8 +36,8 @@ class AddProductDialog(QDialog):
         """)
 
         main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(25, 25, 25, 25)
+        main_layout.setSpacing(6)
+        main_layout.setContentsMargins(12, 12, 12, 12)
 
         # En-tête
         header = QFrame()
@@ -55,41 +57,94 @@ class AddProductDialog(QDialog):
         title.setStyleSheet("color: white; margin-bottom: 5px; border: none;")
         header_layout.addWidget(title)
 
-        subtitle = QLabel("Sélectionnez le produit et la quantité souhaitée")
+        subtitle = QLabel("Recherchez et sélectionnez le produit souhaité")
         subtitle.setFont(QFont("Segoe UI", 11))
         subtitle.setStyleSheet("color: rgba(255, 255, 255, 0.8); border: none;")
         header_layout.addWidget(subtitle)
 
         main_layout.addWidget(header)
 
-        # Formulaire
+        # ScrollArea pour le contenu principal
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        
+        scroll_widget = QWidget()
+        scroll_widget.setStyleSheet("background: transparent;")
+        scroll_layout = QVBoxLayout(scroll_widget)
+        scroll_layout.setSpacing(5)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Containers de recherche et tableau
+        search_container = QFrame()
+        search_container.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['bg_card']};
+                border-radius: 10px;
+                padding: 8px;
+            }}
+        """)
+        search_layout = QVBoxLayout()
+        search_layout.setContentsMargins(0, 0, 0, 0)
+        search_layout.setSpacing(4)
+        search_container.setLayout(search_layout)
+
+        # Champ de recherche
+        product_label = QLabel("🔍 Rechercher un produit: *")
+        product_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; font-weight: bold; font-size: 14px;")
+        search_layout.addWidget(product_label)
+        
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Tapez le nom du produit...")
+        self.search_input.setStyleSheet(INPUT_STYLE)
+        self.search_input.setMinimumHeight(32)
+        self.search_input.textChanged.connect(self.filter_products)
+        search_layout.addWidget(self.search_input)
+
+        # Table des produits
+        self.product_table = QTableWidget(0, 3)
+        self.product_table.setHorizontalHeaderLabels(["Produit", "Prix Unit.", "Stock Disponible"])
+        self.product_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.product_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.product_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.product_table.setColumnWidth(1, 120)
+        self.product_table.setColumnWidth(2, 140)
+        self.product_table.verticalHeader().setVisible(False)
+        self.product_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.product_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.product_table.setMinimumHeight(160)
+        self.product_table.setMaximumHeight(180)
+        self.product_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.product_table.itemSelectionChanged.connect(self.on_product_selected_from_table)
+        self.product_table.setStyleSheet(TABLE_STYLE + f"""
+            QHeaderView::section {{
+                background-color: {COLORS['bg_light']};
+                color: {COLORS['text_primary']};
+                font-size: 12px;
+                font-weight: bold;
+                padding: 10px 8px;
+                border: none;
+                border-right: 1px solid {COLORS['border']};
+                border-bottom: 2px solid {COLORS['primary']};
+            }}
+        """)
+        search_layout.addWidget(self.product_table)
+
+        scroll_layout.addWidget(search_container)
+
+        # Formulaire pour quantité et remise
         form_container = QFrame()
         form_container.setStyleSheet(f"""
             QFrame {{
                 background: {COLORS['bg_card']};
                 border-radius: 10px;
-                padding: 20px;
+                padding: 10px;
             }}
         """)
         form_layout = QFormLayout()
         form_container.setLayout(form_layout)
-        form_layout.setSpacing(18)
+        form_layout.setSpacing(6)
         form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-
-        # Sélection du produit
-        product_label = QLabel("Produit: *")
-        product_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; font-weight: bold;")
-        
-        self.product_combo = QComboBox()
-        self.product_combo.setStyleSheet(INPUT_STYLE)
-        self.product_combo.setMinimumHeight(45)
-        
-        # Charger les produits
-        self.load_products()
-        
-        self.product_combo.currentIndexChanged.connect(self.on_product_selected)
-        form_layout.addRow(product_label, self.product_combo)
-
 
         # Prix unitaire
         price_label = QLabel("Prix unitaire:")
@@ -133,31 +188,29 @@ class AddProductDialog(QDialog):
         qty_label = QLabel("Quantité: *")
         qty_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; font-weight: bold;")
         
-        self.quantity = QSpinBox()
-        self.quantity.setMinimum(1)
-        self.quantity.setMaximum(9999)
-        self.quantity.setValue(1)
+        self.quantity = QLineEdit()
+        self.quantity.setText("1")
+        self.quantity.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.quantity.setStyleSheet(INPUT_STYLE)
-        self.quantity.setMinimumHeight(45)
-        self.quantity.valueChanged.connect(self.update_total)
+        self.quantity.setMinimumHeight(32)
+        self.quantity.textChanged.connect(self.update_total)
+        
         form_layout.addRow(qty_label, self.quantity)
 
         # Remise
-        discount_label = QLabel("Remise (%):")
+        discount_label = QLabel("Remise (%)")
         discount_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
-        self.discount = QDoubleSpinBox()
-        self.discount.setMinimum(0.0)
-        self.discount.setMaximum(100.0)
-        self.discount.setDecimals(2)
-        self.discount.setValue(0.0)
+        self.discount = QLineEdit()
+        self.discount.setText("0.00")
+        self.discount.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.discount.setStyleSheet(INPUT_STYLE)
-        self.discount.setMinimumHeight(45)
-        self.discount.setSuffix(" %")
-        self.discount.valueChanged.connect(self.update_total)
+        self.discount.setMinimumHeight(32)
+        self.discount.textChanged.connect(self.update_total)
+        
         form_layout.addRow(discount_label, self.discount)
 
-        main_layout.addWidget(form_container)
+        scroll_layout.addWidget(form_container)
 
         # Résumé du total
         total_container = QFrame()
@@ -167,26 +220,31 @@ class AddProductDialog(QDialog):
                     stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 10px;
                 border: 2px solid {COLORS['primary']};
-                padding: 15px;
+                padding: 8px;
             }}
         """)
         total_layout = QHBoxLayout()
         total_container.setLayout(total_layout)
+        total_layout.setContentsMargins(11, 10, 16, 13)
 
         total_text = QLabel("TOTAL:")
-        total_text.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        total_text.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         total_text.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
         self.total_display = QLabel("0.00 DA")
-        self.total_display.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
+        self.total_display.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.total_display.setStyleSheet(f"color: {COLORS['success']}; border: none;")
+        self.total_display.setMinimumWidth(150)
         self.total_display.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         total_layout.addWidget(total_text)
         total_layout.addStretch()
         total_layout.addWidget(self.total_display)
 
-        main_layout.addWidget(total_container)
+        scroll_layout.addWidget(total_container)
+
+        scroll.setWidget(scroll_widget)
+        main_layout.addWidget(scroll)
 
         # Boutons
         btn_layout = QHBoxLayout()
@@ -194,13 +252,13 @@ class AddProductDialog(QDialog):
         
         cancel_btn = QPushButton("❌ Annuler")
         cancel_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        cancel_btn.setMinimumHeight(50)
+        cancel_btn.setMinimumHeight(40)
         cancel_btn.clicked.connect(self.reject)
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
         add_btn = QPushButton("✅ Ajouter")
         add_btn.setStyleSheet(BUTTON_STYLES['success'])
-        add_btn.setMinimumHeight(50)
+        add_btn.setMinimumHeight(40)
         add_btn.setFixedWidth(180)
         add_btn.clicked.connect(self.validate_and_accept)
         add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -211,27 +269,69 @@ class AddProductDialog(QDialog):
         
         main_layout.addLayout(btn_layout)
 
+        # Charger les produits
+        self.load_products()
+
     def load_products(self):
         """Charge les produits depuis la base"""
-        self.product_combo.clear()
-        self.product_combo.addItem("-- Sélectionner un produit --", None)
+        self.all_products = []
+        self.product_table.setRowCount(0)
         
         products = self.db.get_all_products()
         for product in products:
             if product['stock_quantity'] > 0:
-                display_text = f"{product['name']}"
-                self.product_combo.addItem(display_text, product)
-
-    def on_product_selected(self, index):
-        """Quand un produit est sélectionné"""
-        product = self.product_combo.currentData()
+                self.all_products.append(product)
         
-        if product:
-            self.selected_product = product
-            self.price_display.setText(f"{product['selling_price']:,.2f} DA")
-            self.stock_display.setText(str(product['stock_quantity']))
-            self.quantity.setMaximum(product['stock_quantity'])
-            self.update_total()
+        # Afficher tous les produits initialement
+        self.display_products(self.all_products)
+
+    def display_products(self, products):
+        """Affiche les produits dans la table"""
+        self.product_table.setRowCount(0)
+        
+        for product in products:
+            row = self.product_table.rowCount()
+            self.product_table.insertRow(row)
+            
+            # Nom du produit
+            name_item = QTableWidgetItem(product['name'])
+            name_item.setData(Qt.ItemDataRole.UserRole, product)
+            self.product_table.setItem(row, 0, name_item)
+            
+            # Prix unitaire
+            price_item = QTableWidgetItem(f"{product['selling_price']:,.2f} DA")
+            price_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.product_table.setItem(row, 1, price_item)
+            
+            # Stock
+            stock_item = QTableWidgetItem(str(product['stock_quantity']))
+            stock_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.product_table.setItem(row, 2, stock_item)
+
+    def filter_products(self, text):
+        """Filtre les produits selon le texte de recherche"""
+        search_text = text.lower().strip()
+        
+        if not search_text:
+            self.display_products(self.all_products)
+        else:
+            filtered = [p for p in self.all_products if search_text in p['name'].lower()]
+            self.display_products(filtered)
+
+    def on_product_selected_from_table(self):
+        """Quand un produit est sélectionné dans la table"""
+        selected_row = self.product_table.currentRow()
+        
+        if selected_row >= 0:
+            item = self.product_table.item(selected_row, 0)
+            if item:
+                product = item.data(Qt.ItemDataRole.UserRole)
+                self.selected_product = product
+                self.price_display.setText(f"{product['selling_price']:,.2f} DA")
+                self.stock_display.setText(str(product['stock_quantity']))
+                self.quantity.setText("1")
+                self.discount.setText("0.00")
+                self.update_total()
         else:
             self.selected_product = None
             self.price_display.setText("0.00 DA")
@@ -240,12 +340,15 @@ class AddProductDialog(QDialog):
     def update_total(self):
         """Met à jour le total"""
         if self.selected_product:
-            qty = self.quantity.value()
-            price = self.selected_product['selling_price']
-            discount = self.discount.value()
-            
-            total = qty * price * (1 - discount / 100)
-            self.total_display.setText(f"{total:,.2f} DA")
+            try:
+                qty = int(self.quantity.text() or 1)
+                price = self.selected_product['selling_price']
+                discount = float(self.discount.text() or 0)
+                
+                total = qty * price * (1 - discount / 100)
+                self.total_display.setText(f"{total:,.2f} DA")
+            except ValueError:
+                self.total_display.setText("0.00 DA")
 
     def validate_and_accept(self):
         """Valide et accepte"""
@@ -253,7 +356,13 @@ class AddProductDialog(QDialog):
             QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un produit!")
             return
         
-        if self.quantity.value() > self.selected_product['stock_quantity']:
+        try:
+            qty = int(self.quantity.text() or 1)
+        except ValueError:
+            QMessageBox.warning(self, "Erreur", "La quantité doit être un nombre!")
+            return
+        
+        if qty > self.selected_product['stock_quantity']:
             QMessageBox.warning(self, "Erreur", "Stock insuffisant!")
             return
         
@@ -269,33 +378,20 @@ class SalesPage(QWidget):
         
         # Layout racine sans marges
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(0, 0, 0, 0)
-        root_layout.setSpacing(0)
+        root_layout.setContentsMargins(12, 12, 12, 12)
+        root_layout.setSpacing(8)
 
-        # ScrollArea pour éviter l'écrasement du résumé
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-
-        scroll_container = QWidget()
-        scroll_container.setStyleSheet("background: transparent;")
-
-        layout = QVBoxLayout(scroll_container)
-        layout.setSpacing(20)
-        layout.setContentsMargins(20, 20, 20, 20)
-
-        scroll.setWidget(scroll_container)
-        root_layout.addWidget(scroll)
+        layout = root_layout
 
         # Header
         title = QLabel("💰 Point de Vente")
-        title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 5px;")
+        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {COLORS['text_primary']};")
         layout.addWidget(title)
 
         subtitle = QLabel("Gestion des ventes et facturation")
-        subtitle.setFont(QFont("Segoe UI", 14))
-        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']}; margin-bottom: 15px;")
+        subtitle.setFont(QFont("Segoe UI", 11))
+        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']};")
         layout.addWidget(subtitle)
 
         # Client Selection
@@ -311,7 +407,7 @@ class SalesPage(QWidget):
         """)
         client_layout = QHBoxLayout()
         client_card.setLayout(client_layout)
-        client_layout.setSpacing(15)
+        client_layout.setSpacing(10)
 
         client_label = QLabel("👤 Client:")
         client_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
@@ -319,14 +415,14 @@ class SalesPage(QWidget):
 
         self.client_combo = QComboBox()
         self.client_combo.setStyleSheet(INPUT_STYLE)
-        self.client_combo.setMinimumHeight(45)
-        self.client_combo.setMinimumWidth(300)
+        self.client_combo.setMinimumHeight(32)
+        self.client_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.load_clients()
 
         # Bouton ajouter article
         self.add_item_btn = QPushButton("➕ Ajouter Article")
         self.add_item_btn.setStyleSheet(BUTTON_STYLES['primary'])
-        self.add_item_btn.setMinimumHeight(45)
+        self.add_item_btn.setMinimumHeight(32)
         self.add_item_btn.setFixedWidth(180)
         self.add_item_btn.clicked.connect(self.add_item)
         self.add_item_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -349,8 +445,8 @@ class SalesPage(QWidget):
             }}
         """)
         table_layout = QVBoxLayout()
-        table_layout.setContentsMargins(15, 15, 15, 15)
-        table_layout.setSpacing(10)
+        table_layout.setContentsMargins(10, 10, 10, 10)
+        table_layout.setSpacing(8)
         table_container.setLayout(table_layout)
 
         table_title = QLabel("🛒 Panier")
@@ -374,8 +470,7 @@ class SalesPage(QWidget):
         
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
-        self.table.setMinimumHeight(220)
-        self.table.setMaximumHeight(350)
+        self.table.setMinimumHeight(80)
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.table.setStyleSheet(TABLE_STYLE + f"""
             QHeaderView::section {{
@@ -410,8 +505,8 @@ class SalesPage(QWidget):
 
         # summary_card.setMinimumHeight(260)
         summary_main_layout = QVBoxLayout(summary_card)
-        summary_main_layout.setContentsMargins(22, 16, 22, 16)
-        summary_main_layout.setSpacing(10)
+        summary_main_layout.setContentsMargins(16, 12, 16, 12)
+        summary_main_layout.setSpacing(8)
 
         # ── Ligne titre + client ──────────────────────────────────────────
         title_client_row = QHBoxLayout()
@@ -473,14 +568,14 @@ class SalesPage(QWidget):
 
         # Colonne gauche
         left_col = QVBoxLayout()
-        left_col.setSpacing(8)
-        self.nb_articles_label   = _row(left_col, "📦 Nombre d'articles :", COLORS['primary'])
-        self.qty_total_label     = _row(left_col, "🔢 Quantité totale :",   COLORS['primary'])
-        self.discount_total_label= _row(left_col, "🏷️  Remise totale :",    COLORS['danger'])
+        left_col.setSpacing(4)
+        self.nb_articles_label   = _row(left_col, "📦 Articles :", COLORS['primary'])
+        self.qty_total_label     = _row(left_col, "🔢 Quantité :",   COLORS['primary'])
+        self.discount_total_label= _row(left_col, "🏷️  Remise :",    COLORS['danger'])
 
         # Colonne droite
         right_col = QVBoxLayout()
-        right_col.setSpacing(8)
+        right_col.setSpacing(4)
         self.subtotal_label = _row(right_col, "Sous-total HT :", COLORS['text_primary'])
         self.tax_label      = _row(right_col, "TVA (19%) :",     COLORS['warning'])
 
@@ -493,7 +588,7 @@ class SalesPage(QWidget):
         self.payment_combo = QComboBox()
         self.payment_combo.addItems(["💵 Espèces", "💳 Carte bancaire", "🏦 Virement", "📱 Mobile"])
         self.payment_combo.setStyleSheet(INPUT_STYLE)
-        self.payment_combo.setMinimumHeight(34)
+        self.payment_combo.setMinimumHeight(30)
         pay_h.addWidget(pay_lbl, 1)
         pay_h.addWidget(self.payment_combo, 2)
         right_col.addLayout(pay_h)
@@ -512,17 +607,17 @@ class SalesPage(QWidget):
         # ── Séparateur vert ──────────────────────────────────────────────
         h_sep = QFrame()
         h_sep.setFrameShape(QFrame.Shape.HLine)
-        h_sep.setFixedHeight(2)
+        h_sep.setFixedHeight(1)
         h_sep.setStyleSheet(f"background-color: {COLORS['success']};")
         summary_main_layout.addWidget(h_sep)
 
         # ── TOTAL TTC ────────────────────────────────────────────────────
         total_row = QHBoxLayout()
         total_lbl = QLabel("TOTAL TTC :")
-        total_lbl.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        total_lbl.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         total_lbl.setStyleSheet(f"color: {COLORS['text_primary']};")
         self.total_label = QLabel("0.00 DA")
-        self.total_label.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
+        self.total_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         self.total_label.setStyleSheet(f"color: {COLORS['success']};")
         self.total_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         total_row.addWidget(total_lbl)
@@ -536,13 +631,13 @@ class SalesPage(QWidget):
 
         self.clear_btn = QPushButton("🗑️ Vider le Panier")
         self.clear_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        self.clear_btn.setMinimumHeight(46)
+        self.clear_btn.setMinimumHeight(40)
         self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clear_btn.clicked.connect(self.clear_cart)
 
         self.save_btn = QPushButton("💾 Enregistrer la Vente")
         self.save_btn.setStyleSheet(BUTTON_STYLES['success'])
-        self.save_btn.setMinimumHeight(46)
+        self.save_btn.setMinimumHeight(40)
         self.save_btn.setMinimumWidth(220)
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.clicked.connect(self.save_sale)
@@ -572,8 +667,8 @@ class SalesPage(QWidget):
         dialog = AddProductDialog()
         if dialog.exec() and dialog.selected_product:
             product = dialog.selected_product
-            quantity = dialog.quantity.value()
-            discount = dialog.discount.value()
+            quantity = int(dialog.quantity.text() or 1)
+            discount = float(dialog.discount.text() or 0)
             unit_price = product['selling_price']
             total = quantity * unit_price * (1 - discount / 100)
             
