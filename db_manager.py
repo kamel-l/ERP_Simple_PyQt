@@ -348,6 +348,25 @@ class Database:
         """, (f"%{search_term}%", f"%{search_term}%"))
         return [dict(row) for row in self.cursor.fetchall()]
     
+    def get_invoices_by_client(self, client_id):
+        """Récupère toutes les factures d'un client"""
+        self.cursor.execute("""
+            SELECT 
+                id,
+                invoice_number,
+                client_id,
+                sale_date as created_at,
+                subtotal,
+                tax_amount,
+                total as total_amount,
+                payment_method,
+                payment_status as status
+            FROM sales 
+            WHERE client_id = ?
+            ORDER BY sale_date DESC
+        """, (client_id,))
+        return [dict(row) for row in self.cursor.fetchall()]
+    
     # ==================== CATÉGORIES ====================
     
     def add_category(self, name, description=""):
@@ -618,6 +637,18 @@ class Database:
         sale_dict['items'] = [dict(row) for row in self.cursor.fetchall()]
         
         return sale_dict
+    
+    def get_sale_items(self, sale_id):
+        """Récupère les articles d'une vente"""
+        self.cursor.execute("""
+            SELECT si.*, p.name as product_name
+            FROM sale_items si
+            JOIN products p ON si.product_id = p.id
+            WHERE si.sale_id = ?
+            ORDER BY si.id
+        """, (sale_id,))
+        
+        return [dict(row) for row in self.cursor.fetchall()]
     
     def get_sales_by_date_range(self, start_date, end_date):
         """Récupère les ventes dans une période"""
