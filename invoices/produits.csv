@@ -129,6 +129,7 @@ id,name,category,stock_quantity,purchase_price,selling_price,min_stock
 1893,BLANC 2.5,,100,5.0,8.0,5
 1864,BLEU,,100,8.0,12.0,5
 1760,BOOS 84,,100,12.0,20.0,5
+2012,C 14,,100,25.0,35.0,5
 2052,C 14,,50,3600.0,4000.0,5
 1984,C 14 ARGENT,,100,10.0,15.0,5
 1986,C 14 BRANZE,,100,10.0,15.0,5
