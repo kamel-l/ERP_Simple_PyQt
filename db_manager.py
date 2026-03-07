@@ -1040,6 +1040,330 @@ class Database:
             self.add_product(name, price, cat, desc, p_price, stock, min_s, barcode)
         
         print("✅ Données de test créées avec succès!")
+        
+        
+    # ==================== NOUVEAUX KPI AVANCÉS ====================
+
+    def get_average_cart_value(self):
+        """
+        Calcule la valeur moyenne du panier (total des ventes / nombre de ventes)
+        """
+        try:
+            self.cursor.execute("""
+                SELECT 
+                    COALESCE(AVG(total), 0) as avg_cart,
+                    COALESCE(SUM(total), 0) as total_sales,
+                    COUNT(*) as total_orders
+                FROM sales
+            """)
+            result = dict(self.cursor.fetchone())
+            return {
+                'avg_cart_value': result['avg_cart'],
+                'total_sales': result['total_sales'],
+                'total_orders': result['total_orders']
+            }
+        except Exception as e:
+            print(f"❌ Erreur get_average_cart_value: {e}")
+            return {'avg_cart_value': 0, 'total_sales': 0, 'total_orders': 0}
+
+    def get_cart_value_by_period(self, days=30):
+        """
+        Calcule la valeur moyenne du panier sur une période donnée
+        """
+        try:
+            from datetime import datetime, timedelta
+            start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+            
+            self.cursor.execute("""
+                SELECT 
+                    COALESCE(AVG(total), 0) as avg_cart,
+                    COUNT(*) as num_sales
+                FROM sales
+                WHERE DATE(sale_date) >= ?
+            """, (start_date,))
+            
+            result = self.cursor.fetchone()
+            return {
+                'avg_cart': result['avg_cart'] if result else 0,
+                'num_sales': result['num_sales'] if result else 0,
+                'period_days': days
+            }
+        except Exception as e:
+            print(f"❌ Erreur get_cart_value_by_period: {e}")
+            return {'avg_cart': 0, 'num_sales': 0, 'period_days': days}
+
+    def get_most_profitable_products(self, limit=10):
+        """
+        Récupère les produits avec la meilleure marge brute
+        Marge = (Prix vente - Prix achat) * Quantité vendue
+        """
+        try:
+            self.cursor.execute("""
+                SELECT 
+                    p.id,
+                    p.name,
+                    p.purchase_price,
+                    p.selling_price,
+                    COALESCE(SUM(si.quantity), 0) as quantity_sold,
+                    COALESCE(SUM(si.total), 0) as total_revenue,
+                    COALESCE(SUM(si.quantity * (p.selling_price - p.purchase_price)), 0) as gross_margin,
+                    CASE 
+                        WHEN SUM(si.total) > 0 
+                        THEN (SUM(si.quantity * (p.selling_price - p.purchase_price)) * 100.0 / SUM(si.total))
+                        ELSE 0 
+                    END as margin_percentage
+                FROM products p
+                LEFT JOIN sale_items si ON p.id = si.product_id
+                GROUP BY p.id
+                HAVING quantity_sold > 0
+                ORDER BY gross_margin DESC
+                LIMIT ?
+            """, (limit,))
+            
+            return [dict(row) for row in self.cursor.fetchall()]
+        except Exception as e:
+            print(f"❌ Erreur get_most_profitable_products: {e}")
+            return []
+
+    def get_product_profit_details(self, product_id):
+        """
+        Récupère les détails de profit pour un produit spécifique
+        """
+        try:
+            self.cursor.execute("""
+                SELECT 
+                    p.name,
+                    p.purchase_price,
+                    p.selling_price,
+                    (p.selling_price - p.purchase_price) as unit_margin,
+                    ((p.selling_price - p.purchase_price) * 100.0 / p.purchase_price) as margin_percentage,
+                    COALESCE(SUM(si.quantity), 0) as total_sold,
+                    COALESCE(SUM(si.quantity * (p.selling_price - p.purchase_price)), 0) as total_margin
+                FROM products p
+                LEFT JOIN sale_items si ON p.id = si.product_id
+                WHERE p.id = ?
+                GROUP BY p.id
+            """, (product_id,))
+            
+            return dict(self.cursor.fetchone()) if self.cursor.fetchone() else None
+        except Exception as e:
+            print(f"❌ Erreur get_product_profit_details: {e}")
+            return None
+
+    def get_conversion_rate(self, start_date=None, end_date=None):
+        """
+        Calcule le taux de transformation
+        Nécessite une table 'visits' ou similaire - version simplifiée
+        """
+        try:
+            from datetime import datetime, timedelta
+            
+            if not start_date:
+                start_date = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            
+            # Compter les ventes uniques (par client)
+            self.cursor.execute("""
+                SELECT 
+                    COUNT(DISTINCT client_id) as unique_buyers,
+                    COUNT(*) as total_sales,
+                    COALESCE(SUM(total), 0) as revenue
+                FROM sales
+                WHERE DATE(sale_date) BETWEEN ? AND ?
+            """, (start_date, end_date))
+            
+            sales_data = dict(self.cursor.fetchone())
+            
+            # Si vous avez une table de visites, vous pourriez faire :
+            # self.cursor.execute("SELECT COUNT(DISTINCT visitor_id) FROM visits WHERE date BETWEEN ? AND ?", ...)
+            # visitors = ...
+            
+            # Version simplifiée : on utilise le nombre total de clients comme base
+            self.cursor.execute("SELECT COUNT(*) as total_clients FROM clients")
+            total_clients = dict(self.cursor.fetchone())['total_clients']
+            
+            conversion_rate = (sales_data['unique_buyers'] / total_clients * 100) if total_clients > 0 else 0
+            
+            return {
+                'conversion_rate': conversion_rate,
+                'unique_buyers': sales_data['unique_buyers'],
+                'total_clients': total_clients,
+                'total_sales': sales_data['total_sales'],
+                'revenue': sales_data['revenue'],
+                'period': f"{start_date} to {end_date}"
+            }
+        except Exception as e:
+            print(f"❌ Erreur get_conversion_rate: {e}")
+            return {'conversion_rate': 0, 'unique_buyers': 0, 'total_clients': 0}
+
+    def get_inventory_turnover(self):
+        """
+        Calcule la rotation du stock
+        Rotation = Coût des marchandises vendues / Stock moyen
+        """
+        try:
+            # Coût des marchandises vendues (CMV)
+            self.cursor.execute("""
+                SELECT COALESCE(SUM(purchase_price * quantity), 0) as cogs
+                FROM sale_items si
+                JOIN products p ON si.product_id = p.id
+            """)
+            cogs = dict(self.cursor.fetchone())['cogs']
+            
+            # Stock moyen (simplifié : moyenne du stock actuel)
+            self.cursor.execute("""
+                SELECT 
+                    COALESCE(AVG(purchase_price * stock_quantity), 0) as avg_stock_value,
+                    COALESCE(SUM(purchase_price * stock_quantity), 0) as total_stock_value
+                FROM products
+            """)
+            stock_data = dict(self.cursor.fetchone())
+            
+            turnover = cogs / stock_data['avg_stock_value'] if stock_data['avg_stock_value'] > 0 else 0
+            
+            return {
+                'turnover_rate': turnover,
+                'cogs': cogs,
+                'avg_stock_value': stock_data['avg_stock_value'],
+                'total_stock_value': stock_data['total_stock_value']
+            }
+        except Exception as e:
+            print(f"❌ Erreur get_inventory_turnover: {e}")
+            return {'turnover_rate': 0, 'cogs': 0, 'avg_stock_value': 0}
+
+    def get_customer_lifetime_value(self):
+        """
+        Calcule la valeur moyenne à vie d'un client
+        CLV = (Valeur moyenne du panier * Fréquence d'achat * Durée de vie)
+        """
+        try:
+            # Valeur moyenne du panier
+            cart_data = self.get_average_cart_value()
+            
+            # Fréquence d'achat moyenne (ventes par client)
+            self.cursor.execute("""
+                SELECT 
+                    COUNT(DISTINCT client_id) as active_clients,
+                    COUNT(*) as total_sales,
+                    COUNT(*) * 1.0 / NULLIF(COUNT(DISTINCT client_id), 0) as purchase_frequency
+                FROM sales
+                WHERE client_id IS NOT NULL
+            """)
+            freq_data = dict(self.cursor.fetchone())
+            
+            # Durée de vie moyenne estimée (en mois) - simplifié
+            self.cursor.execute("""
+                SELECT 
+                    JULIANDAY(MAX(sale_date)) - JULIANDAY(MIN(sale_date)) as customer_lifespan_days,
+                    COUNT(DISTINCT client_id) as clients_with_history
+                FROM sales
+                WHERE client_id IS NOT NULL
+                GROUP BY client_id
+                HAVING customer_lifespan_days > 0
+            """)
+            
+            lifespan_rows = self.cursor.fetchall()
+            if lifespan_rows:
+                avg_lifespan_days = sum(row['customer_lifespan_days'] for row in lifespan_rows) / len(lifespan_rows)
+                avg_lifespan_months = avg_lifespan_days / 30.44  # mois moyen
+            else:
+                avg_lifespan_months = 12  # valeur par défaut
+            
+            clv = cart_data['avg_cart_value'] * freq_data['purchase_frequency'] * avg_lifespan_months
+            
+            return {
+                'clv': clv,
+                'avg_cart_value': cart_data['avg_cart_value'],
+                'purchase_frequency': freq_data['purchase_frequency'],
+                'avg_lifespan_months': avg_lifespan_months,
+                'active_clients': freq_data['active_clients']
+            }
+        except Exception as e:
+            print(f"❌ Erreur get_customer_lifetime_value: {e}")
+            return {'clv': 0, 'active_clients': 0}
+
+    def get_return_rate(self):
+        """
+        Calcule le taux de retour des produits
+        """
+        try:
+            # Vérifier si la table returns existe
+            self.cursor.execute("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='returns'
+            """)
+            
+            if not self.cursor.fetchone():
+                return {'return_rate': 0, 'total_returns': 0, 'total_sales': 0}
+            
+            self.cursor.execute("""
+                SELECT 
+                    COALESCE(COUNT(*), 0) as total_returns,
+                    COALESCE(SUM(total), 0) as returned_amount
+                FROM returns
+            """)
+            returns_data = dict(self.cursor.fetchone())
+            
+            self.cursor.execute("SELECT COUNT(*) as total_sales FROM sales")
+            sales_count = dict(self.cursor.fetchone())['total_sales']
+            
+            return_rate = (returns_data['total_returns'] / sales_count * 100) if sales_count > 0 else 0
+            
+            return {
+                'return_rate': return_rate,
+                'total_returns': returns_data['total_returns'],
+                'returned_amount': returns_data['returned_amount'],
+                'total_sales': sales_count
+            }
+        except Exception as e:
+            print(f"❌ Erreur get_return_rate: {e}")
+            return {'return_rate': 0, 'total_returns': 0, 'returned_amount': 0}
+
+    def get_profit_margin_evolution(self, months=6):
+        """
+        Récupère l'évolution de la marge sur plusieurs mois
+        """
+        try:
+            from datetime import datetime, timedelta
+            
+            margins = []
+            for i in range(months):
+                month_date = datetime.now() - timedelta(days=30*i)
+                month_str = month_date.strftime('%Y-%m')
+                
+                self.cursor.execute("""
+                    SELECT 
+                        COALESCE(SUM(s.total), 0) as revenue,
+                        COALESCE(SUM(p.purchase_price * si.quantity), 0) as cost
+                    FROM sales s
+                    JOIN sale_items si ON s.id = si.sale_id
+                    JOIN products p ON si.product_id = p.id
+                    WHERE strftime('%Y-%m', s.sale_date) = ?
+                """, (month_str,))
+                
+                data = self.cursor.fetchone()
+                revenue = data['revenue'] if data else 0
+                cost = data['cost'] if data else 0
+                profit = revenue - cost
+                margin_pct = (profit / revenue * 100) if revenue > 0 else 0
+                
+                margins.insert(0, {
+                    'month': month_date.strftime('%Y-%m'),
+                    'revenue': revenue,
+                    'cost': cost,
+                    'profit': profit,
+                    'margin_percentage': margin_pct
+                })
+            
+            return margins
+        except Exception as e:
+            print(f"❌ Erreur get_profit_margin_evolution: {e}")
+            return []    
+
+
+
+
 
 
 # ==================== SINGLETON ====================
