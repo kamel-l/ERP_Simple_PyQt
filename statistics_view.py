@@ -426,7 +426,8 @@ class StatisticsPage(QWidget):
         infos = [
             ("Stock Faible", "0 produit", C_RED, "⚠️"),
             ("Panier Moyen", "0 DA", C_CYAN, "💳"),
-            ("Meilleur Jour", "—", C_GREEN, "📅"),
+            ("Meilleur Jour (Ventes)", "—", C_GREEN, "📅"),
+            ("Meilleur Jour (Recette)", "—", C_AMBER, "💰"),
         ]
         
         # Réinitialiser la liste des cartes d'info
@@ -449,7 +450,7 @@ class StatisticsPage(QWidget):
             QFrame {{
                 background: {BG_DEEP};
                 border-radius: 8px;
-                border-left: 4px solid {color};
+                
             }}
         """)
         card.setMinimumHeight(60)
@@ -787,9 +788,14 @@ class StatisticsPage(QWidget):
             avg = sales_total / num_sales
             self._info_cards[1].value_label.setText(f"{avg:,.0f} DA")
 
-            # Meilleur jour
-            best_day = self.db.get_best_day()
-            self._info_cards[2].value_label.setText(best_day)
+            # Meilleur jour (ventes et recette)
+            best_days = self.db.get_best_days()
+            self._info_cards[2].value_label.setText(
+                f"{best_days['sales_day']} ({best_days['sales_count']})"
+            )
+            self._info_cards[3].value_label.setText(
+                f"{best_days['revenue_day']} ({best_days['revenue_amount']:,.0f} DA)"
+            )
             
         except Exception as e:
             print(f"❌ Erreur dans _load_quick_info: {e}")
@@ -944,7 +950,7 @@ class StatisticsPage(QWidget):
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Exporter CSV",
-            f"statistiques_{dt.now().strftime('%Y%m%d')}.csv",
+            f"rapport_statistiques_{dt.now().strftime('%Y%m%d_%H%M%S')}.csv",
             "Fichiers CSV (*.csv)"
         )
         if not path:
@@ -964,17 +970,53 @@ class StatisticsPage(QWidget):
             with open(path, "w", newline="", encoding="utf-8-sig") as f:
                 w = csv.writer(f, delimiter=';')
 
-                w.writerow(["=== KPI GLOBAUX ==="])
-                w.writerow(["Indicateur", "Valeur"])
-                w.writerow(["CA Total", stats.get("sales_total", 0)])
-                w.writerow(["Achats Totaux", stats.get("purchases_total", 0)])
-                w.writerow(["Profit Net", stats.get("profit", 0)])
-                w.writerow(["Clients", stats.get("total_clients", 0)])
-                w.writerow(["Produits", stats.get("total_products", 0)])
+                # En-tête rapport
+                w.writerow(["RAPPORT STATISTIQUE ERP"])
+                w.writerow(["Généré le", dt.now().strftime("%d/%m/%Y à %H:%M:%S")])
+                w.writerow(["Période", f"Année {year}"])
                 w.writerow([])
 
+                # ============== KPI GLOBAUX ==============
+                w.writerow(["=== KPI GLOBAUX ==="])
+                w.writerow(["Indicateur", "Valeur", "Unité"])
+                w.writerow(["Chiffre d'Affaires Total", f"{stats.get('sales_total', 0):,.2f}", "DA"])
+                w.writerow(["Achats Totaux", f"{stats.get('purchases_total', 0):,.2f}", "DA"])
+                w.writerow(["Profit Net", f"{stats.get('profit', 0):,.2f}", "DA"])
+                
+                # Calcul marges
+                sales_total = float(stats.get("sales_total", 0))
+                purchases_total = float(stats.get("purchases_total", 0))
+                margin_pct = (stats.get("profit", 0) / sales_total * 100) if sales_total > 0 else 0
+                w.writerow(["Taux de Marge", f"{margin_pct:.1f}", "%"])
+                
+                w.writerow(["Nombre de Clients", stats.get("total_clients", 0), "clients"])
+                w.writerow(["Nombre de Produits", stats.get("total_products", 0), "produits"])
+                w.writerow(["Nombre de Ventes", stats.get("total_sales", 0), "transactions"])
+                w.writerow(["Nombre d'Achats", stats.get("total_purchases", 0), "commandes"])
+                w.writerow(["Valeur du Stock", f"{stats.get('stock_value', 0):,.2f}", "DA"])
+                w.writerow(["Produits en Stock Faible", stats.get("low_stock_count", 0), "produits"])
+                w.writerow([])
+
+                # ============== STATISTIQUES AVANCÉES ==============
+                w.writerow(["=== STATISTIQUES AVANCÉES ==="])
+                
+                # Panier moyen
+                num_sales = int(stats.get("total_sales", 1)) or 1
+                avg_cart = sales_total / num_sales if num_sales > 0 else 0
+                w.writerow(["Panier Moyen", f"{avg_cart:,.2f}", "DA"])
+                
+                # Meilleur jour
+                best_days = self.db.get_best_days()
+                w.writerow(["Meilleur Jour (Ventes)", f"{best_days['sales_day']} ({best_days['sales_count']} ventes)", ""])
+                w.writerow(["Meilleur Jour (Recette)", f"{best_days['revenue_day']} ({best_days['revenue_amount']:,.2f} DA)", ""])
+                
+                w.writerow(["Meilleur Mois", stats.get("best_month", "—"), ""])
+                w.writerow(["Croissance Mensuelle", f"{stats.get('growth_rate', 0):.1f}", "%"])
+                w.writerow([])
+
+                # ============== VENTES MENSUELLES ==============
                 w.writerow([f"=== VENTES MENSUELLES {year} ==="])
-                w.writerow(["Mois", "Nombre", "Montant"])
+                w.writerow(["Mois", "Nombre de Ventes", "Montant (DA)", "Panier Moyen"])
 
                 monthly = {
                     int(r["month"]): r
@@ -983,166 +1025,374 @@ class StatisticsPage(QWidget):
 
                 for m in range(1,13):
                     r = monthly.get(m, {"count":0, "total":0})
+                    count = r.get("count", 0)
+                    total = r.get("total", 0)
+                    avg = total / count if count > 0 else 0
                     w.writerow([
                         MOIS[m-1],
-                        r.get("count",0),
-                        r.get("total",0)
+                        count,
+                        f"{total:,.2f}",
+                        f"{avg:,.2f}"
+                    ])
+                w.writerow([])
+
+                # ============== PROFITS MENSUELS ==============
+                w.writerow([f"=== PROFITS MENSUELS {year} ==="])
+                w.writerow(["Mois", "Profit (DA)"])
+                
+                profits = {
+                    int(r["month"]): r
+                    for r in (self.db.get_profit_by_month(year) or [])
+                }
+                
+                for m in range(1, 13):
+                    p = profits.get(m, {"profit": 0})
+                    w.writerow([
+                        MOIS[m-1],
+                        f"{p.get('profit', 0):,.2f}"
+                    ])
+                w.writerow([])
+
+                # ============== TOP 5 PRODUITS ==============
+                w.writerow(["=== TOP 5 PRODUITS LES PLUS VENDUS ==="])
+                w.writerow(["Rang", "Produit", "Quantité Vendue", "Montant (DA)"])
+                
+                top_products = self.db.get_top_products(limit=5) or []
+                for idx, prod in enumerate(top_products, 1):
+                    w.writerow([
+                        idx,
+                        prod.get("name", "—"),
+                        int(prod.get("total_quantity", 0)),
+                        f"{prod.get('total_sales', 0):,.2f}"
+                    ])
+                w.writerow([])
+
+                # ============== TOP 5 CLIENTS ==============
+                w.writerow(["=== TOP 5 MEILLEURS CLIENTS ==="])
+                w.writerow(["Rang", "Nom Client", "Nombre de Ventes", "Montant Total (DA)"])
+                
+                top_clients = self.db.get_top_clients(limit=5) or []
+                for idx, client in enumerate(top_clients, 1):
+                    w.writerow([
+                        idx,
+                        client.get("name", "—"),
+                        int(client.get("sale_count", 0)),
+                        f"{client.get('total_amount', 0):,.2f}"
+                    ])
+                w.writerow([])
+
+                # ============== TOP 5 PRODUITS PAR MARGE ==============
+                w.writerow(["=== TOP 5 PRODUITS PAR MARGE BRUTE ==="])
+                w.writerow(["Rang", "Produit", "Quantité", "Marge Unitaire (DA)", "Marge Totale (DA)"])
+                
+                profitable = self.db.get_most_profitable_products(limit=5) or []
+                for idx, prod in enumerate(profitable, 1):
+                    w.writerow([
+                        idx,
+                        prod.get("name", "—"),
+                        int(prod.get("qty_sold", 0)),
+                        f"{prod.get('unit_margin', 0):,.2f}",
+                        f"{prod.get('total_margin', 0):,.2f}"
                     ])
 
-            QMessageBox.information(self,"Export OK",f"Export réussi :\n{path}")
+            QMessageBox.information(self, "Export CSV ✅", f"Rapport généré avec succès :\n\n{path}")
 
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible d'exporter :\n{e}")
+            QMessageBox.critical(self, "Erreur Export", f"Impossible d'exporter :\n{e}")
 
 
     # ======================================================================
-    # EXPORT EXCEL PRO+ (Feuilles séparées + Pivot Table + Dégradé + Images)
+    # EXPORT EXCEL PRO+ (Feuilles séparées + Tableaux structurés)
     # ======================================================================
 
     def _export_excel_pro_plus(self):
         import tempfile, os
         import xlsxwriter
         import pyqtgraph.exporters as exporters
+        from datetime import datetime as dt
 
         # Choisir chemin sortie
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Exporter Excel PRO+",
-            "rapport_erp.xlsx",
+            f"rapport_complet_{dt.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
             "Excel Files (*.xlsx)"
         )
         if not path:
             return
 
-        # Dossier temporaire
+        # Dossier temporaire pour les images
         temp_dir = tempfile.mkdtemp()
 
         # Fonction sauvegarde graphique
         def save_chart(widget, filename):
-            exporter = exporters.ImageExporter(widget.plotItem)
-            exporter.export(filename)
-
-        # Sauvegarde images
-        img_sales   = os.path.join(temp_dir, "sales.png")
-        img_profit  = os.path.join(temp_dir, "profit.png")
-        img_prod    = os.path.join(temp_dir, "products.png")
-        img_clients = os.path.join(temp_dir, "clients.png")
-
-        save_chart(self.sales_chart, img_sales)
-        save_chart(self.profit_chart, img_profit)
-        save_chart(self.products_chart, img_prod)
-        save_chart(self.clients_chart, img_clients)
+            try:
+                exporter = exporters.ImageExporter(widget.plotItem)
+                exporter.export(filename)
+                return filename
+            except:
+                return None
 
         # Créer Excel
-        workbook = xlsxwriter.Workbook(path)
+        wb = xlsxwriter.Workbook(path)
 
-        # Styles
-        title_fmt = workbook.add_format({
-            "bold": True, "font_size": 18,
-            "align": "center", "valign": "vcenter"
+        # ====== FORMATS ======
+        title_fmt = wb.add_format({
+            "bold": True, "font_size": 14,
+            "bg_color": "#1F2937", "font_color": "white",
+            "align": "center", "valign": "vcenter",
+            "border": 1
         })
-        header_fmt = workbook.add_format({
+        
+        header_fmt = wb.add_format({
             "bold": True, "bg_color": "#3B82F6",
             "font_color": "white", "border": 1,
-            "align": "center"
+            "align": "center", "valign": "vcenter"
         })
-        normal_fmt = workbook.add_format({"border": 1})
-
-        # ==================================================================
-        # FEUILLE PRINCIPALE (DASHBOARD)
-        # ==================================================================
-
-        dash = workbook.add_worksheet("Dashboard")
-
-        dash.merge_range("A1:E1", "Rapport Statistique – ERP", title_fmt)
-
-        # KPI
-        dash.write_row("A3", ["KPI", "Valeur"], header_fmt)
-
-        kpi_names = ["CA Total", "Profit Net", "Commandes", "Clients Actifs"]
-
-        for i, card in enumerate(self._kpi_cards):
-            dash.write(i+3, 0, kpi_names[i], normal_fmt)
-            dash.write(i+3, 1, card.value_label.text(), normal_fmt)
-
-        # Dégradé automatique
-        dash.conditional_format("B4:B7", {
-            "type": "2_color_scale",
-            "min_color": "#DBEAFE",
-            "max_color": "#3B82F6"
+        
+        data_fmt = wb.add_format({
+            "border": 1, "align": "left",
+            "num_format": "#,##0.00"
+        })
+        
+        number_fmt = wb.add_format({
+            "border": 1, "align": "center",
+            "num_format": "#,##0"
         })
 
-        # ==================================================================
-        # FEUILLES DES GRAPHIQUES (1 feuille = 1 graphique)
-        # ==================================================================
+        # ====== FEUILLE 1: TABLEAU DE BORD (KPI) ======
+        ws = wb.add_worksheet("📊 Dashboard")
+        ws.set_column("A:A", 25)
+        ws.set_column("B:D", 18)
 
-        charts = [
-            ("Ventes", img_sales),
-            ("Profit", img_profit),
-            ("Top Produits", img_prod),
-            ("Top Clients", img_clients)
+        row = 0
+        ws.merge_range(row, 0, row, 3, "TABLEAU DE BORD KPI", title_fmt)
+        row += 1
+        ws.write(row, 0, f"Généré le : {dt.now().strftime('%d/%m/%Y %H:%M')}")
+        row += 2
+
+        # Headers
+        ws.write(row, 0, "Indicateur", header_fmt)
+        ws.write(row, 1, "Valeur", header_fmt)
+        ws.write(row, 2, "Unité", header_fmt)
+        row += 1
+
+        stats = self.db.get_statistics() or {}
+        sales_total = float(stats.get("sales_total", 0))
+        purchases_total = float(stats.get("purchases_total", 0))
+        profit = sales_total - purchases_total
+        margin_pct = (profit / sales_total * 100) if sales_total > 0 else 0
+
+        kpis = [
+            ("Chiffre d'Affaires", sales_total, "DA"),
+            ("Achats Totaux", purchases_total, "DA"),
+            ("Profit Net", profit, "DA"),
+            ("Taux de Marge", margin_pct, "%"),
+            ("Nombre Clients", stats.get("total_clients", 0), "clients"),
+            ("Nombre Produits", stats.get("total_products", 0), "produits"),
+            ("Total Ventes", stats.get("total_sales", 0), "transactions"),
+            ("Valeur du Stock", stats.get("stock_value", 0), "DA"),
         ]
 
-        for sheet_name, img in charts:
-            ws = workbook.add_worksheet(sheet_name)
-            ws.set_column("A:A", 55)
-            ws.insert_image("A1", img, {"x_scale": 0.8, "y_scale": 0.8})
+        for kpi_name, value, unit in kpis:
+            ws.write(row, 0, kpi_name, data_fmt)
+            if unit == "DA":
+                ws.write(row, 1, value, data_fmt)
+            elif unit == "%":
+                ws.write(row, 1, value, number_fmt)
+            else:
+                ws.write(row, 1, value, number_fmt)
+            ws.write(row, 2, unit, data_fmt)
+            row += 1
 
-        # ==================================================================
-        # FEUILLE TABLEAU CROISÉ DYNAMIQUE (PIVOT TABLE)
-        # ==================================================================
+        # ====== FEUILLE 2: VENTES MENSUELLES ======
+        ws = wb.add_worksheet("📈 Ventes Mensuelles")
+        ws.set_column("A:A", 20)
+        ws.set_column("B:E", 18)
 
-        pivot_raw = workbook.add_worksheet("Données Brut")
-        pivot_tab = workbook.add_worksheet("Pivot")
+        row = 0
+        year = dt.now().year
+        ws.merge_range(row, 0, row, 4, f"VENTES MENSUELLES {year}", title_fmt)
+        row += 2
 
-        # Charger données mensuelles
-        year = datetime.now().year
-        rows = self.db.get_sales_by_month(year) or []
+        ws.write(row, 0, "Mois", header_fmt)
+        ws.write(row, 1, "Nombre Ventes", header_fmt)
+        ws.write(row, 2, "Montant (DA)", header_fmt)
+        ws.write(row, 3, "Panier Moyen", header_fmt)
+        ws.write(row, 4, "Croissance %", header_fmt)
+        row += 1
 
-        # Écrire données brutes
-        pivot_raw.write_row(0,0,["Mois","Total"])
+        MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+        monthly = {int(r["month"]): r for r in (self.db.get_sales_by_month(year) or [])}
 
-        r = 1
-        for row in rows:
-            pivot_raw.write(r,0, row.get("month",0))
-            pivot_raw.write(r,1, row.get("total",0))
-            r += 1
+        prev_total = 0
+        for m in range(1, 13):
+            r = monthly.get(m, {"count": 0, "total": 0})
+            count = r.get("count", 0)
+            total = r.get("total", 0)
+            avg = total / count if count > 0 else 0
+            growth = ((total - prev_total) / prev_total * 100) if prev_total > 0 else 0
 
-        data_range = f"'Données Brut'!A1:B{r}"
+            ws.write(row, 0, MOIS[m - 1], data_fmt)
+            ws.write(row, 1, count, number_fmt)
+            ws.write(row, 2, total, data_fmt)
+            ws.write(row, 3, avg, data_fmt)
+            ws.write(row, 4, growth, data_fmt)
+            row += 1
+            prev_total = total
 
-        # Créer un tableau (base pivot)
-        pivot_tab.add_table(0,0, r, 3, {
-            "data": data_range,
-            "columns": [
-                {"header":"Mois"},
-                {"header":"Total"}
+        # ====== FEUILLE 3: PROFITS MENSUELS ======
+        ws = wb.add_worksheet("💰 Profits Mensuels")
+        ws.set_column("A:A", 20)
+        ws.set_column("B:B", 20)
+
+        row = 0
+        ws.merge_range(row, 0, row, 1, f"PROFITS MENSUELS {year}", title_fmt)
+        row += 2
+
+        ws.write(row, 0, "Mois", header_fmt)
+        ws.write(row, 1, "Profit (DA)", header_fmt)
+        row += 1
+
+        profits = {int(r["month"]): r for r in (self.db.get_profit_by_month(year) or [])}
+        for m in range(1, 13):
+            p = profits.get(m, {"profit": 0})
+            ws.write(row, 0, MOIS[m - 1], data_fmt)
+            ws.write(row, 1, p.get("profit", 0), data_fmt)
+            row += 1
+
+        # ====== FEUILLE 4: TOP PRODUITS ======
+        ws = wb.add_worksheet("🏆 Top Produits")
+        ws.set_column("A:A", 5)
+        ws.set_column("B:B", 40)
+        ws.set_column("C:D", 18)
+
+        row = 0
+        ws.merge_range(row, 0, row, 3, "TOP 10 PRODUITS LES PLUS VENDUS", title_fmt)
+        row += 2
+
+        ws.write(row, 0, "Rang", header_fmt)
+        ws.write(row, 1, "Produit", header_fmt)
+        ws.write(row, 2, "Quantité", header_fmt)
+        ws.write(row, 3, "Montant (DA)", header_fmt)
+        row += 1
+
+        top_products = self.db.get_top_products(limit=10) or []
+        for idx, prod in enumerate(top_products, 1):
+            ws.write(row, 0, idx, number_fmt)
+            ws.write(row, 1, prod.get("name", "—"), data_fmt)
+            ws.write(row, 2, int(prod.get("total_quantity", 0)), number_fmt)
+            ws.write(row, 3, prod.get("total_sales", 0), data_fmt)
+            row += 1
+
+        # ====== FEUILLE 5: TOP CLIENTS ======
+        ws = wb.add_worksheet("👥 Top Clients")
+        ws.set_column("A:A", 5)
+        ws.set_column("B:B", 35)
+        ws.set_column("C:D", 18)
+
+        row = 0
+        ws.merge_range(row, 0, row, 3, "TOP 10 MEILLEURS CLIENTS", title_fmt)
+        row += 2
+
+        ws.write(row, 0, "Rang", header_fmt)
+        ws.write(row, 1, "Nom Client", header_fmt)
+        ws.write(row, 2, "Nombre Ventes", header_fmt)
+        ws.write(row, 3, "Montant Total (DA)", header_fmt)
+        row += 1
+
+        top_clients = self.db.get_top_clients(limit=10) or []
+        for idx, client in enumerate(top_clients, 1):
+            ws.write(row, 0, idx, number_fmt)
+            ws.write(row, 1, client.get("name", "—"), data_fmt)
+            ws.write(row, 2, int(client.get("sale_count", 0)), number_fmt)
+            ws.write(row, 3, client.get("total_amount", 0), data_fmt)
+            row += 1
+
+        # ====== FEUILLE 6: PRODUITS RENTABLES ======
+        ws = wb.add_worksheet("💎 Rentabilité")
+        ws.set_column("A:A", 5)
+        ws.set_column("B:B", 35)
+        ws.set_column("C:E", 18)
+
+        row = 0
+        ws.merge_range(row, 0, row, 4, "TOP 10 PRODUITS PAR MARGE BRUTE", title_fmt)
+        row += 2
+
+        ws.write(row, 0, "Rang", header_fmt)
+        ws.write(row, 1, "Produit", header_fmt)
+        ws.write(row, 2, "Quantité", header_fmt)
+        ws.write(row, 3, "Marge Unit. (DA)", header_fmt)
+        ws.write(row, 4, "Marge Totale (DA)", header_fmt)
+        row += 1
+
+        profitable = self.db.get_most_profitable_products(limit=10) or []
+        for idx, prod in enumerate(profitable, 1):
+            ws.write(row, 0, idx, number_fmt)
+            ws.write(row, 1, prod.get("name", "—"), data_fmt)
+            ws.write(row, 2, int(prod.get("qty_sold", 0)), number_fmt)
+            ws.write(row, 3, prod.get("unit_margin", 0), data_fmt)
+            ws.write(row, 4, prod.get("total_margin", 0), data_fmt)
+            row += 1
+
+        # ====== FEUILLE 7: GRAPHIQUES ======
+        try:
+            img_sales = save_chart(self.sales_chart, os.path.join(temp_dir, "sales.png"))
+            img_profit = save_chart(self.profit_chart, os.path.join(temp_dir, "profit.png"))
+            img_prod = save_chart(self.products_chart, os.path.join(temp_dir, "products.png"))
+            img_clients = save_chart(self.clients_chart, os.path.join(temp_dir, "clients.png"))
+
+            charts_data = [
+                ("📊 Ventes", img_sales),
+                ("💹 Profit", img_profit),
+                ("📦 Produits", img_prod),
+                ("🎯 Clients", img_clients)
             ]
-        })
 
-        # ==================================================================
-        # FIN — sauvegarder
-        # ==================================================================
+            for sheet_name, img in charts_data:
+                if img:
+                    ws = wb.add_worksheet(sheet_name)
+                    ws.set_column("A:A", 60)
+                    ws.insert_image("A1", img, {"x_scale": 0.7, "y_scale": 0.7})
+        except:
+            pass
 
-        workbook.close()
-        QMessageBox.information(self, "Export OK", f"Excel PRO+ généré :\n{path}")
+        # Sauvegarde
+        wb.close()
+        QMessageBox.information(
+            self,
+            "Excel Complet ✅",
+            f"Rapport complet généré avec succès !\n\n"
+            f"📄 Fichier : {path}\n\n"
+            f"Feuilles :\n"
+            f"📊 Dashboard\n"
+            f"📈 Ventes Mensuelles\n"
+            f"💰 Profits\n"
+            f"🏆 Top Produits\n"
+            f"👥 Top Clients\n"
+            f"💎 Rentabilité\n"
+            f"📉 Graphiques"
+        )
 
 
     # ======================================================================
-    # EXPORT PDF PROFESSIONNEL (avec images HD)
+    # EXPORT PDF PROFESSIONNEL (Rapport détaillé avec tableaux)
     # ======================================================================
 
     def _export_pdf_pro(self):
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
-        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import cm
+        from reportlab.lib import colors
+        from datetime import datetime as dt
         import tempfile, os
         import pyqtgraph.exporters as exporters
 
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "Exporter PDF",
-            "rapport_erp.pdf",
+            "Exporter PDF Détaillé",
+            f"rapport_complet_{dt.now().strftime('%Y%m%d_%H%M%S')}.pdf",
             "PDF Files (*.pdf)"
         )
         if not path:
@@ -1152,39 +1402,235 @@ class StatisticsPage(QWidget):
 
         # Export charts
         def save_chart(widget, filename):
-            exporter = exporters.ImageExporter(widget.plotItem)
-            exporter.export(filename)
+            try:
+                exporter = exporters.ImageExporter(widget.plotItem)
+                exporter.export(filename)
+                return filename
+            except:
+                return None
 
-        img_sales   = os.path.join(temp_dir, "sales.png")
-        img_profit  = os.path.join(temp_dir, "profit.png")
-        img_prod    = os.path.join(temp_dir, "prod.png")
-        img_clients = os.path.join(temp_dir, "clients.png")
-
-        save_chart(self.sales_chart, img_sales)
-        save_chart(self.profit_chart, img_profit)
-        save_chart(self.products_chart, img_prod)
-        save_chart(self.clients_chart, img_clients)
+        img_sales   = save_chart(self.sales_chart, os.path.join(temp_dir, "sales.png"))
+        img_profit  = save_chart(self.profit_chart, os.path.join(temp_dir, "profit.png"))
+        img_prod    = save_chart(self.products_chart, os.path.join(temp_dir, "prod.png"))
+        img_clients = save_chart(self.clients_chart, os.path.join(temp_dir, "clients.png"))
 
         # Build PDF
-        doc = SimpleDocTemplate(path, pagesize=A4)
+        doc = SimpleDocTemplate(path, pagesize=A4, topMargin=1*cm, bottomMargin=1*cm, leftMargin=1.5*cm, rightMargin=1.5*cm)
         styles = getSampleStyleSheet()
         story = []
 
-        story.append(Paragraph("<b>Rapport ERP — Analyse Professionnelle</b>", styles["Title"]))
-        story.append(Spacer(1, 12))
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#1F2937'),
+            spaceAfter=6,
+            alignment=1,
+            fontName='Helvetica-Bold'
+        )
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#3B82F6'),
+            spaceAfter=6,
+            spaceBefore=8,
+            fontName='Helvetica-Bold',
+            borderColor=colors.HexColor('#3B82F6'),
+            borderWidth=2,
+            borderPadding=4
+        )
 
-        graphs = [
-            ("Évolution des Ventes", img_sales),
-            ("Profit Mensuel", img_profit),
-            ("Top Produits", img_prod),
-            ("Top Clients", img_clients)
+        # ====== PAGE 1: COUVERTURE ======
+        story.append(Spacer(1, 2*cm))
+        story.append(Paragraph("📊 RAPPORT STATISTIQUE ERP", title_style))
+        story.append(Paragraph("Analyse Complète et Détaillée", styles['Heading2']))
+        story.append(Spacer(1, 1*cm))
+        
+        date_text = dt.now().strftime("%d/%m/%Y à %H:%M:%S")
+        year = dt.now().year
+        story.append(Paragraph(f"<b>Généré le :</b> {date_text}", styles['Normal']))
+        story.append(Paragraph(f"<b>Période :</b> Année {year}", styles['Normal']))
+        story.append(Spacer(1, 2*cm))
+
+        # ====== RÉSUMÉ EXÉCUTIF (KPI) ======
+        stats = self.db.get_statistics() or {}
+        sales_total = float(stats.get("sales_total", 0))
+        purchases_total = float(stats.get("purchases_total", 0))
+        profit = sales_total - purchases_total
+        margin_pct = (profit / sales_total * 100) if sales_total > 0 else 0
+
+        story.append(Paragraph("📌 RÉSUMÉ EXÉCUTIF", heading_style))
+        
+        kpi_data = [
+            ["Indicateur", "Valeur"],
+            ["Chiffre d'Affaires Total", f"{sales_total:,.2f} DA"],
+            ["Achats Totaux", f"{purchases_total:,.2f} DA"],
+            ["Profit Net", f"{profit:,.2f} DA"],
+            ["Taux de Marge", f"{margin_pct:.1f} %"],
+            ["Nombre de Clients", f"{stats.get('total_clients', 0)}"],
+            ["Nombre de Produits", f"{stats.get('total_products', 0)}"],
+            ["Total des Ventes", f"{stats.get('total_sales', 0)}"],
         ]
 
-        for title, img in graphs:
-            story.append(Paragraph(f"<b>{title}</b>", styles["Heading2"]))
-            story.append(Image(img, width=16*cm, height=8*cm))
-            story.append(Spacer(1, 12))
+        kpi_table = Table(kpi_data, colWidths=[8*cm, 8*cm])
+        kpi_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3B82F6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F3F4F6')]),
+        ]))
+        story.append(kpi_table)
+        story.append(Spacer(1, 0.5*cm))
+        story.append(PageBreak())
 
+        # ====== PAGE 2: STATISTIQUES DÉTAILLÉES ======
+        story.append(Paragraph("📊 STATISTIQUES MENSUELLES", heading_style))
+
+        MOIS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"]
+        monthly_data = [["Mois", "Ventes", "Montant (DA)", "Panier Moyen"]]
+        
+        monthly = {int(r["month"]): r for r in (self.db.get_sales_by_month(year) or [])}
+        for m in range(1, 13):
+            r = monthly.get(m, {"count": 0, "total": 0})
+            count = r.get("count", 0)
+            total = r.get("total", 0)
+            avg = total / count if count > 0 else 0
+            monthly_data.append([MOIS[m-1], str(count), f"{total:,.2f}", f"{avg:,.2f}"])
+
+        monthly_table = Table(monthly_data, colWidths=[3*cm, 3*cm, 5*cm, 5*cm])
+        monthly_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3B82F6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F3F4F6')]),
+        ]))
+        story.append(monthly_table)
+        story.append(Spacer(1, 0.5*cm))
+
+        # Graphique ventes
+        if img_sales:
+            story.append(Paragraph("📈 Évolution des Ventes", styles['Heading3']))
+            story.append(Image(img_sales, width=15*cm, height=7.5*cm))
+            story.append(Spacer(1, 0.3*cm))
+        
+        story.append(PageBreak())
+
+        # ====== PAGE 3: TOP PRODUITS ======
+        story.append(Paragraph("🏆 TOP 10 PRODUITS LES PLUS VENDUS", heading_style))
+
+        top_products = self.db.get_top_products(limit=10) or []
+        prod_data = [["Rang", "Produit", "Quantité", "Montant (DA)"]]
+        for idx, prod in enumerate(top_products, 1):
+            prod_data.append([
+                str(idx),
+                prod.get("name", "—")[:30],
+                str(int(prod.get("total_quantity", 0))),
+                f"{prod.get('total_sales', 0):,.2f}"
+            ])
+
+        prod_table = Table(prod_data, colWidths=[1.5*cm, 8*cm, 3*cm, 4*cm])
+        prod_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F59E0B')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#FFFBEB')]),
+        ]))
+        story.append(prod_table)
+        story.append(Spacer(1, 0.5*cm))
+
+        if img_prod:
+            story.append(Paragraph("📦 Visualisation", styles['Heading3']))
+            story.append(Image(img_prod, width=15*cm, height=7.5*cm))
+
+        story.append(PageBreak())
+
+        # ====== PAGE 4: TOP CLIENTS ======
+        story.append(Paragraph("👥 TOP 10 MEILLEURS CLIENTS", heading_style))
+
+        top_clients = self.db.get_top_clients(limit=10) or []
+        client_data = [["Rang", "Nom Client", "Ventes", "Montant Total (DA)"]]
+        for idx, client in enumerate(top_clients, 1):
+            client_data.append([
+                str(idx),
+                client.get("name", "—")[:30],
+                str(int(client.get("sale_count", 0))),
+                f"{client.get('total_amount', 0):,.2f}"
+            ])
+
+        client_table = Table(client_data, colWidths=[1.5*cm, 8*cm, 3*cm, 4*cm])
+        client_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B5CF6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F5F3FF')]),
+        ]))
+        story.append(client_table)
+        story.append(Spacer(1, 0.5*cm))
+
+        if img_clients:
+            story.append(Paragraph("📊 Visualisation", styles['Heading3']))
+            story.append(Image(img_clients, width=15*cm, height=7.5*cm))
+
+        story.append(PageBreak())
+
+        # ====== PAGE 5: RENTABILITÉ ======
+        story.append(Paragraph("💎 TOP 10 PRODUITS PAR MARGE BRUTE", heading_style))
+
+        profitable = self.db.get_most_profitable_products(limit=10) or []
+        profit_data = [["Rang", "Produit", "Quantité", "Marge Unit.", "Marge Totale"]]
+        for idx, prod in enumerate(profitable, 1):
+            profit_data.append([
+                str(idx),
+                prod.get("name", "—")[:28],
+                str(int(prod.get("qty_sold", 0))),
+                f"{prod.get('unit_margin', 0):,.2f}",
+                f"{prod.get('total_margin', 0):,.2f}"
+            ])
+
+        profit_table = Table(profit_data, colWidths=[1.5*cm, 7*cm, 2.5*cm, 3.5*cm, 3.5*cm])
+        profit_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#10B981')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F0FDF4')]),
+        ]))
+        story.append(profit_table)
+        story.append(Spacer(1, 0.5*cm))
+
+        if img_profit:
+            story.append(Paragraph("💹 Évolution du Profit", styles['Heading3']))
+            story.append(Image(img_profit, width=15*cm, height=7.5*cm))
+
+        # Build PDF
         doc.build(story)
-
-        QMessageBox.information(self,"PDF OK",f"PDF professionnel généré :\n{path}")
+        
+        QMessageBox.information(
+            self,
+            "PDF Complet ✅",
+            f"Rapport PDF détaillé généré avec succès !\n\n"
+            f"📄 Fichier : {path}\n\n"
+            f"Contenu :\n"
+            f"✓ Résumé des KPI\n"
+            f"✓ Statistiques mensuelles\n"
+            f"✓ Top 10 Produits\n"
+            f"✓ Top 10 Clients\n"
+            f"✓ Analyses de Rentabilité\n"
+            f"✓ Graphiques professionnels"
+        )

@@ -259,34 +259,65 @@ class Database:
         except Exception as e:
             print(f"⚠️  Migration purchase_items (non bloquant) : {e}")
 
-    def get_best_day(self):
+    def get_best_days(self):
         """
-        Calcule le meilleur jour de vente depuis la base de données.
-        strftime('%w') : '0'=Dimanche, '1'=Lundi, ..., '6'=Samedi
-        Retourne le nom du jour en français, ou '—' si aucune vente.
+        Retourne les 2 meilleurs jours avec détails :
+        - best_sales_day : jour avec le plus de ventes (nombre)
+        - sales_count : nombre de ventes ce jour
+        - best_revenue_day : jour avec la plus grande recette (montant)
+        - revenue_amount : montant total de la recette ce jour
         """
         JOURS = {
             '0': 'Dimanche', '1': 'Lundi',    '2': 'Mardi',
             '3': 'Mercredi', '4': 'Jeudi',    '5': 'Vendredi',
             '6': 'Samedi',
         }
+        result = {
+            "sales_day": "—", 
+            "sales_count": 0,
+            "revenue_day": "—",
+            "revenue_amount": 0
+        }
+        
         try:
+            # Meilleur jour par nombre de ventes
             self.cursor.execute("""
                 SELECT
-                    strftime('%w', sale_date) AS day_num,
-                    COUNT(*)                  AS nb_ventes,
-                    SUM(total)                AS total_da
+                    CAST(strftime('%w', sale_date) AS TEXT) AS day_num,
+                    COUNT(*) AS nb_ventes
                 FROM sales
-                GROUP BY day_num
-                ORDER BY nb_ventes DESC, total_da DESC
+                WHERE sale_date IS NOT NULL
+                GROUP BY CAST(strftime('%w', sale_date) AS TEXT)
+                ORDER BY nb_ventes DESC
                 LIMIT 1
             """)
             row = self.cursor.fetchone()
-            if row:
-                return JOURS.get(row['day_num'], '—')
+            if row and row['day_num']:
+                day_key = str(row['day_num']).strip()
+                result["sales_day"] = JOURS.get(day_key, "—")
+                result["sales_count"] = int(row['nb_ventes'])
+            
+            # Meilleur jour par recette (montant total)
+            self.cursor.execute("""
+                SELECT
+                    CAST(strftime('%w', sale_date) AS TEXT) AS day_num,
+                    SUM(total) AS total_da
+                FROM sales
+                WHERE sale_date IS NOT NULL
+                GROUP BY CAST(strftime('%w', sale_date) AS TEXT)
+                ORDER BY total_da DESC
+                LIMIT 1
+            """)
+            row = self.cursor.fetchone()
+            if row and row['day_num']:
+                day_key = str(row['day_num']).strip()
+                result["revenue_day"] = JOURS.get(day_key, "—")
+                result["revenue_amount"] = float(row['total_da'] or 0)
+                
         except Exception as e:
-            print(f"⚠️  get_best_day : {e}")
-        return '—'
+            print(f"⚠️  get_best_days : {e}")
+        
+        return result
 
     # ==================== CLIENTS ====================
     
