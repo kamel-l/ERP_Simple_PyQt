@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, QSize
-# import qdarktheme
+import qdarktheme
 from styles import COLORS, SETTINGS_CARD_STYLE, SETTINGS_INPUT_STYLE, SETTINGS_COMBO_STYLE
 from db_manager import get_database
 from datetime import datetime
@@ -277,6 +277,7 @@ class SettingsPage(QWidget):
         company_email   = self.db.get_setting('company_email',   'contact@mycompany.dz')
         currency        = self.db.get_setting('currency',        'DA (Dinar Algérien)')
         vat             = self.db.get_setting('vat',             '19')
+        purchase_vat    = self.db.get_setting('purchase_vat',    '10')
         vat_number      = self.db.get_setting('vat_number',      '123456789012345')
 
         # ── Carte Entreprise ──
@@ -296,22 +297,25 @@ class SettingsPage(QWidget):
             }}
         """)
         
-        # Charger le logo si existant - CORRIGÉ
+        # Charger le logo si existant
         logo_path = self.db.get_setting('logo_path', '')
         from PyQt6.QtGui import QPixmap
         from PyQt6.QtCore import QFileInfo
         
+        # Afficher icône par défaut
+        self.logo_preview.setText("📦")
+        self.logo_preview.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
+        
         if logo_path and QFileInfo.exists(logo_path):
             try:
                 pixmap = QPixmap()
-                # Essayer de charger avec le format détecté automatiquement
                 if pixmap.load(logo_path):
                     scaled_pixmap = pixmap.scaled(80, 80, 
                                                 Qt.AspectRatioMode.KeepAspectRatio, 
                                                 Qt.TransformationMode.SmoothTransformation)
                     self.logo_preview.setPixmap(scaled_pixmap)
                 else:
-                    # Essayer de forcer le format si l'auto-détection échoue
+                    # Essayer format alternatif
                     from PyQt6.QtGui import QImageReader
                     reader = QImageReader(logo_path)
                     if reader.canRead():
@@ -322,19 +326,9 @@ class SettingsPage(QWidget):
                                                         Qt.AspectRatioMode.KeepAspectRatio,
                                                         Qt.TransformationMode.SmoothTransformation)
                             self.logo_preview.setPixmap(scaled_pixmap)
-                        else:
-                            self.logo_preview.setText("📷")
-                            self.logo_preview.setFont(QFont("Segoe UI", 32))
-                    else:
-                        self.logo_preview.setText("📷")
-                        self.logo_preview.setFont(QFont("Segoe UI", 32))
             except Exception as e:
-                print(f"Erreur chargement logo: {e}")
-                self.logo_preview.setText("📷")
-                self.logo_preview.setFont(QFont("Segoe UI", 32))
-        else:
-            self.logo_preview.setText("📷")
-            self.logo_preview.setFont(QFont("Segoe UI", 32))
+                # Garder l'icône par défaut en cas d'erreur
+                print(f"⚠️  Erreur chargement logo: {e}")
         
         logo_btn = make_btn("🖼️  Changer Logo", COLORS['primary'], outlined=True)
         logo_btn.clicked.connect(self.change_logo)
@@ -367,9 +361,10 @@ class SettingsPage(QWidget):
         body2 = card_fin.body()
 
         fields_fin = [
-            ("Devise",        currency,   "currency"),
-            ("TVA (%)",       vat,        "vat"),
-            ("Numéro de TVA", vat_number, "vat_number"),
+            ("Devise",            currency,      "currency"),
+            ("TVA Ventes (%)",    vat,           "vat"),
+            ("TVA Achats (%)",    purchase_vat,  "purchase_vat"),
+            ("Numéro de TVA",     vat_number,    "vat_number"),
         ]
         for lbl_text, val, attr in fields_fin:
             field = QLineEdit(str(val))
@@ -669,6 +664,7 @@ class SettingsPage(QWidget):
             self.db.set_setting('company_email',   self.company_email.text())
             self.db.set_setting('currency',        self.currency.text())
             self.db.set_setting('vat',             self.vat.text())
+            self.db.set_setting('purchase_vat',    self.purchase_vat.text())
             self.db.set_setting('vat_number',      self.vat_number.text())
             QMessageBox.information(self, "✅ Enregistré", "Paramètres enregistrés avec succès.")
         except Exception as e:

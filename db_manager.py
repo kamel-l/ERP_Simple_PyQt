@@ -567,7 +567,7 @@ class Database:
     # ==================== VENTES ====================
     
     def create_sale(self, invoice_number, client_id, items, payment_method="cash",
-                   tax_rate=19.0, discount=0, notes=""):
+                   tax_rate=None, discount=0, notes=""):
         """
         Crée une nouvelle vente avec ses articles
         
@@ -576,11 +576,19 @@ class Database:
             client_id: ID du client
             items: Liste de dict avec 'product_id', 'quantity', 'unit_price', 'discount'
             payment_method: Mode de paiement
-            tax_rate: Taux de TVA
+            tax_rate: Taux de TVA (si None, récupère depuis les settings)
             discount: Remise globale
             notes: Notes
         """
         try:
+            # Si tax_rate n'est pas spécifié, récupérer depuis les settings
+            if tax_rate is None:
+                tax_rates = self.get_tax_rates()
+                tax_rate = tax_rates["sales_tax"]
+                print(f"✅ create_sale() - TVA récupérée des settings: {tax_rate}%")
+            else:
+                print(f"✅ create_sale() - TVA spécifiée: {tax_rate}%")
+            
             # Calculer les totaux
             subtotal = sum(item['quantity'] * item['unit_price'] * 
                           (1 - item.get('discount', 0) / 100) for item in items)
@@ -695,9 +703,17 @@ class Database:
     # ==================== ACHATS ====================
     
     def create_purchase(self, reference, supplier_id, items, payment_method="cash",
-                   tax_rate=10.0, notes=""):
+                   tax_rate=None, notes=""):
         """Crée un nouvel achat avec ses articles"""
         try:
+            # Si tax_rate n'est pas spécifié, récupérer depuis les settings
+            if tax_rate is None:
+                tax_rates = self.get_tax_rates()
+                tax_rate = tax_rates["purchase_tax"]
+                print(f"✅ create_purchase() - TVA Achats récupérée des settings: {tax_rate}%")
+            else:
+                print(f"✅ create_purchase() - TVA Achats spécifiée: {tax_rate}%")
+            
             # Calculer les totaux
             subtotal = sum(item['quantity'] * item['unit_price'] for item in items)
             tax_amount = subtotal * (tax_rate / 100)
@@ -964,6 +980,28 @@ class Database:
         self.cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
         row = self.cursor.fetchone()
         return row['value'] if row else default
+    
+    def get_tax_rates(self):
+        """
+        Retourne les taux de TVA pour ventes et achats
+        Récupère depuis les settings ou utilise les valeurs par défaut
+        Returns: {"sales_tax": 19.0, "purchase_tax": 10.0}
+        """
+        try:
+            # Récupérer les valeurs stockées (peuvent être des strings)
+            vat_value = self.get_setting('vat', None)
+            purchase_vat_value = self.get_setting('purchase_vat', None)
+            
+            # Convertir en float avec gestion des None/empty
+            sales_tax = float(vat_value) if vat_value else 19.0
+            purchase_tax = float(purchase_vat_value) if purchase_vat_value else 10.0
+            
+            print(f"📊 TVA Récupérée - Ventes: {sales_tax}%, Achats: {purchase_tax}%")
+            
+            return {"sales_tax": sales_tax, "purchase_tax": purchase_tax}
+        except Exception as e:
+            print(f"❌ Erreur get_tax_rates: {e}")
+            return {"sales_tax": 19.0, "purchase_tax": 10.0}
     
     # ==================== BACKUP & RESTORE ====================
     

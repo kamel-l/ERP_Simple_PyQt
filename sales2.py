@@ -742,12 +742,12 @@ class SalesPage(QWidget):
         payment_method = payment_data['method']
         
         # Enregistrer dans la base
+        # La TVA sera récupérée automatiquement depuis les settings
         sale_id = self.db.create_sale(
             invoice_number=invoice_number,
             client_id=client_id,
             items=items,
             payment_method=payment_method,
-            tax_rate=19.0,
             discount=0
         )
         
