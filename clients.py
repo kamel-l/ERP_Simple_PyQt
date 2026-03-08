@@ -6,6 +6,7 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
+import re
 
 # ------------------ DIALOG POUR AJOUTER / MODIFIER CLIENT ------------------
 class ClientDialog(QDialog):
@@ -81,7 +82,12 @@ class ClientDialog(QDialog):
         
         main_layout.addLayout(btn_layout)
 
-
+    def validate_email(self):
+        email = self.email_edit.text()
+        if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            QMessageBox.warning(self, "Erreur", "Format d'email invalide.")
+            return False
+        return True
 # ------------------ PAGE CLIENTS ------------------
 class ClientsPage(QWidget):
     # Signal émis quand un client est ajouté ou modifié

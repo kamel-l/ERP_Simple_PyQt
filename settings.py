@@ -569,7 +569,30 @@ class SettingsPage(QWidget):
             self.stats_grid.addWidget(self.create_stat_item(icon, label, value, color))
 
     def change_theme(self, index):
-        qdarktheme.setup_theme("dark" if index == 0 else "light")
+        """Change le thème de l'application"""
+        theme = "dark" if index == 0 else "light"
+        
+        # Vous pouvez implémenter votre propre changement de thème ici
+        # Par exemple, changer les couleurs dans styles.py
+        
+        # Ou simplement afficher un message pour l'instant
+        print(f"Thème changé en: {theme}")
+        
+        # Option: utiliser un fichier de style différent
+        if theme == "dark":
+            # Appliquer le thème sombre
+            self.setStyleSheet(f"""
+                QWidget {{ background-color: #1e1e1e; color: #ffffff; }}
+                QLineEdit {{ background-color: #2d2d2d; color: #ffffff; border: 1px solid #3d3d3d; }}
+                QComboBox {{ background-color: #2d2d2d; color: #ffffff; border: 1px solid #3d3d3d; }}
+            """)
+        else:
+            # Appliquer le thème clair
+            self.setStyleSheet(f"""
+                QWidget {{ background-color: #f5f5f5; color: #000000; }}
+                QLineEdit {{ background-color: #ffffff; color: #000000; border: 1px solid #dddddd; }}
+                QComboBox {{ background-color: #ffffff; color: #000000; border: 1px solid #dddddd; }}
+            """)
 
     def cleanup_database(self):
         reply = QMessageBox.warning(
