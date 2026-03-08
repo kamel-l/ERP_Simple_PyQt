@@ -939,12 +939,12 @@ class PurchasesPage(QWidget):
         
         reference = f"ACH-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
+        # La TVA sera récupérée automatiquement depuis les settings
         purchase_id = self.db.create_purchase(
             reference=reference,
             supplier_id=supplier_id,
             items=items,
-            payment_method="cash",
-            tax_rate=10.0
+            payment_method="cash"
         )
         
         if purchase_id:

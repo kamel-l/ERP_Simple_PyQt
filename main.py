@@ -145,7 +145,9 @@ class MainWindow(QMainWindow):
         db = get_database()
         logo_path = db.get_setting('logo_path', '')
         from PyQt6.QtGui import QPixmap
-        if logo_path:
+        from PyQt6.QtCore import QFileInfo
+        
+        if logo_path and QFileInfo.exists(logo_path):
             try:
                 pixmap = QPixmap(logo_path)
                 if not pixmap.isNull():
@@ -153,30 +155,25 @@ class MainWindow(QMainWindow):
                     logo_label.setPixmap(scaled_pixmap)
                     print(f"✅ Logo chargé: {logo_path}")
                 else:
-                    raise Exception("QPixmap invalide - image non reconnue")
+                    logo_label.setText("📦")
+                    logo_label.setFont(QFont("Segoe UI", 32, QFont.Weight.Bold))
             except Exception as e:
                 print(f"⚠️ Erreur logo: {e}")
-                logo_label.setText("ERP")
-                logo_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-                logo_label.setStyleSheet(f"""
-                    QLabel {{
-                        background: {COLORS['BG_CARD']};
-                        border-radius: 12px;
-                        border: 2px solid {COLORS['BORDER']};
-                        color: {COLORS['primary']};
-                    }}
-                """)
+                logo_label.setText("📦")
+                logo_label.setFont(QFont("Segoe UI", 32, QFont.Weight.Bold))
         else:
-            logo_label.setText("ERP")
-            logo_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-            logo_label.setStyleSheet(f"""
-                QLabel {{
-                    background: {COLORS['BG_CARD']};
-                    border-radius: 12px;
-                    border: 2px solid {COLORS['BORDER']};
-                    color: {COLORS['primary']};
-                }}
-            """)
+            # Aucun logo défini - afficher icône par défaut
+            logo_label.setText("📦")
+            logo_label.setFont(QFont("Segoe UI", 32, QFont.Weight.Bold))
+        
+        logo_label.setStyleSheet(f"""
+            QLabel {{
+                background: {COLORS['BG_CARD']};
+                border-radius: 12px;
+                border: 2px solid {COLORS['BORDER']};
+                color: {COLORS['primary']};
+            }}
+        """)
         
         logo_layout.addWidget(logo_label)
         layout.addWidget(logo_frame)

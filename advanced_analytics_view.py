@@ -6,45 +6,11 @@ from PyQt6.QtCore import Qt
 import pyqtgraph as pg
 from datetime import datetime
 from db_manager import get_database
-
-# Reuse your theme
-BG_PAGE  = "#0F1117"
-BG_CARD  = "#1A1D27"
-BORDER   = "rgba(255,255,255,0.07)"
-TXT_PRI  = "#F1F5F9"
-TXT_SEC  = "rgba(255,255,255,0.45)"
-
-C_BLUE   = "#3B82F6"
-C_GREEN  = "#10B981"
-C_AMBER  = "#F59E0B"
-C_CYAN   = "#06B6D4"
-C_VIOLET = "#8B5CF6"
-
-
-def _card():
-    f = QFrame()
-    f.setStyleSheet(f"""
-        background:{BG_CARD};
-        border-radius:14px;
-        border:1px solid {BORDER};
-    """)
-    return f
-
-
-def _lbl(text, size, bold=False, color=TXT_PRI):
-    l = QLabel(text)
-    l.setFont(QFont("Segoe UI", size, QFont.Weight.Bold if bold else QFont.Weight.Normal))
-    l.setStyleSheet(f"color:{color}; background:transparent;")
-    return l
-
-
-def _styled_plot(height=260):
-    plot = pg.PlotWidget()
-    plot.setBackground("#13151F")
-    plot.setMinimumHeight(height)
-    plot.showGrid(x=True, y=True, alpha=0.08)
-    plot.getPlotItem().layout.setContentsMargins(4, 4, 12, 4)
-    return plot
+from ui_components import (
+    BG_PAGE, BG_CARD, C_BLUE, C_GREEN, C_AMBER, C_CYAN, C_VIOLET,
+    TXT_PRI, TXT_SEC,
+    _card, _lbl, _styled_plot
+)
 
 
 class AdvancedAnalyticsPage(QWidget):

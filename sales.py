@@ -375,6 +375,7 @@ class SalesPage(QWidget):
         
         self.db = get_database()
         self.cart_items = []  # Articles dans le panier
+        self.vat_rate = self._get_vat_rate()  # Récupérer la TVA depuis les settings
         
         # Layout racine sans marges
         root_layout = QVBoxLayout(self)
@@ -577,21 +578,22 @@ class SalesPage(QWidget):
         right_col = QVBoxLayout()
         right_col.setSpacing(4)
         self.subtotal_label = _row(right_col, "Sous-total HT :", COLORS['text_primary'])
-        self.tax_label      = _row(right_col, "TVA (19%) :",     COLORS['warning'])
-
-        # Mode de paiement dans colonne droite
-        pay_h = QHBoxLayout()
-        pay_h.setSpacing(8)
-        pay_lbl = QLabel("💳 Paiement :")
-        pay_lbl.setFont(QFont("Segoe UI", 12))
-        pay_lbl.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-        self.payment_combo = QComboBox()
-        self.payment_combo.addItems(["💵 Espèces", "💳 Carte bancaire", "🏦 Virement", "📱 Mobile"])
-        self.payment_combo.setStyleSheet(INPUT_STYLE)
-        self.payment_combo.setMinimumHeight(30)
-        pay_h.addWidget(pay_lbl, 1)
-        pay_h.addWidget(self.payment_combo, 2)
-        right_col.addLayout(pay_h)
+        
+        # Créer la ligne TVA de manière dynamique pour pouvoir la mettre à jour
+        self.vat_percent = float(self.db.get_setting('vat', '19'))
+        tax_row = QHBoxLayout()
+        tax_row.setSpacing(8)
+        self.tax_header_label = QLabel(f"TVA ({self.vat_percent:.0f}%) :")
+        self.tax_header_label.setFont(QFont("Segoe UI", 12))
+        self.tax_header_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
+        self.tax_label = QLabel("—")
+        self.tax_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        self.tax_label.setStyleSheet(f"color: {COLORS['warning']};")
+        self.tax_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.tax_label.setMinimumWidth(120)
+        tax_row.addWidget(self.tax_header_label, 1)
+        tax_row.addWidget(self.tax_label)
+        right_col.addLayout(tax_row)
 
         info_row.addLayout(left_col, 1)
 
@@ -753,10 +755,22 @@ class SalesPage(QWidget):
             self.table.setRowCount(0)
             self.update_totals()
 
+    def _get_vat_rate(self):
+        """Récupère le taux de TVA depuis les settings"""
+        try:
+            vat_str = self.db.get_setting('vat', '19')
+            return float(vat_str) / 100.0  # Convertir en décimal (ex: 19 -> 0.19)
+        except:
+            return 0.19  # Valeur par défaut
+
     def update_totals(self):
         """Met à jour les totaux"""
         subtotal = sum(item['total'] for item in self.cart_items)
-        tax = subtotal * 0.19  # TVA 19%
+        self.vat_rate = self._get_vat_rate()
+        self.vat_percent = self.vat_rate * 100  # Convertir en pourcentage pour l'affichage
+        # Mettre à jour le label de TVA avec le nouveau pourcentage
+        self.tax_header_label.setText(f"TVA ({self.vat_percent:.0f}%) :")
+        tax = subtotal * self.vat_rate
         total = subtotal + tax
 
         # Calcul du nombre d'articles et de la quantité totale
@@ -784,12 +798,12 @@ class SalesPage(QWidget):
         
         # Calculer le total TTC
         subtotal = sum(item['total'] for item in self.cart_items)
-        tax = subtotal * 0.19
+        self.vat_rate = self._get_vat_rate()
+        tax = subtotal * self.vat_rate
         total_ttc = subtotal + tax
         
-        # Générer un numéro de facture
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        invoice_number = f"FAC-{timestamp}"
+        # Générer un numéro de facture séquentiel (FAC-1000, FAC-1001, etc.)
+        invoice_number = self.db.generate_invoice_number()
         
         # 1. Afficher le dialogue de paiement avec tous les détails
         client_name = self.client_combo.currentText() or "Client Anonyme"
@@ -827,12 +841,12 @@ class SalesPage(QWidget):
         payment_method = payment_data['method']
         
         # Enregistrer dans la base
+        # La TVA sera récupérée automatiquement depuis les settings
         sale_id = self.db.create_sale(
             invoice_number=invoice_number,
             client_id=client_id,
             items=items,
             payment_method=payment_method,
-            tax_rate=19.0,
             discount=0
         )
         
