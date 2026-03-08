@@ -802,9 +802,8 @@ class SalesPage(QWidget):
         tax = subtotal * self.vat_rate
         total_ttc = subtotal + tax
         
-        # Générer un numéro de facture
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        invoice_number = f"FAC-{timestamp}"
+        # Générer un numéro de facture séquentiel (FAC-1000, FAC-1001, etc.)
+        invoice_number = self.db.generate_invoice_number()
         
         # 1. Afficher le dialogue de paiement avec tous les détails
         client_name = self.client_combo.currentText() or "Client Anonyme"

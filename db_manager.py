@@ -398,6 +398,58 @@ class Database:
         """, (client_id,))
         return [dict(row) for row in self.cursor.fetchall()]
     
+    def generate_invoice_number(self):
+        """
+        Génère le prochain numéro de facture séquentiel
+        Format: FAC-1000, FAC-1001, FAC-1002, etc.
+        La première facture sera FAC-1000
+        Gère la migration depuis ancien format FAC-timestamp
+        
+        Les nouveau format séquentiel: 1000-99999
+        Les anciens timestamps (> 100000) sont ignorés
+        """
+        try:
+            # Récupérer tous les numéros de facture existants
+            self.cursor.execute("""
+                SELECT invoice_number FROM sales 
+                WHERE invoice_number LIKE 'FAC-%'
+            """)
+            results = self.cursor.fetchall()
+            
+            next_number = 1000  # Valeur par défaut pour première facture
+            sequential_invoices = []
+            
+            if results:
+                # Parcourir toutes les factures et extraire les numéros valides
+                for row in results:
+                    last_invoice = row['invoice_number']
+                    try:
+                        # Tenter d'extraire le numéro après "FAC-"
+                        number_part = last_invoice.replace("FAC-", "").strip()
+                        
+                        # Vérifier si c'est un nombre valide
+                        if number_part.isdigit():
+                            number = int(number_part)
+                            # Garder seulement les numéros séquentiels (1000-99999)
+                            # Les nombres > 100000 sont des anciens timestamps
+                            if 1000 <= number <= 99999:
+                                sequential_invoices.append(number)
+                    except (ValueError, AttributeError):
+                        # Ignorer les formats invalides
+                        continue
+                
+                # Si on a trouvé des factures séquentielles, prendre la plus grande
+                if sequential_invoices:
+                    next_number = max(sequential_invoices) + 1
+            
+            return f"FAC-{next_number}"
+        
+        except Exception as e:
+            print(f"⚠️  Erreur lors de la génération du numéro de facture: {e}")
+            # Fallback: utiliser timestamp
+            from datetime import datetime
+            return f"FAC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
     # ==================== CATÉGORIES ====================
     
     def add_category(self, name, description=""):
