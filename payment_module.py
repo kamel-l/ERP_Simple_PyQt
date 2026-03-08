@@ -13,6 +13,7 @@ from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, pyqtSignal
 from datetime import datetime
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE
+from db_manager import get_database
 
 
 class PaymentDialog(QDialog):
@@ -24,10 +25,13 @@ class PaymentDialog(QDialog):
                  client_name="Client Anonyme", parent=None):
         super().__init__(parent)
 
+        self.db             = get_database()
         self.total_amount   = total_amount
         self.invoice_number = invoice_number
         self.cart_items     = cart_items or []
         self.client_name    = client_name
+        self.vat_rate       = self._get_vat_rate()  # Récupérer la TVA depuis les settings
+        self.vat_percent    = self.vat_rate * 100   # Convertir en pourcentage pour l'affichage
 
         # Références widgets détails
         self.cash_received      = None
@@ -79,6 +83,14 @@ class PaymentDialog(QDialog):
         # Afficher les détails du premier mode
         self.payment_combo.setCurrentIndex(0)
         self._on_method_changed(0)
+
+    def _get_vat_rate(self):
+        """Récupère le taux de TVA depuis les settings"""
+        try:
+            vat_str = self.db.get_setting('vat', '19')
+            return float(vat_str) / 100.0  # Convertir en décimal (ex: 19 -> 0.19)
+        except:
+            return 0.19  # Valeur par défaut
 
     # ── En-tête ───────────────────────────────────────────────────────────────
     def _build_header(self):
@@ -190,7 +202,7 @@ class PaymentDialog(QDialog):
 
         # --- sous-totaux ---
         subtotal = sum(i.get('total', 0) for i in self.cart_items)
-        tax      = subtotal * 0.19
+        tax      = subtotal * self.vat_rate
         total    = subtotal + tax
 
         totals_row = QHBoxLayout()
@@ -218,7 +230,7 @@ class PaymentDialog(QDialog):
             tv.addLayout(h)
 
         tline("Sous-total HT :", f"{subtotal:,.2f} DA", COLORS['text_primary'])
-        tline("TVA (19%) :",     f"{tax:,.2f} DA",      COLORS.get('warning', '#F59E0B'))
+        tline(f"TVA ({self.vat_percent:.0f}%) :",     f"{tax:,.2f} DA",      COLORS.get('warning', '#F59E0B'))
         tline("TOTAL TTC :",     f"{total:,.2f} DA",    COLORS['success'], bold=True)
 
         totals_row.addWidget(tf)
