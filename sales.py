@@ -595,20 +595,6 @@ class SalesPage(QWidget):
         tax_row.addWidget(self.tax_label)
         right_col.addLayout(tax_row)
 
-        # Mode de paiement dans colonne droite
-        pay_h = QHBoxLayout()
-        pay_h.setSpacing(8)
-        pay_lbl = QLabel("💳 Paiement :")
-        pay_lbl.setFont(QFont("Segoe UI", 12))
-        pay_lbl.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-        self.payment_combo = QComboBox()
-        self.payment_combo.addItems(["💵 Espèces", "💳 Carte bancaire", "🏦 Virement", "📱 Mobile"])
-        self.payment_combo.setStyleSheet(INPUT_STYLE)
-        self.payment_combo.setMinimumHeight(30)
-        pay_h.addWidget(pay_lbl, 1)
-        pay_h.addWidget(self.payment_combo, 2)
-        right_col.addLayout(pay_h)
-
         info_row.addLayout(left_col, 1)
 
         v_sep = QFrame()
