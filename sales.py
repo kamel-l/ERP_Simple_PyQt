@@ -150,7 +150,7 @@ class AddProductDialog(QDialog):
         price_label = QLabel("Prix unitaire:")
         price_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
-        self.price_display = QLabel("0.00 DA")
+        self.price_display = QLabel("0 DA")
         self.price_display.setStyleSheet(f"""
             color: {COLORS['success']}; 
             border: none;
@@ -202,7 +202,7 @@ class AddProductDialog(QDialog):
         discount_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
         self.discount = QLineEdit()
-        self.discount.setText("0.00")
+        self.discount.setText("0")
         self.discount.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.discount.setStyleSheet(INPUT_STYLE)
         self.discount.setMinimumHeight(32)
@@ -231,7 +231,7 @@ class AddProductDialog(QDialog):
         total_text.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         total_text.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         
-        self.total_display = QLabel("0.00 DA")
+        self.total_display = QLabel("0 DA")
         self.total_display.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.total_display.setStyleSheet(f"color: {COLORS['success']}; border: none;")
         self.total_display.setMinimumWidth(150)
@@ -299,7 +299,7 @@ class AddProductDialog(QDialog):
             self.product_table.setItem(row, 0, name_item)
             
             # Prix unitaire
-            price_item = QTableWidgetItem(f"{product['selling_price']:,.2f} DA")
+            price_item = QTableWidgetItem(f"{product['selling_price']:,.0f} DA")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.product_table.setItem(row, 1, price_item)
             
@@ -327,14 +327,14 @@ class AddProductDialog(QDialog):
             if item:
                 product = item.data(Qt.ItemDataRole.UserRole)
                 self.selected_product = product
-                self.price_display.setText(f"{product['selling_price']:,.2f} DA")
+                self.price_display.setText(f"{product['selling_price']:,.0f} DA")
                 self.stock_display.setText(str(product['stock_quantity']))
                 self.quantity.setText("1")
-                self.discount.setText("0.00")
+                self.discount.setText("0")
                 self.update_total()
         else:
             self.selected_product = None
-            self.price_display.setText("0.00 DA")
+            self.price_display.setText("0 DA")
             self.stock_display.setText("0")
 
     def update_total(self):
@@ -346,9 +346,9 @@ class AddProductDialog(QDialog):
                 discount = float(self.discount.text() or 0)
                 
                 total = qty * price * (1 - discount / 100)
-                self.total_display.setText(f"{total:,.2f} DA")
+                self.total_display.setText(f"{total:,.0f} DA")
             except ValueError:
-                self.total_display.setText("0.00 DA")
+                self.total_display.setText("0 DA")
 
     def validate_and_accept(self):
         """Valide et accepte"""
@@ -618,7 +618,7 @@ class SalesPage(QWidget):
         total_lbl = QLabel("TOTAL TTC :")
         total_lbl.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         total_lbl.setStyleSheet(f"color: {COLORS['text_primary']};")
-        self.total_label = QLabel("0.00 DA")
+        self.total_label = QLabel("0 DA")
         self.total_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
         self.total_label.setStyleSheet(f"color: {COLORS['success']};")
         self.total_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -698,17 +698,17 @@ class SalesPage(QWidget):
             self.table.setItem(row, 1, qty_item)
             
             # Prix unitaire
-            price_item = QTableWidgetItem(f"{unit_price:,.2f}")
+            price_item = QTableWidgetItem(f"{unit_price:,.0f}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             self.table.setItem(row, 2, price_item)
             
             # Remise
-            discount_item = QTableWidgetItem(f"{discount:.2f}%")
+            discount_item = QTableWidgetItem(f"{discount:.0f}%")
             discount_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 3, discount_item)
             
             # Total
-            total_item = QTableWidgetItem(f"{total:,.2f}")
+            total_item = QTableWidgetItem(f"{total:,.0f}")
             total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
             self.table.setItem(row, 4, total_item)
@@ -785,10 +785,10 @@ class SalesPage(QWidget):
 
         self.nb_articles_label.setText(f"{nb_articles} article(s)")
         self.qty_total_label.setText(f"{qty_total} unité(s)")
-        self.discount_total_label.setText(f"-{remise_total:,.2f} DA")
-        self.subtotal_label.setText(f"{subtotal:,.2f} DA")
-        self.tax_label.setText(f"{tax:,.2f} DA")
-        self.total_label.setText(f"{total:,.2f} DA")
+        self.discount_total_label.setText(f"-{remise_total:,.0f} DA")
+        self.subtotal_label.setText(f"{subtotal:,.0f} DA")
+        self.tax_label.setText(f"{tax:,.0f} DA")
+        self.total_label.setText(f"{total:,.0f} DA")
 
     def save_sale(self):
         """Enregistre la vente avec gestion du paiement"""
@@ -859,7 +859,7 @@ class SalesPage(QWidget):
                 "Succès",
                 f"✅ Vente enregistrée avec succès!\n\n"
                 f"📄 Facture N° {invoice_number}\n"
-                f"💰 Montant: {total_ttc:,.2f} DA\n"
+                f"💰 Montant: {total_ttc:,.0f} DA\n"
                 f"💳 Paiement: {self.get_payment_method_name(payment_method)}\n"
                 f"{payment_details}"
             )
@@ -897,9 +897,9 @@ class SalesPage(QWidget):
             
             if method == 'cash':
                 if 'received' in details:
-                    detail_text += f"   💵 Reçu: {details['received']:,.2f} DA\n"
+                    detail_text += f"   💵 Reçu: {details['received']:,.0f} DA\n"
                     if 'change' in details and details['change'] > 0:
-                        detail_text += f"   💸 Monnaie rendue: {details['change']:,.2f} DA"
+                        detail_text += f"   💸 Monnaie rendue: {details['change']:,.0f} DA"
             
             elif method == 'card':
                 if 'transaction' in details and details['transaction']:

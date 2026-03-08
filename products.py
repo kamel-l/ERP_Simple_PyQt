@@ -264,16 +264,16 @@ class ProductsPage(QWidget):
         self.refresh_btn.setFixedHeight(45)
         self.refresh_btn.setFixedWidth(130)
         self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.refresh_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {COLORS['primary']};
+        self.refresh_btn.setStyleSheet("""
+            QPushButton {
+                background: #3B82F6;
                 color: white;
                 border: none;
                 border-radius: 10px;
                 padding: 0 18px;
-            }}
-            QPushButton:hover  {{ background: {COLORS['primary_dark']}; }}
-            QPushButton:pressed{{ background: #4338CA; }}
+            }
+            QPushButton:hover  { background: #2563EB; }
+            QPushButton:pressed{ background: #1D4ED8; }
         """)
         self.refresh_btn.clicked.connect(self.refresh_page)
         search_layout.addWidget(self.refresh_btn)
@@ -282,9 +282,9 @@ class ProductsPage(QWidget):
         table_container = QFrame()
         table_container.setStyleSheet(f"""
             QFrame {{
-                background: {COLORS['BG_CARD']};
+                background: {COLORS['bg_card']};
                 border-radius: 12px;
-                border: 1px solid {COLORS['BORDER']};
+                border: 1px solid {COLORS['border']};
                 padding: 0px;
             }}
         """)
@@ -306,13 +306,13 @@ class ProductsPage(QWidget):
         # Appliquer TABLE_STYLE en DERNIER pour que le header soit visible
         self.table.setStyleSheet(TABLE_STYLE + f"""
             QHeaderView::section {{
-                background-color: {COLORS['BG_DEEP']};
+                background-color: {COLORS['bg_light']};
                 color: {COLORS['text_primary']};
                 font-size: 13px;
                 font-weight: bold;
                 padding: 10px 8px;
                 border: none;
-                border-right: 1px solid {COLORS['BORDER']};
+                border-right: 1px solid {COLORS['border']};
                 border-bottom: 2px solid {COLORS['primary']};
             }}
             QHeaderView::section:first {{
@@ -374,32 +374,30 @@ class ProductsPage(QWidget):
     def build_stat_card(self, title, value, color):
         """Construit une carte de statistique"""
         card = QFrame()
-        card.setObjectName("stat")
         card.setStyleSheet(f"""
-            QFrame#stat {{
-                background: {COLORS['BG_CARD']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['BORDER']};
-            }}
-            QFrame#stat:hover {{
-                border: 1px solid {COLORS['primary']};
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
+                border-radius: 10px;
+                border: 1px solid {COLORS['border']};
+               
             }}
         """)
-        card.setFixedHeight(90)
-        card.setMinimumWidth(160)
+        card.setFixedHeight(80)
+        card.setMinimumWidth(180)
 
         card_layout = QVBoxLayout()
         card.setLayout(card_layout)
-        card_layout.setSpacing(8)
-        card_layout.setContentsMargins(16, 14, 16, 14)
+        card_layout.setSpacing(5)
+        card_layout.setContentsMargins(15, 10, 15, 10)
 
         title_label = QLabel(title)
         title_label.setFont(QFont("Segoe UI", 11))
-        title_label.setStyleSheet(f"color: {COLORS['TXT_SEC']}; border: none;")
+        title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
         card_layout.addWidget(title_label)
 
         value_label = QLabel(str(value))
-        value_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+        value_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
         value_label.setStyleSheet(f"color: {color}; border: none;")
         card_layout.addWidget(value_label)
 
@@ -454,16 +452,16 @@ class ProductsPage(QWidget):
             qty_item.setForeground(Qt.GlobalColor.red)
         self.table.setItem(row, 3, qty_item)
         
-        price_buy_item = QTableWidgetItem(f"{product.get('purchase_price', 0):,.2f}")
+        price_buy_item = QTableWidgetItem(f"{product.get('purchase_price', 0):,.0f}")
         price_buy_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 4, price_buy_item)
         
-        price_item = QTableWidgetItem(f"{product['selling_price']:,.2f}")
+        price_item = QTableWidgetItem(f"{product['selling_price']:,.0f}")
         price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 5, price_item)
         
         total_value = product["stock_quantity"] * product["selling_price"]
-        value_item = QTableWidgetItem(f"{total_value:,.2f}")
+        value_item = QTableWidgetItem(f"{total_value:,.0f}")
         value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.table.setItem(row, 6, value_item)

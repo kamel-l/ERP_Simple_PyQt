@@ -6,7 +6,7 @@
 from PyQt6.QtWidgets import (
     QSplitter, QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
     QPushButton, QScrollArea, QSizePolicy, QFileDialog, QMessageBox,
-    QGridLayout, QTableWidget, QHeaderView, QTableWidgetItem
+    QGridLayout, QTableWidget, QHeaderView, QTableWidgetItem, QComboBox
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt
@@ -79,17 +79,32 @@ class StatisticsPage(QWidget):
         row.addLayout(col)
         row.addStretch()
 
-        # Année badge
-        year_badge = QLabel(str(datetime.now().year))
-        year_badge.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        year_badge.setStyleSheet(f"""
-            background: rgba(59,130,246,0.15);
-            color: {C_BLUE};
-            padding: 4px 14px;
-            border-radius: 8px;
-            border: 1px solid rgba(59,130,246,0.35);
+        # Sélecteur d'année dynamique
+        self.year_combo = QComboBox()
+        self.year_combo.setFixedHeight(36)
+        self.year_combo.setFixedWidth(100)
+        self.year_combo.setStyleSheet(f"""
+            QComboBox {{
+                background: rgba(59,130,246,0.15);
+                color: {C_BLUE};
+                border: 1px solid rgba(59,130,246,0.35);
+                border-radius: 8px;
+                padding: 0 12px;
+                font-size: 13px;
+                font-weight: bold;
+            }}
+            QComboBox::drop-down {{ border: none; width: 24px; }}
+            QComboBox QAbstractItemView {{
+                background: {BG_CARD};
+                color: {C_BLUE};
+                selection-background-color: rgba(59,130,246,0.25);
+                border: 1px solid rgba(59,130,246,0.35);
+            }}
         """)
-        row.addWidget(year_badge)
+        # Remplir avec les années présentes en BDD + année courante
+        self._populate_years()
+        self.year_combo.currentTextChanged.connect(self.refresh)
+        row.addWidget(self.year_combo)
 
         # Refresh Button
         btn = QPushButton("↻   Actualiser")
@@ -501,10 +516,76 @@ class StatisticsPage(QWidget):
 
 
     # ─────────────────────────────────────────────────────────
+    # Gestion de l'année sélectionnée
+    # ─────────────────────────────────────────────────────────
+
+    def _populate_years(self):
+        """Remplit le ComboBox avec toutes les années présentes en BDD."""
+        years = []
+        try:
+            # Utiliser substr pour compatibilité maximale avec tous les formats de date
+            self.db.cursor.execute("""
+                SELECT DISTINCT substr(sale_date, 1, 4) as yr
+                FROM sales
+                WHERE sale_date IS NOT NULL
+                  AND length(sale_date) >= 4
+                ORDER BY yr DESC
+            """)
+            for row in self.db.cursor.fetchall():
+                try:
+                    # Compatibilité sqlite3.Row et tuple
+                    try:
+                        yr = row['yr']
+                    except (IndexError, TypeError):
+                        yr = row[0]
+                    if yr and len(str(yr).strip()) == 4 and str(yr).strip().isdigit():
+                        years.append(str(yr).strip())
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"⚠️ _populate_years erreur: {e}")
+
+        current_year = str(datetime.now().year)
+        # Toujours inclure l'année courante
+        if current_year not in years:
+            years.insert(0, current_year)
+
+        # Supprimer doublons en gardant l'ordre
+        seen, unique_years = set(), []
+        for y in years:
+            if y not in seen:
+                seen.add(y)
+                unique_years.append(y)
+
+        # Mémoriser la sélection courante avant de vider
+        current_selection = self.year_combo.currentText() if self.year_combo.count() > 0 else current_year
+
+        self.year_combo.blockSignals(True)
+        self.year_combo.clear()
+        for y in unique_years:
+            self.year_combo.addItem(y)
+
+        # Restaurer la sélection précédente, sinon l'année courante
+        idx = self.year_combo.findText(current_selection)
+        if idx < 0:
+            idx = self.year_combo.findText(current_year)
+        self.year_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.year_combo.blockSignals(False)
+        print(f"✅ Années en BDD : {unique_years}")
+
+    def _get_year(self):
+        """Retourne l'année sélectionnée dans le ComboBox."""
+        try:
+            return int(self.year_combo.currentText())
+        except (ValueError, AttributeError):
+            return datetime.now().year
+
+    # ─────────────────────────────────────────────────────────
     # Refresh Data
     # ─────────────────────────────────────────────────────────
 
     def refresh(self):
+        self._populate_years()   # Mettre à jour la liste des années à chaque refresh
         self._load_kpis()
         self._load_sales_chart()
         self._load_profit_chart()
@@ -519,7 +600,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_kpis(self):
-        stats = self.db.get_statistics() or {}
+        stats = self.db.get_statistics(year=self._get_year()) or {}
 
         sales_total = float(stats.get("sales_total", 0))
         purchases_total = float(stats.get("purchases_total", 0))
@@ -545,7 +626,7 @@ class StatisticsPage(QWidget):
 
     def _load_sales_chart(self):
         self.sales_chart.clear()
-        year = datetime.now().year
+        year = self._get_year()
         data = self.db.get_sales_by_month(year) or []
 
         months = list(range(1,13))
@@ -580,7 +661,7 @@ class StatisticsPage(QWidget):
 
     def _load_profit_chart(self):
         self.profit_chart.clear()
-        year = datetime.now().year
+        year = self._get_year()
         data = self.db.get_profit_by_month(year) or []
 
         months = list(range(1,13))
@@ -611,7 +692,7 @@ class StatisticsPage(QWidget):
 
     def _load_top_products(self):
         self.products_chart.clear()
-        data = self.db.get_top_products(limit=5) or []
+        data = self.db.get_top_products(limit=5,  year=self._get_year()) or []
 
         if not data:
             return
@@ -639,7 +720,7 @@ class StatisticsPage(QWidget):
 
     def _load_top_clients(self):
         self.clients_chart.clear()
-        data = self.db.get_top_clients(limit=5) or []
+        data = self.db.get_top_clients(limit=5,  year=self._get_year()) or []
 
         if not data:
             return
@@ -674,7 +755,7 @@ class StatisticsPage(QWidget):
                 print("⚠️ _info_cards n'est pas initialisé")
                 return
                 
-            stats = self.db.get_statistics() or {}
+            stats = self.db.get_statistics(year=self._get_year()) or {}
 
             # Stock faible
             low = self.db.get_low_stock_products() or []
@@ -715,7 +796,7 @@ class StatisticsPage(QWidget):
             self.avg_cart_card.value_label.setText(f"{avg_cart:,.0f} DA")
             
             # Marge brute globale
-            stats = self.db.get_statistics() or {}
+            stats = self.db.get_statistics(year=self._get_year()) or {}
             sales = float(stats.get("sales_total", 0))
             purchases = float(stats.get("purchases_total", 0))
             if sales > 0:
@@ -744,7 +825,7 @@ class StatisticsPage(QWidget):
     def _load_profitable_products(self):
         """Charge le tableau des produits les plus rentables"""
         try:
-            products = self.db.get_most_profitable_products(limit=5)
+            products = self.db.get_most_profitable_products(limit=5,  year=self._get_year())
             self.profit_products_table.setRowCount(len(products))
             
             for row, product in enumerate(products):
@@ -801,7 +882,7 @@ class StatisticsPage(QWidget):
 
     def _show_margin_details(self):
         """Affiche les détails de la marge globale"""
-        stats = self.db.get_statistics() or {}
+        stats = self.db.get_statistics(year=self._get_year()) or {}
         sales = float(stats.get("sales_total", 0))
         purchases = float(stats.get("purchases_total", 0))
         profit = sales - purchases
@@ -823,7 +904,7 @@ class StatisticsPage(QWidget):
         product_name = self.profit_products_table.item(row, 0).text()
         
         # Trouver le produit dans la base
-        products = self.db.get_most_profitable_products(limit=20)
+        products = self.db.get_most_profitable_products(limit=20, year=self._get_year())
         product = next((p for p in products if p['name'].startswith(product_name)), None)
         
         if product:
@@ -859,8 +940,8 @@ class StatisticsPage(QWidget):
         if not path.endswith(".csv"):
             path += ".csv"
 
-        stats = self.db.get_statistics() or {}
-        year  = dt.now().year
+        stats = self.db.get_statistics(year=self._get_year()) or {}
+        year  = self._get_year()
 
         MOIS = [
             "Janvier","Février","Mars","Avril","Mai","Juin",
@@ -880,9 +961,9 @@ class StatisticsPage(QWidget):
                 # ============== KPI GLOBAUX ==============
                 w.writerow(["=== KPI GLOBAUX ==="])
                 w.writerow(["Indicateur", "Valeur", "Unité"])
-                w.writerow(["Chiffre d'Affaires Total", f"{stats.get('sales_total', 0):,.2f}", "DA"])
-                w.writerow(["Achats Totaux", f"{stats.get('purchases_total', 0):,.2f}", "DA"])
-                w.writerow(["Profit Net", f"{stats.get('profit', 0):,.2f}", "DA"])
+                w.writerow(["Chiffre d'Affaires Total", f"{stats.get('sales_total', 0):,.0f}", "DA"])
+                w.writerow(["Achats Totaux", f"{stats.get('purchases_total', 0):,.0f}", "DA"])
+                w.writerow(["Profit Net", f"{stats.get('profit', 0):,.0f}", "DA"])
                 
                 # Calcul marges
                 sales_total = float(stats.get("sales_total", 0))
@@ -894,7 +975,7 @@ class StatisticsPage(QWidget):
                 w.writerow(["Nombre de Produits", stats.get("total_products", 0), "produits"])
                 w.writerow(["Nombre de Ventes", stats.get("total_sales", 0), "transactions"])
                 w.writerow(["Nombre d'Achats", stats.get("total_purchases", 0), "commandes"])
-                w.writerow(["Valeur du Stock", f"{stats.get('stock_value', 0):,.2f}", "DA"])
+                w.writerow(["Valeur du Stock", f"{stats.get('stock_value', 0):,.0f}", "DA"])
                 w.writerow(["Produits en Stock Faible", stats.get("low_stock_count", 0), "produits"])
                 w.writerow([])
 
@@ -904,12 +985,12 @@ class StatisticsPage(QWidget):
                 # Panier moyen
                 num_sales = int(stats.get("total_sales", 1)) or 1
                 avg_cart = sales_total / num_sales if num_sales > 0 else 0
-                w.writerow(["Panier Moyen", f"{avg_cart:,.2f}", "DA"])
+                w.writerow(["Panier Moyen", f"{avg_cart:,.0f}", "DA"])
                 
                 # Meilleur jour
                 best_days = self.db.get_best_days()
                 w.writerow(["Meilleur Jour (Ventes)", f"{best_days['sales_day']} ({best_days['sales_count']} ventes)", ""])
-                w.writerow(["Meilleur Jour (Recette)", f"{best_days['revenue_day']} ({best_days['revenue_amount']:,.2f} DA)", ""])
+                w.writerow(["Meilleur Jour (Recette)", f"{best_days['revenue_day']} ({best_days['revenue_amount']:,.0f} DA)", ""])
                 
                 w.writerow(["Meilleur Mois", stats.get("best_month", "—"), ""])
                 w.writerow(["Croissance Mensuelle", f"{stats.get('growth_rate', 0):.1f}", "%"])
@@ -932,8 +1013,8 @@ class StatisticsPage(QWidget):
                     w.writerow([
                         MOIS[m-1],
                         count,
-                        f"{total:,.2f}",
-                        f"{avg:,.2f}"
+                        f"{total:,.0f}",
+                        f"{avg:,.0f}"
                     ])
                 w.writerow([])
 
@@ -950,7 +1031,7 @@ class StatisticsPage(QWidget):
                     p = profits.get(m, {"profit": 0})
                     w.writerow([
                         MOIS[m-1],
-                        f"{p.get('profit', 0):,.2f}"
+                        f"{p.get('profit', 0):,.0f}"
                     ])
                 w.writerow([])
 
@@ -958,13 +1039,13 @@ class StatisticsPage(QWidget):
                 w.writerow(["=== TOP 5 PRODUITS LES PLUS VENDUS ==="])
                 w.writerow(["Rang", "Produit", "Quantité Vendue", "Montant (DA)"])
                 
-                top_products = self.db.get_top_products(limit=5) or []
+                top_products = self.db.get_top_products(limit=5,  year=self._get_year()) or []
                 for idx, prod in enumerate(top_products, 1):
                     w.writerow([
                         idx,
                         prod.get("name", "—"),
                         int(prod.get("total_quantity", 0)),
-                        f"{prod.get('total_sales', 0):,.2f}"
+                        f"{prod.get('total_sales', 0):,.0f}"
                     ])
                 w.writerow([])
 
@@ -972,13 +1053,13 @@ class StatisticsPage(QWidget):
                 w.writerow(["=== TOP 5 MEILLEURS CLIENTS ==="])
                 w.writerow(["Rang", "Nom Client", "Nombre de Ventes", "Montant Total (DA)"])
                 
-                top_clients = self.db.get_top_clients(limit=5) or []
+                top_clients = self.db.get_top_clients(limit=5,  year=self._get_year()) or []
                 for idx, client in enumerate(top_clients, 1):
                     w.writerow([
                         idx,
                         client.get("name", "—"),
                         int(client.get("sale_count", 0)),
-                        f"{client.get('total_amount', 0):,.2f}"
+                        f"{client.get('total_amount', 0):,.0f}"
                     ])
                 w.writerow([])
 
@@ -986,14 +1067,14 @@ class StatisticsPage(QWidget):
                 w.writerow(["=== TOP 5 PRODUITS PAR MARGE BRUTE ==="])
                 w.writerow(["Rang", "Produit", "Quantité", "Marge Unitaire (DA)", "Marge Totale (DA)"])
                 
-                profitable = self.db.get_most_profitable_products(limit=5) or []
+                profitable = self.db.get_most_profitable_products(limit=5,  year=self._get_year()) or []
                 for idx, prod in enumerate(profitable, 1):
                     w.writerow([
                         idx,
                         prod.get("name", "—"),
                         int(prod.get("qty_sold", 0)),
-                        f"{prod.get('unit_margin', 0):,.2f}",
-                        f"{prod.get('total_margin', 0):,.2f}"
+                        f"{prod.get('unit_margin', 0):,.0f}",
+                        f"{prod.get('total_margin', 0):,.0f}"
                     ])
 
             QMessageBox.information(self, "Export CSV ✅", f"Rapport généré avec succès :\n\n{path}")
@@ -1078,7 +1159,7 @@ class StatisticsPage(QWidget):
         ws.write(row, 2, "Unité", header_fmt)
         row += 1
 
-        stats = self.db.get_statistics() or {}
+        stats = self.db.get_statistics(year=self._get_year()) or {}
         sales_total = float(stats.get("sales_total", 0))
         purchases_total = float(stats.get("purchases_total", 0))
         profit = sales_total - purchases_total
@@ -1112,7 +1193,7 @@ class StatisticsPage(QWidget):
         ws.set_column("B:E", 18)
 
         row = 0
-        year = dt.now().year
+        year = self._get_year()
         ws.merge_range(row, 0, row, 4, f"VENTES MENSUELLES {year}", title_fmt)
         row += 2
 
@@ -1178,7 +1259,7 @@ class StatisticsPage(QWidget):
         ws.write(row, 3, "Montant (DA)", header_fmt)
         row += 1
 
-        top_products = self.db.get_top_products(limit=10) or []
+        top_products = self.db.get_top_products(limit=10, year=self._get_year()) or []
         for idx, prod in enumerate(top_products, 1):
             ws.write(row, 0, idx, number_fmt)
             ws.write(row, 1, prod.get("name", "—"), data_fmt)
@@ -1202,7 +1283,7 @@ class StatisticsPage(QWidget):
         ws.write(row, 3, "Montant Total (DA)", header_fmt)
         row += 1
 
-        top_clients = self.db.get_top_clients(limit=10) or []
+        top_clients = self.db.get_top_clients(limit=10, year=self._get_year()) or []
         for idx, client in enumerate(top_clients, 1):
             ws.write(row, 0, idx, number_fmt)
             ws.write(row, 1, client.get("name", "—"), data_fmt)
@@ -1227,7 +1308,7 @@ class StatisticsPage(QWidget):
         ws.write(row, 4, "Marge Totale (DA)", header_fmt)
         row += 1
 
-        profitable = self.db.get_most_profitable_products(limit=10) or []
+        profitable = self.db.get_most_profitable_products(limit=10, year=self._get_year()) or []
         for idx, prod in enumerate(profitable, 1):
             ws.write(row, 0, idx, number_fmt)
             ws.write(row, 1, prod.get("name", "—"), data_fmt)
@@ -1350,13 +1431,13 @@ class StatisticsPage(QWidget):
         story.append(Spacer(1, 1*cm))
         
         date_text = dt.now().strftime("%d/%m/%Y à %H:%M:%S")
-        year = dt.now().year
+        year = self._get_year()
         story.append(Paragraph(f"<b>Généré le :</b> {date_text}", styles['Normal']))
         story.append(Paragraph(f"<b>Période :</b> Année {year}", styles['Normal']))
         story.append(Spacer(1, 2*cm))
 
         # ====== RÉSUMÉ EXÉCUTIF (KPI) ======
-        stats = self.db.get_statistics() or {}
+        stats = self.db.get_statistics(year=self._get_year()) or {}
         sales_total = float(stats.get("sales_total", 0))
         purchases_total = float(stats.get("purchases_total", 0))
         profit = sales_total - purchases_total
@@ -1366,9 +1447,9 @@ class StatisticsPage(QWidget):
         
         kpi_data = [
             ["Indicateur", "Valeur"],
-            ["Chiffre d'Affaires Total", f"{sales_total:,.2f} DA"],
-            ["Achats Totaux", f"{purchases_total:,.2f} DA"],
-            ["Profit Net", f"{profit:,.2f} DA"],
+            ["Chiffre d'Affaires Total", f"{sales_total:,.0f} DA"],
+            ["Achats Totaux", f"{purchases_total:,.0f} DA"],
+            ["Profit Net", f"{profit:,.0f} DA"],
             ["Taux de Marge", f"{margin_pct:.1f} %"],
             ["Nombre de Clients", f"{stats.get('total_clients', 0)}"],
             ["Nombre de Produits", f"{stats.get('total_products', 0)}"],
@@ -1403,7 +1484,7 @@ class StatisticsPage(QWidget):
             count = r.get("count", 0)
             total = r.get("total", 0)
             avg = total / count if count > 0 else 0
-            monthly_data.append([MOIS[m-1], str(count), f"{total:,.2f}", f"{avg:,.2f}"])
+            monthly_data.append([MOIS[m-1], str(count), f"{total:,.0f}", f"{avg:,.0f}"])
 
         monthly_table = Table(monthly_data, colWidths=[3*cm, 3*cm, 5*cm, 5*cm])
         monthly_table.setStyle(TableStyle([
@@ -1430,14 +1511,14 @@ class StatisticsPage(QWidget):
         # ====== PAGE 3: TOP PRODUITS ======
         story.append(Paragraph("🏆 TOP 10 PRODUITS LES PLUS VENDUS", heading_style))
 
-        top_products = self.db.get_top_products(limit=10) or []
+        top_products = self.db.get_top_products(limit=10, year=self._get_year()) or []
         prod_data = [["Rang", "Produit", "Quantité", "Montant (DA)"]]
         for idx, prod in enumerate(top_products, 1):
             prod_data.append([
                 str(idx),
                 prod.get("name", "—")[:30],
                 str(int(prod.get("total_quantity", 0))),
-                f"{prod.get('total_sales', 0):,.2f}"
+                f"{prod.get('total_sales', 0):,.0f}"
             ])
 
         prod_table = Table(prod_data, colWidths=[1.5*cm, 8*cm, 3*cm, 4*cm])
@@ -1461,14 +1542,14 @@ class StatisticsPage(QWidget):
         # ====== PAGE 4: TOP CLIENTS ======
         story.append(Paragraph("👥 TOP 10 MEILLEURS CLIENTS", heading_style))
 
-        top_clients = self.db.get_top_clients(limit=10) or []
+        top_clients = self.db.get_top_clients(limit=10, year=self._get_year()) or []
         client_data = [["Rang", "Nom Client", "Ventes", "Montant Total (DA)"]]
         for idx, client in enumerate(top_clients, 1):
             client_data.append([
                 str(idx),
                 client.get("name", "—")[:30],
                 str(int(client.get("sale_count", 0))),
-                f"{client.get('total_amount', 0):,.2f}"
+                f"{client.get('total_amount', 0):,.0f}"
             ])
 
         client_table = Table(client_data, colWidths=[1.5*cm, 8*cm, 3*cm, 4*cm])
@@ -1492,15 +1573,15 @@ class StatisticsPage(QWidget):
         # ====== PAGE 5: RENTABILITÉ ======
         story.append(Paragraph("💎 TOP 10 PRODUITS PAR MARGE BRUTE", heading_style))
 
-        profitable = self.db.get_most_profitable_products(limit=10) or []
+        profitable = self.db.get_most_profitable_products(limit=10, year=self._get_year()) or []
         profit_data = [["Rang", "Produit", "Quantité", "Marge Unit.", "Marge Totale"]]
         for idx, prod in enumerate(profitable, 1):
             profit_data.append([
                 str(idx),
                 prod.get("name", "—")[:28],
                 str(int(prod.get("qty_sold", 0))),
-                f"{prod.get('unit_margin', 0):,.2f}",
-                f"{prod.get('total_margin', 0):,.2f}"
+                f"{prod.get('unit_margin', 0):,.0f}",
+                f"{prod.get('total_margin', 0):,.0f}"
             ])
 
         profit_table = Table(profit_data, colWidths=[1.5*cm, 7*cm, 2.5*cm, 3.5*cm, 3.5*cm])

@@ -326,10 +326,10 @@ class InvoiceDetailsDialog(QDialog):
             table.setItem(r, 0, make_cell(qty))
             table.setItem(r, 1, make_cell(ref if ref else '—'))
             table.setItem(r, 2, make_cell(desc if desc else '—', Qt.AlignmentFlag.AlignLeft))
-            table.setItem(r, 3, make_cell(f"{price:,.2f} DA", Qt.AlignmentFlag.AlignRight))
+            table.setItem(r, 3, make_cell(f"{price:,.0f} DA", Qt.AlignmentFlag.AlignRight))
             table.setItem(r, 4, make_cell(f"{tax_rate:.0f}%"))
             table.setItem(r, 5, make_cell(
-                f"{total:,.2f} DA",
+                f"{total:,.0f} DA",
                 Qt.AlignmentFlag.AlignRight, bold=True, color=self.GREEN
             ))
             table.setRowHeight(r, 42)
@@ -380,8 +380,8 @@ class InvoiceDetailsDialog(QDialog):
         tax_amt  = float(self.sale.get('tax_amount', 0))
         total    = float(self.sale.get('total', 0))
 
-        lay.addWidget(total_line("Sous-total HT",   f"{subtotal:,.2f} DA"))
-        lay.addWidget(total_line(f"TVA ({self.sale.get('tax_rate', 0)}%)", f"{tax_amt:,.2f} DA", self.AMBER))
+        lay.addWidget(total_line("Sous-total HT",   f"{subtotal:,.0f} DA"))
+        lay.addWidget(total_line(f"TVA ({self.sale.get('tax_rate', 0)}%)", f"{tax_amt:,.0f} DA", self.AMBER))
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -389,7 +389,7 @@ class InvoiceDetailsDialog(QDialog):
         sep.setStyleSheet(f"background:{self.BORDER}; border:none;")
         lay.addWidget(sep)
 
-        lay.addWidget(total_line("TOTAL TTC", f"{total:,.2f} DA", self.GREEN, big=True))
+        lay.addWidget(total_line("TOTAL TTC", f"{total:,.0f} DA", self.GREEN, big=True))
         return frame
 
     # ── Note de bas de page ───────────────────────────────────
@@ -726,7 +726,16 @@ class SalesHistoryPage(QWidget):
         self.return_btn.setMinimumHeight(40)
         self.return_btn.setFixedWidth(160)
 
+        # Bouton Import .dat
+        self.import_btn = QPushButton("📥 Importer .DAT")
+        self.import_btn.setStyleSheet(BUTTON_STYLES['success'])
+        self.import_btn.clicked.connect(self.import_dat_file)
+        self.import_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.import_btn.setMinimumHeight(40)
+        self.import_btn.setFixedWidth(160)
+
         actions_layout.addStretch()
+        actions_layout.addWidget(self.import_btn)
         actions_layout.addWidget(self.return_btn)
         actions_layout.addWidget(self.view_btn)
 
@@ -837,17 +846,17 @@ class SalesHistoryPage(QWidget):
         self.table.setItem(row, 3, items_item)
         
         # Sous-total
-        subtotal_item = QTableWidgetItem(f"{sale['subtotal']:,.2f} DA")
+        subtotal_item = QTableWidgetItem(f"{sale['subtotal']:,.0f} DA")
         subtotal_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 4, subtotal_item)
         
         # TVA
-        tax_item = QTableWidgetItem(f"{sale['tax_amount']:,.2f} DA")
+        tax_item = QTableWidgetItem(f"{sale['tax_amount']:,.0f} DA")
         tax_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 5, tax_item)
         
         # Total
-        total_item = QTableWidgetItem(f"{sale['total']:,.2f} DA")
+        total_item = QTableWidgetItem(f"{sale['total']:,.0f} DA")
         total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         total_item.setForeground(Qt.GlobalColor.green)
@@ -932,3 +941,143 @@ class SalesHistoryPage(QWidget):
         dialog = ReturnDialog(sale, self)
         dialog.return_created.connect(lambda _: self.load_sales())
         dialog.exec()
+
+    # ── Import fichier .DAT ───────────────────────────────────
+    def import_dat_file(self):
+        """Importe une ou plusieurs factures depuis un fichier .dat (format URL-encodé)."""
+        import os
+        from urllib.parse import unquote_plus
+
+        # ── Sélection des fichiers ────────────────────────────
+        file_paths, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Importer des factures (.dat)",
+            "",
+            "Fichiers DAT (*.dat);;Tous les fichiers (*.*)"
+        )
+        if not file_paths:
+            return
+
+        imported = 0
+        errors   = []
+
+        for file_path in file_paths:
+            try:
+                # ── Lecture et parsing ────────────────────────
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    raw = f.read().strip()
+
+                params = {}
+                for part in raw.split('&'):
+                    if '=' in part:
+                        k, _, v = part.partition('=')
+                        params[k] = unquote_plus(v)
+
+                # ── Informations générales ────────────────────
+                client_name   = params.get('Customer', 'Client Anonyme').strip() or 'Client Anonyme'
+                # Date du fichier .dat (format YYYY-MM-DD), sinon date du jour
+                date_str      = params.get('Date', '').strip()
+                if not date_str:
+                    date_str = datetime.now().strftime('%Y-%m-%d')
+                # Normaliser en format ISO datetime pour SQLite
+                if len(date_str) == 10:            # "2025-04-24"
+                    date_str = date_str + " 00:00:00"
+
+                tax_rate      = float(params.get('TaxRate', 0) or 0)
+                notes         = params.get('Notes', '')
+                payment_terms = params.get('PaymentTerms', '1')
+
+                pay_map        = {'1': 'cash', '2': 'credit', '3': 'card', '4': 'transfer'}
+                payment_method = pay_map.get(str(payment_terms), 'cash')
+
+                # ── Récupérer ou créer le client ──────────────
+                clients = self.db.search_clients(client_name)
+                if clients:
+                    client_id = clients[0]['id']
+                else:
+                    client_id = self.db.add_client(client_name)
+                if not client_id:
+                    raise ValueError(f"Impossible de créer le client '{client_name}'")
+
+                # ── Extraire les articles ─────────────────────
+                item_count   = int(params.get('ItemCount', 1) or 1)
+                items_for_db = []
+
+                for i in range(1, item_count + 1):
+                    desc      = params.get(f'Item{i}Description', f'Article {i}').strip()
+                    code      = params.get(f'Item{i}Code', '').strip()
+                    qty_raw   = params.get(f'Item{i}Qty', '1')
+                    price_raw = params.get(f'Item{i}UnitValue', '0')
+                    disc_raw  = params.get(f'Item{i}Discount', '0')
+
+                    try:
+                        qty      = float(qty_raw or 1)
+                        price    = float(price_raw or 0)
+                        discount = float(disc_raw or 0)
+                    except ValueError:
+                        qty, price, discount = 1.0, 0.0, 0.0
+
+                    # Chercher le produit, le créer si absent
+                    product_id = None
+                    if code:
+                        results = self.db.search_products(code)
+                        if results:
+                            product_id = results[0]['id']
+                    if not product_id and desc:
+                        results = self.db.search_products(desc)
+                        if results:
+                            product_id = results[0]['id']
+                    if not product_id:
+                        product_id = self.db.add_product(
+                            name           = desc or code or f'Article {i}',
+                            selling_price  = price,
+                            purchase_price = price,
+                            stock_quantity = 0,
+                            barcode        = code,
+                        )
+                    if not product_id:
+                        raise ValueError(f"Impossible de créer le produit '{desc}'")
+
+                    items_for_db.append({
+                        'product_id': product_id,
+                        'quantity':   qty,
+                        'unit_price': price,
+                        'discount':   discount,
+                    })
+
+                # ── Numéro de facture unique ──────────────────
+                base_name      = os.path.splitext(os.path.basename(file_path))[0]
+                invoice_number = f"IMP-{base_name}-{datetime.now().strftime('%H%M%S')}"
+
+                # ── Insérer via create_sale() avec la date du fichier ──
+                sale_id = self.db.create_sale(
+                    invoice_number = invoice_number,
+                    client_id      = client_id,
+                    items          = items_for_db,
+                    payment_method = payment_method,
+                    tax_rate       = tax_rate,
+                    notes          = notes,
+                    sale_date      = date_str,      # ← date du fichier .dat
+                )
+
+                if not sale_id:
+                    raise ValueError("La vente n'a pas pu être enregistrée en base de données")
+
+                imported += 1
+
+            except Exception as e:
+                errors.append(f"• {os.path.basename(file_path)}\n  → {str(e)}")
+
+        # ── Résultat ─────────────────────────────────────────
+        self.load_sales()
+
+        if errors:
+            msg = f"✅ {imported} facture(s) importée(s) avec succès."
+            msg += f"\n\n⚠️ Erreurs ({len(errors)}) :\n" + "\n".join(errors)
+            QMessageBox.warning(self, "Import terminé avec avertissements", msg)
+        else:
+            QMessageBox.information(
+                self,
+                "✅ Import réussi",
+                f"{imported} facture(s) importée(s) avec succès depuis les fichiers .dat !"
+            )

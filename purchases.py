@@ -396,7 +396,7 @@ class ProductSelectorDialog(QDialog):
             cat_item = QTableWidgetItem(product.get('category_name', '-'))
             self.table.setItem(row, 1, cat_item)
             
-            price_item = QTableWidgetItem(f"{product['purchase_price']:,.2f} DA")
+            price_item = QTableWidgetItem(f"{product['purchase_price']:,.0f} DA")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             self.table.setItem(row, 2, price_item)
             
@@ -840,13 +840,13 @@ class PurchasesPage(QWidget):
             self.table.setItem(row, 1, qty_item)
 
             # Prix
-            price_item = QTableWidgetItem(f"{product['purchase_price']:.2f}")
+            price_item = QTableWidgetItem(f"{product['purchase_price']:.0f}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             self.table.setItem(row, 2, price_item)
 
             # Total
             total = quantity * product['purchase_price']
-            total_item = QTableWidgetItem(f"{total:.2f}")
+            total_item = QTableWidgetItem(f"{total:.0f}")
             total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             total_item.setFlags(total_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 3, total_item)
@@ -892,7 +892,7 @@ class PurchasesPage(QWidget):
                 
                 total_item = self.table.item(row, 3)
                 if total_item:
-                    total_item.setText(f"{total_row:.2f}")
+                    total_item.setText(f"{total_row:.0f}")
                 
                 subtotal += total_row
             except:
@@ -901,9 +901,9 @@ class PurchasesPage(QWidget):
         tax = subtotal * 0.10
         total = subtotal + tax
 
-        self.subtotal_label.setText(f"{subtotal:,.2f} DA")
-        self.tax_label.setText(f"{tax:,.2f} DA")
-        self.total_label.setText(f"{total:,.2f} DA")
+        self.subtotal_label.setText(f"{subtotal:,.0f} DA")
+        self.tax_label.setText(f"{tax:,.0f} DA")
+        self.total_label.setText(f"{total:,.0f} DA")
         
         self.table.itemChanged.connect(self.update_totals)
 
@@ -939,12 +939,12 @@ class PurchasesPage(QWidget):
         
         reference = f"ACH-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
-        # La TVA sera récupérée automatiquement depuis les settings
         purchase_id = self.db.create_purchase(
             reference=reference,
             supplier_id=supplier_id,
             items=items,
-            payment_method="cash"
+            payment_method="cash",
+            tax_rate=10.0
         )
         
         if purchase_id:

@@ -619,7 +619,7 @@ class Database:
     # ==================== VENTES ====================
     
     def create_sale(self, invoice_number, client_id, items, payment_method="cash",
-                   tax_rate=None, discount=0, notes=""):
+                   tax_rate=None, discount=0, notes="", sale_date=None):
         """
         Crée une nouvelle vente avec ses articles
         
@@ -648,13 +648,22 @@ class Database:
             total = subtotal + tax_amount - discount
             
             # Créer la vente
-            self.cursor.execute("""
-                INSERT INTO sales 
-                (invoice_number, client_id, subtotal, tax_rate, tax_amount, 
-                 discount, total, payment_method, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (invoice_number, client_id, subtotal, tax_rate, tax_amount,
-                  discount, total, payment_method, notes))
+            if sale_date:
+                self.cursor.execute("""
+                    INSERT INTO sales 
+                    (invoice_number, client_id, subtotal, tax_rate, tax_amount, 
+                     discount, total, payment_method, notes, sale_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (invoice_number, client_id, subtotal, tax_rate, tax_amount,
+                      discount, total, payment_method, notes, sale_date))
+            else:
+                self.cursor.execute("""
+                    INSERT INTO sales 
+                    (invoice_number, client_id, subtotal, tax_rate, tax_amount, 
+                     discount, total, payment_method, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (invoice_number, client_id, subtotal, tax_rate, tax_amount,
+                      discount, total, payment_method, notes))
             
             sale_id = self.cursor.lastrowid
             
@@ -841,10 +850,11 @@ class Database:
     
     # ==================== STATISTIQUES ====================
     
-    def get_statistics(self):
-        """Récupère les statistiques globales"""
+    def get_statistics(self, year=None):
+        """Récupère les statistiques globales, filtrées par année si fournie"""
         stats = {}
-        
+        yr = str(year) if year else None
+
         # Nombre de clients
         self.cursor.execute("SELECT COUNT(*) as count FROM clients")
         stats['total_clients'] = self.cursor.fetchone()['count']
@@ -852,41 +862,53 @@ class Database:
         # Nombre de produits
         self.cursor.execute("SELECT COUNT(*) as count FROM products")
         stats['total_products'] = self.cursor.fetchone()['count']
-        
-        # Nombre de ventes
-        self.cursor.execute("SELECT COUNT(*) as count FROM sales")
+
+        # Nombre de ventes (filtré par année)
+        if yr:
+            self.cursor.execute("SELECT COUNT(*) as count FROM sales WHERE substr(sale_date,1,4) = ?", (yr,))
+        else:
+            self.cursor.execute("SELECT COUNT(*) as count FROM sales")
         stats['total_sales'] = self.cursor.fetchone()['count']
-        
-        # Nombre d'achats
-        self.cursor.execute("SELECT COUNT(*) as count FROM purchases")
+
+        # Nombre d'achats (filtré par année)
+        if yr:
+            self.cursor.execute("SELECT COUNT(*) as count FROM purchases WHERE substr(purchase_date,1,4) = ?", (yr,))
+        else:
+            self.cursor.execute("SELECT COUNT(*) as count FROM purchases")
         stats['total_purchases'] = self.cursor.fetchone()['count']
-        
-        # Total des ventes
-        self.cursor.execute("SELECT COALESCE(SUM(total), 0) as total FROM sales")
+
+        # Total des ventes (filtré par année)
+        if yr:
+            self.cursor.execute("SELECT COALESCE(SUM(total), 0) as total FROM sales WHERE substr(sale_date,1,4) = ?", (yr,))
+        else:
+            self.cursor.execute("SELECT COALESCE(SUM(total), 0) as total FROM sales")
         stats['sales_total'] = self.cursor.fetchone()['total']
-        
-        # Total des achats
-        self.cursor.execute("SELECT COALESCE(SUM(total), 0) as total FROM purchases")
+
+        # Total des achats (filtré par année)
+        if yr:
+            self.cursor.execute("SELECT COALESCE(SUM(total), 0) as total FROM purchases WHERE substr(purchase_date,1,4) = ?", (yr,))
+        else:
+            self.cursor.execute("SELECT COALESCE(SUM(total), 0) as total FROM purchases")
         stats['purchases_total'] = self.cursor.fetchone()['total']
-        
+
         # Bénéfice
         stats['profit'] = stats['sales_total'] - stats['purchases_total']
-        
-        # Valeur du stock
+
+        # Valeur du stock (pas filtrable par année — toujours global)
         self.cursor.execute("""
             SELECT COALESCE(SUM(stock_quantity * selling_price), 0) as total 
             FROM products
         """)
         stats['stock_value'] = self.cursor.fetchone()['total']
-        
-        # Produits en rupture de stock
+
+        # Produits en rupture de stock (toujours global)
         self.cursor.execute("""
             SELECT COUNT(*) as count FROM products 
             WHERE stock_quantity <= min_stock
         """)
         stats['low_stock_count'] = self.cursor.fetchone()['count']
-        
-        # Ventes d'aujourd'hui
+
+        # Ventes d'aujourd'hui (toujours aujourd'hui)
         today = datetime.now().strftime('%Y-%m-%d')
         self.cursor.execute("""
             SELECT COALESCE(SUM(total), 0) as total FROM sales
@@ -894,10 +916,10 @@ class Database:
         """, (today,))
         stats['sales_today'] = self.cursor.fetchone()['total']
 
-        year = datetime.now().year
-        stats['best_month'] = self.get_best_month(year)
-        stats['growth_rate'] = self.get_growth_rate(year)
-        
+        active_year = year if year else datetime.now().year
+        stats['best_month'] = self.get_best_month(active_year)
+        stats['growth_rate'] = self.get_growth_rate(active_year)
+
         return stats
         
         
@@ -916,34 +938,63 @@ class Database:
         """, (str(year),))
         return [dict(row) for row in self.cursor.fetchall()]
     
-    def get_top_products(self, limit=10):
-        """Récupère les produits les plus vendus"""
-        self.cursor.execute("""
-            SELECT 
-                p.name,
-                SUM(si.quantity) as total_quantity,
-                SUM(si.total) as total_sales
-            FROM sale_items si
-            JOIN products p ON si.product_id = p.id
-            GROUP BY si.product_id
-            ORDER BY total_quantity DESC
-            LIMIT ?
-        """, (limit,))
+    def get_top_products(self, limit=10, year=None):
+        """Récupère les produits les plus vendus, filtrés par année si fournie"""
+        if year:
+            self.cursor.execute("""
+                SELECT 
+                    p.name,
+                    SUM(si.quantity) as total_quantity,
+                    SUM(si.total) as total_sales
+                FROM sale_items si
+                JOIN products p ON si.product_id = p.id
+                JOIN sales s ON si.sale_id = s.id
+                WHERE substr(s.sale_date, 1, 4) = ?
+                GROUP BY si.product_id
+                ORDER BY total_quantity DESC
+                LIMIT ?
+            """, (str(year), limit))
+        else:
+            self.cursor.execute("""
+                SELECT 
+                    p.name,
+                    SUM(si.quantity) as total_quantity,
+                    SUM(si.total) as total_sales
+                FROM sale_items si
+                JOIN products p ON si.product_id = p.id
+                GROUP BY si.product_id
+                ORDER BY total_quantity DESC
+                LIMIT ?
+            """, (limit,))
         return [dict(row) for row in self.cursor.fetchall()]
     
-    def get_top_clients(self, limit=10):
-        """Récupère les meilleurs clients"""
-        self.cursor.execute("""
-            SELECT 
-                c.name,
-                COUNT(s.id) as sale_count,
-                SUM(s.total) as total_amount
-            FROM sales s
-            JOIN clients c ON s.client_id = c.id
-            GROUP BY s.client_id
-            ORDER BY total_amount DESC
-            LIMIT ?
-        """, (limit,))
+    def get_top_clients(self, limit=10, year=None):
+        """Récupère les meilleurs clients, filtrés par année si fournie"""
+        if year:
+            self.cursor.execute("""
+                SELECT 
+                    c.name,
+                    COUNT(s.id) as sale_count,
+                    SUM(s.total) as total_amount
+                FROM sales s
+                JOIN clients c ON s.client_id = c.id
+                WHERE substr(s.sale_date, 1, 4) = ?
+                GROUP BY s.client_id
+                ORDER BY total_amount DESC
+                LIMIT ?
+            """, (str(year), limit))
+        else:
+            self.cursor.execute("""
+                SELECT 
+                    c.name,
+                    COUNT(s.id) as sale_count,
+                    SUM(s.total) as total_amount
+                FROM sales s
+                JOIN clients c ON s.client_id = c.id
+                GROUP BY s.client_id
+                ORDER BY total_amount DESC
+                LIMIT ?
+            """, (limit,))
         return [dict(row) for row in self.cursor.fetchall()]
     
 
@@ -1213,7 +1264,7 @@ class Database:
             print(f"❌ Erreur get_cart_value_by_period: {e}")
             return {'avg_cart': 0, 'num_sales': 0, 'period_days': days}
 
-    def get_most_profitable_products(self, limit=10):
+    def get_most_profitable_products(self, limit=10, year=None):
         """
         Récupère les produits avec la meilleure marge brute
         Marge = (Prix vente - Prix achat) * Quantité vendue
@@ -1235,11 +1286,13 @@ class Database:
                     END as margin_percentage
                 FROM products p
                 LEFT JOIN sale_items si ON p.id = si.product_id
+                LEFT JOIN sales s ON si.sale_id = s.id
+                WHERE (? IS NULL OR substr(s.sale_date, 1, 4) = ?)
                 GROUP BY p.id
                 HAVING quantity_sold > 0
                 ORDER BY gross_margin DESC
                 LIMIT ?
-            """, (limit,))
+            """, (str(year) if year else None, str(year) if year else None, limit,))
             
             return [dict(row) for row in self.cursor.fetchall()]
         except Exception as e:

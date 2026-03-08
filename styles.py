@@ -1,49 +1,50 @@
 """
 Module de styles réutilisables pour l'application
 Design moderne et vif — Palette Bleu Électrique + Cyan
+Fond anthracite #1E1E2E
 """
 
 # ==================== COULEURS ====================
 COLORS = {
-    # Couleurs principales Blue & Purple
-    'primary':        '#6366F1',        # Bleu indigo vif
-    'primary_dark':   '#4F46E5',        # Bleu indigo foncé
-    'primary_light':  '#818CF8',        # Bleu indigo clair
-    'secondary':      '#A855F7',        # Purple éclatant
-    'secondary_dark': '#9333EA',        # Purple foncé
+    # Couleurs principales vives
+    'primary':        '#00B4FF',        # Bleu électrique vif
+    'primary_dark':   '#0090DD',        # Bleu électrique foncé
+    'primary_light':  '#40CAFF',        # Bleu électrique clair
+    'secondary':      '#00E5FF',        # Cyan éclatant
+    'secondary_dark': '#00B8CC',        # Cyan foncé
 
     # Statuts
-    'success':        '#10B981',        # Vert succès
-    'warning':        '#F59E0B',        # Jaune vif
-    'danger':         '#EF4444',        # Rouge vif
-    'info':           '#06B6D4',        # Cyan info
+    'success':        '#00E676',        # Vert néon
+    'warning':        '#FFD600',        # Jaune vif
+    'danger':         '#FF1744',        # Rouge vif
+    'info':           '#00B0FF',        # Bleu info
 
-    # Fonds bleu profond
-    'bg_dark':        '#0F172A',        # Fond principal
-    'bg_medium':      '#1E293B',        # Fond cartes
-    'bg_light':       '#334155',        # Fond hover / inputs
-    'bg_card':        '#1E293B',
+    # Fonds anthracite — plus clairs, respirants
+    'bg_dark':        '#1E1E2E',        # Fond principal
+    'bg_medium':      '#252535',        # Fond cartes
+    'bg_light':       '#2E2E45',        # Fond hover / inputs
+    'bg_card':        '#252535',
 
     # Textes
-    'text_primary':   '#F8FAFC',        # Blanc froid
-    'text_secondary': '#CBD5E1',        # Gris-bleu doux
-    'text_tertiary':  '#818CF8',        # Bleu indigo (accents texte)
+    'text_primary':   '#F0F4FF',        # Blanc bleuté
+    'text_secondary': '#A0AACC',        # Gris-bleu doux
+    'text_tertiary':  '#00E5FF',        # Cyan (accents texte)
 
     # Bordures
-    'border':         'rgba(99,102,241,0.20)',        # Bordure bleu subtile
-    'border_light':   '#A855F7',        # Bordure purple hover
+    'border':         '#2E3A5C',        # Bordure subtile
+    'border_light':   '#00B4FF',        # Bordure hover bleu
 
-    # Inputs
-    'bg_input':       '#1E293B',
+    # Inputs — fond anthracite neutre (PLUS DE ROSE !)
+    'bg_input':       '#252535',
 
-    # Alias uppercase
-    'BG_PAGE':        '#0F172A',
-    'BG_CARD':        '#1E293B',
-    'BG_DEEP':        '#0A0F1F',
-    'BORDER':         'rgba(99,102,241,0.20)',
-    'TXT_PRI':        '#F8FAFC',
-    'TXT_SEC':        'rgba(203,213,225,0.85)',
-    'TXT_MUTED':      'rgba(126,139,141,0.50)',
+    # Alias uppercase (utilisés dans TABLE_STYLE / INPUT_STYLE)
+    'BG_PAGE':        '#1E1E2E',
+    'BG_CARD':        '#252535',
+    'BG_DEEP':        '#16161F',
+    'BORDER':         'rgba(0,180,255,0.20)',
+    'TXT_PRI':        '#F0F4FF',
+    'TXT_SEC':        'rgba(160,170,204,0.85)',
+    'TXT_MUTED':      'rgba(160,170,204,0.40)',
 }
 
 
@@ -53,7 +54,7 @@ BUTTON_STYLES = {
         QPushButton {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                 stop:0 {COLORS['primary']}, stop:1 {COLORS['primary_dark']});
-            color: white;
+            color: #0A0A1A;
             border: none;
             border-radius: 8px;
             padding: 10px 20px;
@@ -69,7 +70,7 @@ BUTTON_STYLES = {
             background: {COLORS['primary_dark']};
         }}
         QPushButton:disabled {{
-            background: #1A7272;
+            background: #2E2E45;
             color: #555570;
         }}
     """,
@@ -77,8 +78,8 @@ BUTTON_STYLES = {
     'success': f"""
         QPushButton {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS['success']}, stop:1 #059669);
-            color: white;
+                stop:0 {COLORS['success']}, stop:1 #00C853);
+            color: #0A0A1A;
             border: none;
             border-radius: 8px;
             padding: 10px 20px;
@@ -88,17 +89,17 @@ BUTTON_STYLES = {
         }}
         QPushButton:hover {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #34D399, stop:1 {COLORS['success']});
+                stop:0 #69FF99, stop:1 {COLORS['success']});
         }}
         QPushButton:pressed {{
-            background: #059669;
+            background: #00C853;
         }}
     """,
 
     'danger': f"""
         QPushButton {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 {COLORS['danger']}, stop:1 #DC2626);
+                stop:0 {COLORS['danger']}, stop:1 #D50000);
             color: white;
             border: none;
             border-radius: 8px;
@@ -109,10 +110,10 @@ BUTTON_STYLES = {
         }}
         QPushButton:hover {{
             background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                stop:0 #F87171, stop:1 {COLORS['danger']});
+                stop:0 #FF6E6E, stop:1 {COLORS['danger']});
         }}
         QPushButton:pressed {{
-            background: #DC2626;
+            background: #D50000;
         }}
     """,
 
@@ -128,12 +129,33 @@ BUTTON_STYLES = {
             min-height: 36px;
         }}
         QPushButton:hover {{
-            background: rgba(168,85,247,0.12);
-            border-color: #D8B4FE;
-            color: #D8B4FE;
+            background: rgba(0, 229, 255, 0.12);
+            border-color: #40F0FF;
+            color: #40F0FF;
         }}
         QPushButton:pressed {{
-            background: rgba(168,85,247,0.25);
+            background: rgba(0, 229, 255, 0.25);
+        }}
+    """,
+
+    'warning': f"""
+        QPushButton {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 {COLORS['warning']}, stop:1 #FFC200);
+            color: #0A0A1A;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            min-height: 36px;
+        }}
+        QPushButton:hover {{
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #FFE033, stop:1 {COLORS['warning']});
+        }}
+        QPushButton:pressed {{
+            background: #FFC200;
         }}
     """,
 }
@@ -142,7 +164,7 @@ BUTTON_STYLES = {
 CARD_STYLE = f"""
     QFrame {{
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 {COLORS['bg_card']}, stop:1 {COLORS['bg_dark']});
+            stop:0 {COLORS['bg_medium']}, stop:1 {COLORS['bg_dark']});
         border-radius: 12px;
         border: 1px solid {COLORS['border']};
     }}
@@ -155,10 +177,10 @@ CARD_STYLE = f"""
 TABLE_STYLE = f"""
     QTableWidget {{
         background-color: {COLORS['BG_CARD']};
-        alternate-background-color: #0F5252;
+        alternate-background-color: #222233;
         border: 1px solid {COLORS['border']};
         border-radius: 8px;
-        gridline-color: #1A6B6B;
+        gridline-color: #2A2A40;
         color: {COLORS['text_primary']};
         selection-background-color: {COLORS['primary_dark']};
     }}
@@ -175,7 +197,7 @@ TABLE_STYLE = f"""
     }}
     QHeaderView::section {{
         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-            stop:0 #0F5555, stop:1 {COLORS['bg_medium']});
+            stop:0 #2A2A40, stop:1 {COLORS['bg_medium']});
         color: {COLORS['primary_light']};
         padding: 10px;
         border: none;
@@ -192,7 +214,7 @@ TABLE_STYLE = f"""
 # ==================== STYLES DE CHAMPS DE SAISIE ====================
 INPUT_STYLE = f"""
     QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit {{
-        background-color: {COLORS['secondary_dark']};
+        background-color: {COLORS['bg_input']};
         border: 2px solid {COLORS['border']};
         border-radius: 8px;
         padding: 8px 12px;
@@ -200,11 +222,13 @@ INPUT_STYLE = f"""
         font-size: 14px;
         min-height: 36px;
     }}
-    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QTextEdit:focus {{
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus,
+    QDoubleSpinBox:focus, QTextEdit:focus {{
         border: 2px solid {COLORS['primary']};
         background-color: {COLORS['bg_light']};
     }}
-    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover, QTextEdit:hover {{
+    QLineEdit:hover, QComboBox:hover, QSpinBox:hover,
+    QDoubleSpinBox:hover, QTextEdit:hover {{
         border: 2px solid {COLORS['border_light']};
     }}
     QComboBox::drop-down {{
@@ -369,7 +393,7 @@ def get_kpi_card_style(color):
             border: 1px solid {COLORS['primary']};
             border-left: 4px solid {color};
             background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                stop:0 {COLORS['bg_medium']}, stop:1 {COLORS['bg_dark']});
+                stop:0 {COLORS['bg_light']}, stop:1 {COLORS['bg_medium']});
         }}
     """
 
@@ -377,56 +401,56 @@ def get_kpi_card_style(color):
 # ==================== STYLES SETTINGS ====================
 
 DARK_COLORS = {
-    'bg_page':   '#0D4A4A',
-    'bg_card':   '#155E5E',
-    'bg_deep':   '#0A3A3A',
-    'border':    'rgba(46,204,113,0.20)',
-    'txt_pri':   '#FFFFFF',
-    'txt_sec':   'rgba(213,232,232,0.85)',
-    'txt_muted': 'rgba(168,213,213,0.50)',
+    'bg_page':   '#1E1E2E',
+    'bg_card':   '#252535',
+    'bg_deep':   '#16161F',
+    'border':    'rgba(0,180,255,0.20)',
+    'txt_pri':   '#F0F4FF',
+    'txt_sec':   'rgba(160,170,204,0.85)',
+    'txt_muted': 'rgba(160,170,204,0.40)',
 }
 
 SETTINGS_CARD_STYLE = """
     QFrame {
-        background: #155E5E;
+        background: #252535;
         border-radius: 14px;
-        border: 1px solid rgba(46,204,113,0.20);
+        border: 1px solid rgba(0,180,255,0.20);
     }
 """
 
 SETTINGS_INPUT_STYLE = """
     QLineEdit {
-        background: #0D4A4A;
-        color: #FFFFFF;
-        border: 1px solid rgba(46,204,113,0.30);
+        background: #1E1E2E;
+        color: #F0F4FF;
+        border: 1px solid rgba(0,180,255,0.25);
         border-radius: 8px;
         padding: 10px 14px;
         font-size: 13px;
-        selection-background-color: #2ECC71;
+        selection-background-color: #00B4FF;
     }
     QLineEdit:focus {
-        border: 1px solid #2ECC71;
-        background: #155E5E;
+        border: 1px solid #00B4FF;
+        background: #252535;
     }
 """
 
 SETTINGS_COMBO_STYLE = """
     QComboBox {
-        background: #0D4A4A;
-        color: #FFFFFF;
-        border: 1px solid rgba(46,204,113,0.30);
+        background: #1E1E2E;
+        color: #F0F4FF;
+        border: 1px solid rgba(0,180,255,0.25);
         border-radius: 8px;
         padding: 10px 14px;
         font-size: 13px;
         min-height: 42px;
     }
-    QComboBox:focus { border: 1px solid #2ECC71; }
+    QComboBox:focus { border: 1px solid #00B4FF; }
     QComboBox::drop-down { border: none; width: 30px; }
     QComboBox QAbstractItemView {
-        background: #155E5E;
-        color: #FFFFFF;
-        selection-background-color: #27AE60;
-        border: 1px solid rgba(46,204,113,0.20);
+        background: #252535;
+        color: #F0F4FF;
+        selection-background-color: #0090DD;
+        border: 1px solid rgba(0,180,255,0.20);
     }
 """
 
