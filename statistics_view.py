@@ -9,116 +9,17 @@ from PyQt6.QtWidgets import (
     QGridLayout, QTableWidget, QHeaderView, QTableWidgetItem
 )
 from PyQt6.QtGui import QFont, QColor
-from PyQt6.QtCore import Qt, QObject, pyqtProperty, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import Qt
 import pyqtgraph as pg
 import csv
 from datetime import datetime
 from db_manager import get_database
-
-
-# ─────────────────────────────────────────────────────────────
-#  Palette Colors
-# ─────────────────────────────────────────────────────────────
-
-BG_PAGE  = "#0F1117"
-BG_CARD  = "#1A1D27"
-BG_DEEP  = "#13151F"
-BORDER   = "rgba(255,255,255,0.07)"
-TXT_PRI  = "#F1F5F9"
-TXT_SEC  = "rgba(255,255,255,0.45)"
-
-C_BLUE   = "#3B82F6"
-C_GREEN  = "#10B981"
-C_AMBER  = "#F59E0B"
-C_VIOLET = "#8B5CF6"
-C_CYAN   = "#06B6D4"
-C_RED    = "#EF4444"
-
-CHART_COLORS = [C_BLUE, C_GREEN, C_AMBER, C_VIOLET, C_CYAN]
-
-CARD_STYLE = f"""
-    QFrame {{
-        background: {BG_CARD};
-        border-radius: 16px;
-        border: 1px solid {BORDER};
-    }}
-"""
-
-MONTHS_FR = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc']
-
-
-# ─────────────────────────────────────────────────────────────
-#  Counter Animation
-# ─────────────────────────────────────────────────────────────
-
-class _KpiAnim(QObject):
-    def __init__(self, label, suffix=""):
-        super().__init__()
-        self._v = 0
-        self.label = label
-        self.suffix = suffix
-
-    def _get(self):
-        return self._v
-
-    def _set(self, v):
-        self._v = v
-        self.label.setText(f"{v:,.0f}{self.suffix}")
-
-    value = pyqtProperty(float, fget=_get, fset=_set)
-
-
-def count_up(label, target, suffix="", ms=700):
-    obj = _KpiAnim(label, suffix)
-    anim = QPropertyAnimation(obj, b"value")
-    anim.setDuration(ms)
-    anim.setStartValue(0.0)
-    anim.setEndValue(float(target))
-    anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-    anim.start()
-    label._anim = anim
-    label._obj = obj
-
-
-# ─────────────────────────────────────────────────────────────
-#  Helpers UI
-# ─────────────────────────────────────────────────────────────
-
-def _sep():
-    f = QFrame()
-    f.setFrameShape(QFrame.Shape.HLine)
-    f.setFixedHeight(1)
-    f.setStyleSheet(f"background:{BORDER}; border:none;")
-    return f
-
-def _card():
-    f = QFrame()
-    f.setStyleSheet(CARD_STYLE)
-    return f
-
-def _lbl(text, size, bold=False, color=TXT_PRI):
-    l = QLabel(text)
-    l.setFont(QFont("Segoe UI", size, QFont.Weight.Bold if bold else QFont.Weight.Normal))
-    l.setStyleSheet(f"color:{color}; background:transparent;")
-    return l
-
-def _styled_plot(bg=BG_DEEP, height=220):
-    plot = pg.PlotWidget()
-    plot.setBackground(bg)
-    plot.setMinimumHeight(height)
-    plot.showGrid(x=True, y=True, alpha=0.08)
-    plot.setMouseEnabled(x=False, y=False)
-    plot.hideButtons()
-
-    axis_pen  = pg.mkPen(color="#ffffff22", width=1)
-    label_pen = pg.mkPen(color="#ffffff55")
-
-    for axis in ("bottom", "left"):
-        plot.getAxis(axis).setPen(axis_pen)
-        plot.getAxis(axis).setTextPen(label_pen)
-        plot.getAxis(axis).setStyle(tickFont=QFont("Segoe UI", 8))
-
-    return plot
+from ui_components import (
+    BG_PAGE, BG_CARD, BG_DEEP, BORDER, TXT_PRI, TXT_SEC,
+    C_BLUE, C_GREEN, C_AMBER, C_VIOLET, C_CYAN, C_RED,
+    CARD_STYLE, MONTHS_FR, CHART_COLORS,
+    _KpiAnim, count_up, _card, _lbl, _sep, _styled_plot
+)
 
 
 # ─────────────────────────────────────────────────────────────
