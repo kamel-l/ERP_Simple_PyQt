@@ -10,6 +10,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, QObject, pyqtProperty, QPropertyAnimation, QEasingCurve
 from db_manager import get_database
+try:
+    from sales_history import InvoiceDetailsDialog
+    _DETAIL_AVAILABLE = True
+except ImportError:
+    _DETAIL_AVAILABLE = False
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 
 
@@ -355,10 +360,12 @@ class DashboardPage(QWidget):
         layout.addWidget(divider())
 
         # Tableau
-        self.invoice_table = QTableWidget(0, 5)
+        self.invoice_table = QTableWidget(0, 6)
         self.invoice_table.setHorizontalHeaderLabels(
-            ["Facture", "Client", "Total", "Date", "Paiement"])
+            ["Facture", "Client", "Total", "Date", "Paiement", ""])
         self.invoice_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.invoice_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        self.invoice_table.setColumnWidth(5, 90)
         self.invoice_table.verticalHeader().setVisible(False)
         self.invoice_table.setAlternatingRowColors(True)
         self.invoice_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -479,6 +486,19 @@ class DashboardPage(QWidget):
         low = self.db.get_low_stock_products() or []
         self._info_cards[2].value_label.setText(f"{len(low)} produit{'s' if len(low) != 1 else ''}")
 
+    def _open_detail(self, sale_id):
+        """Ouvre le dialogue de détail d'une facture."""
+        if not _DETAIL_AVAILABLE:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Module manquant",
+                "Le module sales_history.py est introuvable.")
+            return
+        sale = self.db.get_sale_by_id(sale_id)
+        if not sale:
+            return
+        dlg = InvoiceDetailsDialog(sale, self)
+        dlg.exec()
+
     def _load_invoices(self):
         data = self.db.get_all_sales(limit=10)
         self.invoice_table.setRowCount(len(data))
@@ -489,11 +509,11 @@ class DashboardPage(QWidget):
             pay    = sale.get("payment_method", sale.get("payment_mode", "—"))
 
             cells = [
-                (sale["invoice_number"], 'TXT_PRI'),
-                (client,                 'TXT_SEC'),
-                (f"{fmt_da(sale['total'], 0)}", "#2ECC71"),
-                (date,                   'TXT_SEC'),
-                (pay,                    'TXT_SEC'),
+                (f"{sale['invoice_number']}", "#F1F7F4"),
+                (f"{client}",                "#F1F7F4"),
+                (f"{fmt_da(sale['total'])}", "#10B981"),
+                (f"{date}",                 "#F1F7F4"),
+                (f"{pay}",                  "#F1F7F4"),
             ]
 
             for col, (val, color) in enumerate(cells):
@@ -502,6 +522,31 @@ class DashboardPage(QWidget):
                 item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
                 self.invoice_table.setItem(r, col, item)
 
-        self.invoice_table.setRowHeight(0, 44)
+            # ── Bouton Voir Détails ──────────────────────────
+            btn = QPushButton("👁 Détails")
+            btn.setFixedHeight(30)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: rgba(99,102,241,0.18);
+                    color: #A5B4FC;
+                    border: 1px solid rgba(99,102,241,0.40);
+                    border-radius: 7px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    padding: 0 8px;
+                }
+                QPushButton:hover {
+                    background: rgba(99,102,241,0.38);
+                    color: white;
+                }
+                QPushButton:pressed {
+                    background: rgba(99,102,241,0.55);
+                }
+            """)
+            sale_id = sale['id']
+            btn.clicked.connect(lambda _, sid=sale_id: self._open_detail(sid))
+            self.invoice_table.setCellWidget(r, 5, btn)
+
         for r in range(self.invoice_table.rowCount()):
             self.invoice_table.setRowHeight(r, 44)

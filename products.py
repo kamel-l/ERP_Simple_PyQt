@@ -466,16 +466,16 @@ class ProductsPage(QWidget):
             qty_item.setForeground(Qt.GlobalColor.red)
         self.table.setItem(row, 3, qty_item)
         
-        price_buy_item = QTableWidgetItem(f"{product.get('purchase_price', 0):,.0f}")
+        price_buy_item = QTableWidgetItem(fmt_da(product.get('purchase_price', 0)))
         price_buy_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 4, price_buy_item)
         
-        price_item = QTableWidgetItem(f"{product['selling_price']:,.0f}")
+        price_item = QTableWidgetItem(fmt_da(product['selling_price']))
         price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 5, price_item)
         
         total_value = product["stock_quantity"] * product["selling_price"]
-        value_item = QTableWidgetItem(f"{total_value:,.0f}")
+        value_item = QTableWidgetItem(fmt_da(total_value, 0))
         value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.table.setItem(row, 6, value_item)

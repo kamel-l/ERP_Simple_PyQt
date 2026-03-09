@@ -23,6 +23,13 @@ def fmt_da(value, decimals=2):
         return f"{v:,.0f} DA"
     return f"{v:,.2f} DA"
 
+def clean_num(text):
+    """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
+    try:
+        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
+    except (ValueError, TypeError):
+        return 0.0
+
 # ------------------ DIALOG POUR CRÉER UN NOUVEAU PRODUIT ------------------
 class NewProductDialog(QDialog):
     def __init__(self):
@@ -409,7 +416,7 @@ class ProductSelectorDialog(QDialog):
             cat_item = QTableWidgetItem(product.get('category_name', '-'))
             self.table.setItem(row, 1, cat_item)
             
-            price_item = QTableWidgetItem(f"{fmt_da(product['purchase_price'], 0)}")
+            price_item = QTableWidgetItem(fmt_da(product['purchase_price']))
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             self.table.setItem(row, 2, price_item)
             
@@ -853,13 +860,13 @@ class PurchasesPage(QWidget):
             self.table.setItem(row, 1, qty_item)
 
             # Prix
-            price_item = QTableWidgetItem(f"{product['purchase_price']:.0f}")
+            price_item = QTableWidgetItem(fmt_da(product['purchase_price']))
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             self.table.setItem(row, 2, price_item)
 
             # Total
             total = quantity * product['purchase_price']
-            total_item = QTableWidgetItem(f"{total:.0f}")
+            total_item = QTableWidgetItem(fmt_da(total))
             total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             total_item.setFlags(total_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 3, total_item)
@@ -899,13 +906,13 @@ class PurchasesPage(QWidget):
         
         for row in range(self.table.rowCount()):
             try:
-                qty = float(self.table.item(row, 1).text() or "0")
-                price = float(self.table.item(row, 2).text() or "0")
+                qty   = clean_num(self.table.item(row, 1).text())
+                price = clean_num(self.table.item(row, 2).text())
                 total_row = qty * price
-                
+
                 total_item = self.table.item(row, 3)
                 if total_item:
-                    total_item.setText(f"{total_row:.0f}")
+                    total_item.setText(fmt_da(total_row))
                 
                 subtotal += total_row
             except:
@@ -914,9 +921,9 @@ class PurchasesPage(QWidget):
         tax = subtotal * 0.10
         total = subtotal + tax
 
-        self.subtotal_label.setText(f"{fmt_da(subtotal, 0)}")
-        self.tax_label.setText(f"{fmt_da(tax, 0)}")
-        self.total_label.setText(f"{fmt_da(total, 0)}")
+        self.subtotal_label.setText(fmt_da(subtotal))
+        self.tax_label.setText(fmt_da(tax))
+        self.total_label.setText(fmt_da(total))
         
         self.table.itemChanged.connect(self.update_totals)
 
@@ -937,8 +944,8 @@ class PurchasesPage(QWidget):
                 product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)  # C'est l'ID
                 product_name = self.table.item(row, 0).text()  # C'est le nom affiché
                 
-                quantity = int(float(self.table.item(row, 1).text()))
-                unit_price = float(self.table.item(row, 2).text())
+                quantity  = int(clean_num(self.table.item(row, 1).text()))
+                unit_price = clean_num(self.table.item(row, 2).text())
                 
                 items.append({
                     'product_id': product_id,  # Garder l'ID pour le stock
