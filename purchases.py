@@ -1,4 +1,8 @@
 from PyQt6.QtWidgets import (
+
+
+
+
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, 
     QMessageBox, QDialog, QLineEdit, QFormLayout, QInputDialog
@@ -9,6 +13,15 @@ from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
 
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 # ------------------ DIALOG POUR CRÉER UN NOUVEAU PRODUIT ------------------
 class NewProductDialog(QDialog):
@@ -396,7 +409,7 @@ class ProductSelectorDialog(QDialog):
             cat_item = QTableWidgetItem(product.get('category_name', '-'))
             self.table.setItem(row, 1, cat_item)
             
-            price_item = QTableWidgetItem(f"{product['purchase_price']:,.0f} DA")
+            price_item = QTableWidgetItem(f"{fmt_da(product['purchase_price'], 0)}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             self.table.setItem(row, 2, price_item)
             
@@ -901,9 +914,9 @@ class PurchasesPage(QWidget):
         tax = subtotal * 0.10
         total = subtotal + tax
 
-        self.subtotal_label.setText(f"{subtotal:,.0f} DA")
-        self.tax_label.setText(f"{tax:,.0f} DA")
-        self.total_label.setText(f"{total:,.0f} DA")
+        self.subtotal_label.setText(f"{fmt_da(subtotal, 0)}")
+        self.tax_label.setText(f"{fmt_da(tax, 0)}")
+        self.total_label.setText(f"{fmt_da(total, 0)}")
         
         self.table.itemChanged.connect(self.update_totals)
 

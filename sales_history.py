@@ -1,3 +1,13 @@
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QHBoxLayout, QFrame, QComboBox, QLineEdit, 
@@ -326,10 +336,10 @@ class InvoiceDetailsDialog(QDialog):
             table.setItem(r, 0, make_cell(qty))
             table.setItem(r, 1, make_cell(ref if ref else '—'))
             table.setItem(r, 2, make_cell(desc if desc else '—', Qt.AlignmentFlag.AlignLeft))
-            table.setItem(r, 3, make_cell(f"{price:,.0f} DA", Qt.AlignmentFlag.AlignRight))
+            table.setItem(r, 3, make_cell(f"{fmt_da(price)}", Qt.AlignmentFlag.AlignRight))
             table.setItem(r, 4, make_cell(f"{tax_rate:.0f}%"))
             table.setItem(r, 5, make_cell(
-                f"{total:,.0f} DA",
+                f"{fmt_da(total)}",
                 Qt.AlignmentFlag.AlignRight, bold=True, color=self.GREEN
             ))
             table.setRowHeight(r, 42)
@@ -380,8 +390,8 @@ class InvoiceDetailsDialog(QDialog):
         tax_amt  = float(self.sale.get('tax_amount', 0))
         total    = float(self.sale.get('total', 0))
 
-        lay.addWidget(total_line("Sous-total HT",   f"{subtotal:,.0f} DA"))
-        lay.addWidget(total_line(f"TVA ({self.sale.get('tax_rate', 0)}%)", f"{tax_amt:,.0f} DA", self.AMBER))
+        lay.addWidget(total_line("Sous-total HT",   f"{fmt_da(subtotal)}"))
+        lay.addWidget(total_line(f"TVA ({self.sale.get('tax_rate', 0)}%)", f"{fmt_da(tax_amt)}", self.AMBER))
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -389,7 +399,7 @@ class InvoiceDetailsDialog(QDialog):
         sep.setStyleSheet(f"background:{self.BORDER}; border:none;")
         lay.addWidget(sep)
 
-        lay.addWidget(total_line("TOTAL TTC", f"{total:,.0f} DA", self.GREEN, big=True))
+        lay.addWidget(total_line("TOTAL TTC", f"{fmt_da(total)}", self.GREEN, big=True))
         return frame
 
     # ── Note de bas de page ───────────────────────────────────
@@ -799,13 +809,13 @@ class SalesHistoryPage(QWidget):
         
         # Ajouter les cartes
         stats_layout.insertWidget(0, self.build_stat_card(
-            "Ventes Aujourd'hui", f"{today_total:,.0f} DA", COLORS['primary']
+            "Ventes Aujourd'hui", f"{fmt_da(today_total)}", COLORS['primary']
         ))
         stats_layout.insertWidget(1, self.build_stat_card(
-            "Ventes Cette Semaine", f"{week_total:,.0f} DA", COLORS['success']
+            "Ventes Cette Semaine", f"{fmt_da(week_total)}", COLORS['success']
         ))
         stats_layout.insertWidget(2, self.build_stat_card(
-            "Total Ventes", f"{stats['sales_total']:,.0f} DA", COLORS['secondary']
+            "Total Ventes", f"{fmt_da(stats['sales_total'])}", COLORS['secondary']
         ))
 
     def load_sales(self):
@@ -846,17 +856,17 @@ class SalesHistoryPage(QWidget):
         self.table.setItem(row, 3, items_item)
         
         # Sous-total
-        subtotal_item = QTableWidgetItem(f"{sale['subtotal']:,.0f} DA")
+        subtotal_item = QTableWidgetItem(f"{fmt_da(sale['subtotal'])}")
         subtotal_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 4, subtotal_item)
         
         # TVA
-        tax_item = QTableWidgetItem(f"{sale['tax_amount']:,.0f} DA")
+        tax_item = QTableWidgetItem(f"{fmt_da(sale['tax_amount'])}")
         tax_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 5, tax_item)
         
         # Total
-        total_item = QTableWidgetItem(f"{sale['total']:,.0f} DA")
+        total_item = QTableWidgetItem(f"{fmt_da(sale['total'])}")
         total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         total_item.setForeground(Qt.GlobalColor.green)

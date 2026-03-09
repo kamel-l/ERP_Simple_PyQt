@@ -1,3 +1,14 @@
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
+
+
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, QDialog,
@@ -299,7 +310,7 @@ class AddProductDialog(QDialog):
             self.product_table.setItem(row, 0, name_item)
             
             # Prix unitaire
-            price_item = QTableWidgetItem(f"{product['selling_price']:,.0f} DA")
+            price_item = QTableWidgetItem(f"{fmt_da(product['selling_price'], 0)}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.product_table.setItem(row, 1, price_item)
             
@@ -327,7 +338,7 @@ class AddProductDialog(QDialog):
             if item:
                 product = item.data(Qt.ItemDataRole.UserRole)
                 self.selected_product = product
-                self.price_display.setText(f"{product['selling_price']:,.0f} DA")
+                self.price_display.setText(f"{fmt_da(product['selling_price'], 0)}")
                 self.stock_display.setText(str(product['stock_quantity']))
                 self.quantity.setText("1")
                 self.discount.setText("0")
@@ -346,7 +357,7 @@ class AddProductDialog(QDialog):
                 discount = float(self.discount.text() or 0)
                 
                 total = qty * price * (1 - discount / 100)
-                self.total_display.setText(f"{total:,.0f} DA")
+                self.total_display.setText(f"{fmt_da(total, 0)}")
             except ValueError:
                 self.total_display.setText("0 DA")
 
@@ -785,10 +796,10 @@ class SalesPage(QWidget):
 
         self.nb_articles_label.setText(f"{nb_articles} article(s)")
         self.qty_total_label.setText(f"{qty_total} unité(s)")
-        self.discount_total_label.setText(f"-{remise_total:,.0f} DA")
-        self.subtotal_label.setText(f"{subtotal:,.0f} DA")
-        self.tax_label.setText(f"{tax:,.0f} DA")
-        self.total_label.setText(f"{total:,.0f} DA")
+        self.discount_total_label.setText(f"-{fmt_da(remise_total, 0)}")
+        self.subtotal_label.setText(f"{fmt_da(subtotal, 0)}")
+        self.tax_label.setText(f"{fmt_da(tax, 0)}")
+        self.total_label.setText(f"{fmt_da(total, 0)}")
 
     def save_sale(self):
         """Enregistre la vente avec gestion du paiement"""
@@ -859,7 +870,7 @@ class SalesPage(QWidget):
                 "Succès",
                 f"✅ Vente enregistrée avec succès!\n\n"
                 f"📄 Facture N° {invoice_number}\n"
-                f"💰 Montant: {total_ttc:,.0f} DA\n"
+                f"💰 Montant: {fmt_da(total_ttc, 0)}\n"
                 f"💳 Paiement: {self.get_payment_method_name(payment_method)}\n"
                 f"{payment_details}"
             )
@@ -897,9 +908,9 @@ class SalesPage(QWidget):
             
             if method == 'cash':
                 if 'received' in details:
-                    detail_text += f"   💵 Reçu: {details['received']:,.0f} DA\n"
+                    detail_text += f"   💵 Reçu: {fmt_da(details['received'], 0)}\n"
                     if 'change' in details and details['change'] > 0:
-                        detail_text += f"   💸 Monnaie rendue: {details['change']:,.0f} DA"
+                        detail_text += f"   💸 Monnaie rendue: {fmt_da(details['change'], 0)}"
             
             elif method == 'card':
                 if 'transaction' in details and details['transaction']:

@@ -1,4 +1,8 @@
 from PyQt6.QtWidgets import (
+
+
+
+
     QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
     QPushButton, QScrollArea, QHeaderView, QTableWidget,
     QTableWidgetItem, QSizePolicy
@@ -12,7 +16,15 @@ from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 # ─────────────────────────────────────────────────────────────
 #  Constantes de style
 # ─────────────────────────────────────────────────────────────
-
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 
 
@@ -450,16 +462,16 @@ class DashboardPage(QWidget):
             self._activities_layout.addWidget(row_w)
 
         for s in sales:
-            add_row("#6366F1", f"Vente  ·  Facture {s['invoice_number']}  —  {s['total']:,.0f} DA")
+            add_row("#6366F1", f"Vente  ·  Facture {s['invoice_number']}  —  {fmt_da(s['total'], 0)}")
         for p in purchases:
             # product_name est maintenant fourni par le JOIN products dans get_all_purchases()
             nom = p.get('product_name') or f"Produit #{p.get('product_id', '?')}"
-            add_row("#F59E0B", f"Achat  ·  {nom}  —  {p['total']:,.0f} DA")
+            add_row("#F59E0B", f"Achat  ·  {nom}  —  {fmt_da(p['total'], 0)}")
 
     def _load_quick_info(self):
         stats      = self.db.get_statistics() or {}
         sales_today = float(stats.get("sales_today", 0))
-        self._info_cards[0].value_label.setText(f"{sales_today:,.0f} DA")
+        self._info_cards[0].value_label.setText(f"{fmt_da(sales_today, 0)}")
 
         top = self.db.get_top_clients(limit=1)
         self._info_cards[1].value_label.setText(top[0]["name"] if top else "—")
@@ -479,7 +491,7 @@ class DashboardPage(QWidget):
             cells = [
                 (sale["invoice_number"], 'TXT_PRI'),
                 (client,                 'TXT_SEC'),
-                (f"{sale['total']:,.0f} DA", "#2ECC71"),
+                (f"{fmt_da(sale['total'], 0)}", "#2ECC71"),
                 (date,                   'TXT_SEC'),
                 (pay,                    'TXT_SEC'),
             ]

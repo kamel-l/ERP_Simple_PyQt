@@ -2,6 +2,16 @@
 #  statistics_view.py — Version PRO (Design + Export + Charts)
 #  AVEC TOUTES LES CORRECTIONS
 # ─────────────────────────────────────────────────────────────
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
+
 
 from PyQt6.QtWidgets import (
     QSplitter, QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
@@ -768,7 +778,7 @@ class StatisticsPage(QWidget):
             sales_total = float(stats.get("sales_total", 0))
             num_sales = int(stats.get("total_sales", 1)) or 1
             avg = sales_total / num_sales
-            self._info_cards[1].value_label.setText(f"{avg:,.0f} DA")
+            self._info_cards[1].value_label.setText(f"{fmt_da(avg, 0)}")
 
             # Meilleur jour (ventes et recette)
             best_days = self.db.get_best_days()
@@ -776,7 +786,7 @@ class StatisticsPage(QWidget):
                 f"{best_days['sales_day']} ({best_days['sales_count']})"
             )
             self._info_cards[3].value_label.setText(
-                f"{best_days['revenue_day']} ({best_days['revenue_amount']:,.0f} DA)"
+                f"{best_days['revenue_day']} ({fmt_da(best_days['revenue_amount'], 0)})"
             )
             
         except Exception as e:
@@ -793,7 +803,7 @@ class StatisticsPage(QWidget):
             # Panier moyen
             cart_data = self.db.get_average_cart_value()
             avg_cart = cart_data.get('avg_cart_value', 0)
-            self.avg_cart_card.value_label.setText(f"{avg_cart:,.0f} DA")
+            self.avg_cart_card.value_label.setText(f"{fmt_da(avg_cart, 0)}")
             
             # Marge brute globale
             stats = self.db.get_statistics(year=self._get_year()) or {}
@@ -841,13 +851,13 @@ class StatisticsPage(QWidget):
                 
                 # Marge unitaire
                 unit_margin = product['selling_price'] - product['purchase_price']
-                margin_item = QTableWidgetItem(f"{unit_margin:,.0f} DA")
+                margin_item = QTableWidgetItem(f"{fmt_da(unit_margin, 0)}")
                 margin_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
                 margin_item.setForeground(QColor(C_GREEN))
                 self.profit_products_table.setItem(row, 2, margin_item)
                 
                 # Marge totale
-                total_margin_item = QTableWidgetItem(f"{product['gross_margin']:,.0f} DA")
+                total_margin_item = QTableWidgetItem(f"{fmt_da(product['gross_margin'], 0)}")
                 total_margin_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
                 total_margin_item.setForeground(QColor(C_GREEN))
                 total_margin_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
@@ -873,7 +883,7 @@ class StatisticsPage(QWidget):
         cart_data = self.db.get_cart_value_by_period(days=30)
         details = (
             f"📊 Détails du Panier Moyen\n\n"
-            f"Panier moyen (30j): {cart_data['avg_cart']:,.0f} DA\n"
+            f"Panier moyen (30j): {fmt_da(cart_data['avg_cart'], 0)}\n"
             f"Nombre de ventes: {cart_data['num_sales']}\n"
             f"Période: {cart_data['period_days']} jours"
         )
@@ -890,9 +900,9 @@ class StatisticsPage(QWidget):
         
         details = (
             f"📈 Détails de la Marge Globale\n\n"
-            f"Chiffre d'affaires: {sales:,.0f} DA\n"
-            f"Coût des achats: {purchases:,.0f} DA\n"
-            f"Bénéfice brut: {profit:,.0f} DA\n"
+            f"Chiffre d'affaires: {fmt_da(sales, 0)}\n"
+            f"Coût des achats: {fmt_da(purchases, 0)}\n"
+            f"Bénéfice brut: {fmt_da(profit, 0)}\n"
             f"Taux de marge: {margin_pct:.1f}%"
         )
         QMessageBox.information(self, "Marge Globale", details)
@@ -912,12 +922,12 @@ class StatisticsPage(QWidget):
             if details:
                 msg = (
                     f"📈 Analyse de rentabilité: {details['name']}\n\n"
-                    f"Prix achat: {details['purchase_price']:,.0f} DA\n"
-                    f"Prix vente: {details['selling_price']:,.0f} DA\n"
-                    f"Marge unitaire: {details['unit_margin']:,.0f} DA\n"
+                    f"Prix achat: {fmt_da(details['purchase_price'], 0)}\n"
+                    f"Prix vente: {fmt_da(details['selling_price'], 0)}\n"
+                    f"Marge unitaire: {fmt_da(details['unit_margin'], 0)}\n"
                     f"Taux de marge: {details['margin_percentage']:.1f}%\n\n"
                     f"Quantité vendue: {details['total_sold']}\n"
-                    f"Marge totale générée: {details['total_margin']:,.0f} DA"
+                    f"Marge totale générée: {fmt_da(details['total_margin'], 0)}"
                 )
                 QMessageBox.information(self, "Rentabilité Produit", msg)
 
@@ -990,7 +1000,7 @@ class StatisticsPage(QWidget):
                 # Meilleur jour
                 best_days = self.db.get_best_days()
                 w.writerow(["Meilleur Jour (Ventes)", f"{best_days['sales_day']} ({best_days['sales_count']} ventes)", ""])
-                w.writerow(["Meilleur Jour (Recette)", f"{best_days['revenue_day']} ({best_days['revenue_amount']:,.0f} DA)", ""])
+                w.writerow(["Meilleur Jour (Recette)", f"{best_days['revenue_day']} ({fmt_da(best_days['revenue_amount'], 0)})", ""])
                 
                 w.writerow(["Meilleur Mois", stats.get("best_month", "—"), ""])
                 w.writerow(["Croissance Mensuelle", f"{stats.get('growth_rate', 0):.1f}", "%"])
@@ -1447,9 +1457,9 @@ class StatisticsPage(QWidget):
         
         kpi_data = [
             ["Indicateur", "Valeur"],
-            ["Chiffre d'Affaires Total", f"{sales_total:,.0f} DA"],
-            ["Achats Totaux", f"{purchases_total:,.0f} DA"],
-            ["Profit Net", f"{profit:,.0f} DA"],
+            ["Chiffre d'Affaires Total", f"{fmt_da(sales_total, 0)}"],
+            ["Achats Totaux", f"{fmt_da(purchases_total, 0)}"],
+            ["Profit Net", f"{fmt_da(profit, 0)}"],
             ["Taux de Marge", f"{margin_pct:.1f} %"],
             ["Nombre de Clients", f"{stats.get('total_clients', 0)}"],
             ["Nombre de Produits", f"{stats.get('total_products', 0)}"],

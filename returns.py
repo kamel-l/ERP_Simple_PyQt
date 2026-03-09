@@ -1,3 +1,14 @@
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
+
+
 """
 Module de gestion des retours et avoirs (Proposition 5)
 Permet d'annuler partiellement ou totalement une vente
@@ -51,7 +62,7 @@ class ReturnDialog(QDialog):
 
         info = QLabel(
             f"Client : {sale.get('client_name','Anonyme')}  ·  "
-            f"Total : {float(sale.get('total',0)):,.0f} DA"
+            f"Total : {fmt_da(float(sale.get('total',0)), 0)}"
         )
         info.setFont(QFont("Segoe UI", 10))
         info.setStyleSheet(f"color: {COLORS['text_tertiary']};")
@@ -151,12 +162,18 @@ class ReturnDialog(QDialog):
         self.items_table.setRowCount(len(items))
 
         for row, item in enumerate(items):
-            name  = item.get('product_name', 'N/A')
+            # Priorité : nom du produit, sinon référence/barcode, sinon 'N/A'
+            name = (
+                item.get('product_name')
+                or item.get('product_reference')
+                or item.get('reference')
+                or 'N/A'
+            )
             price = float(item.get('unit_price', 0))
             qty   = int(item.get('quantity', 0))
 
             self.items_table.setItem(row, 0, QTableWidgetItem(name))
-            self.items_table.setItem(row, 1, QTableWidgetItem(f"{price:,.2f} DA"))
+            self.items_table.setItem(row, 1, QTableWidgetItem(f"{fmt_da(price)}"))
             self.items_table.setItem(row, 2, QTableWidgetItem(str(qty)))
 
             # SpinBox pour la quantité à retourner
@@ -175,7 +192,7 @@ class ReturnDialog(QDialog):
             self.items_table.setCellWidget(row, 3, spin)
             self._spinboxes.append((spin, price, item.get('product_id')))
 
-            total_item = QTableWidgetItem(f"{price * qty:,.2f} DA")
+            total_item = QTableWidgetItem(f"{fmt_da(price * qty)}")
             total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             total_item.setForeground(QColor("#10B981"))
             self.items_table.setItem(row, 4, total_item)
@@ -185,13 +202,13 @@ class ReturnDialog(QDialog):
     def _update_total(self):
         """Recalcule et affiche le montant total du remboursement."""
         total = sum(spin.value() * price for spin, price, _ in self._spinboxes)
-        self._total_lbl.setText(f"Montant à rembourser : {total:,.2f} DA")
+        self._total_lbl.setText(f"Montant à rembourser : {fmt_da(total)}")
 
         # Mettre à jour la colonne remboursement
         for row, (spin, price, _) in enumerate(self._spinboxes):
             item = self.items_table.item(row, 4)
             if item:
-                item.setText(f"{spin.value() * price:,.2f} DA")
+                item.setText(f"{fmt_da(spin.value() * price)}")
 
     def _create_return(self):
         """Valide et enregistre l'avoir en base de données."""
@@ -217,7 +234,7 @@ class ReturnDialog(QDialog):
         # Confirmer
         reply = QMessageBox.question(
             self, "Confirmer l'avoir",
-            f"Créer un avoir de {total:,.2f} DA ?\n\n"
+            f"Créer un avoir de {fmt_da(total)} ?\n\n"
             f"Motif : {motif}\n"
             f"Le stock sera automatiquement remis en place.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
@@ -238,7 +255,7 @@ class ReturnDialog(QDialog):
                 self, "✅ Avoir créé",
                 f"L'avoir a été créé avec succès.\n\n"
                 f"Avoir N° : {return_data.get('return_number','—')}\n"
-                f"Montant remboursé : {total:,.2f} DA\n\n"
+                f"Montant remboursé : {fmt_da(total)}\n\n"
                 f"Le stock a été remis à jour automatiquement."
             )
             self.return_created.emit(return_data)
@@ -365,7 +382,7 @@ class ReturnsPage(QWidget):
             "📦", "Total Avoirs", str(len(returns)), COLORS['primary']))
         self._stats_row.addWidget(self._make_stat_card(
             "💰", "Montant Total Remboursé",
-            f"{total_montant:,.0f} DA", "#EF4444"))
+            f"{fmt_da(total_montant, 0)}", "#EF4444"))
         self._stats_row.addStretch()
 
         # Remplir le tableau
@@ -382,7 +399,7 @@ class ReturnsPage(QWidget):
                 (ret.get('invoice_number', '—'),   COLORS['text_secondary']),
                 (ret.get('client_name', 'Anonyme'), COLORS['text_secondary']),
                 (ret.get('motif', '—'),              COLORS['text_tertiary']),
-                (f"{float(ret.get('total',0)):,.2f} DA", "#EF4444"),
+                (f"{fmt_da(float(ret.get('total',0)))}", "#EF4444"),
                 (date_str,                           COLORS['text_tertiary']),
             ]
             for col, (val, color) in enumerate(cells):

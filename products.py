@@ -1,4 +1,8 @@
 from PyQt6.QtWidgets import (
+
+
+
+
     QWidget, QVBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog,
     QLineEdit, QFormLayout, QHBoxLayout, QFrame, QFileDialog, QMessageBox,
@@ -9,6 +13,16 @@ from PyQt6.QtCore import Qt
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 import csv
+
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 
 class ProductDialog(QDialog):
@@ -417,7 +431,7 @@ class ProductsPage(QWidget):
             self.build_stat_card("Total Produits", stats['total_products'], COLORS['primary'])
         )
         self.stats_layout.addWidget(
-            self.build_stat_card("Valeur Stock", f"{stats['stock_value']:,.0f} DA", COLORS['success'])
+            self.build_stat_card("Valeur Stock", f"{fmt_da(stats['stock_value'], 0)}", COLORS['success'])
         )
         self.stats_layout.addWidget(
             self.build_stat_card("Stock Faible", len(low_stock), COLORS['danger'])
