@@ -5,12 +5,12 @@ Système de gestion complet avec tous les modules intégrés
 
 import sys
 from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, 
+    QApplication, QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QPushButton, QStackedWidget, QFrame, QLabel,
-    QMessageBox
+    QMessageBox, QDialog, QGraphicsDropShadowEffect, QSizePolicy
 )
-from PyQt6.QtGui import QFont, QIcon
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect
+from PyQt6.QtGui import QFont, QIcon, QColor, QPixmap, QLinearGradient, QPainter, QBrush
 # import qdarktheme
 
 # Importer le système de styles
@@ -27,7 +27,11 @@ from statistics_view import StatisticsPage
 from sales_history import SalesHistoryPage
 from PyQt6.QtGui import QAction
 from db_manager import get_database
-from advanced_analytics_view import AdvancedAnalyticsPage
+try:
+    from advanced_analytics_view import AdvancedAnalyticsPage
+except ImportError:
+    AdvancedAnalyticsPage = None
+    print("⚠️ advanced_analytics_view non trouvé, module désactivé")
 
 class MainWindow(QMainWindow):
     """Fenêtre principale de l'application"""
@@ -36,7 +40,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         
         self.db = get_database()
-        print("✅ Base de données initialisée")
         self.setWindowTitle("🏢 Système de Gestion ERP - Version Professionnelle")
         self.setMinimumSize(1400, 800)
         
@@ -69,6 +72,7 @@ class MainWindow(QMainWindow):
         self.stack.setStyleSheet(f"""
             QStackedWidget {{
                 background-color: {COLORS['bg_dark']};
+                border: 2px solid {COLORS['border']};
             }}
         """)
         
@@ -195,7 +199,7 @@ class MainWindow(QMainWindow):
         self.nav_buttons = {}
 
         main_items = [
-            ("dashboard",  "📊", "Tableau de Bord",  COLORS['primary']),
+            ("dashboard",  "📊", "Tableau de Bord",  COLORS['info']),
             ("clients",    "👥", "Clients",           COLORS['secondary']),
             ("products",   "📦", "Produits",          COLORS['success']),
             ("sales",      "💰", "Point de Vente",    COLORS['warning']),
@@ -223,6 +227,38 @@ class MainWindow(QMainWindow):
         self.nav_buttons["settings"] = settings_btn
 
         nav_layout.addStretch()
+
+        # Séparateur avant About
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.HLine)
+        sep2.setFixedHeight(1)
+        sep2.setStyleSheet(f"background: {COLORS['BORDER']}; border: none; margin: 0 8px;")
+        nav_layout.addWidget(sep2)
+
+        # Bouton À propos
+        about_btn = QPushButton("ℹ️  À propos")
+        about_btn.setFont(QFont("Segoe UI", 10))
+        about_btn.setFixedHeight(40)
+        about_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        about_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent;
+                border-left: 4px solid transparent;
+                color: {COLORS['TXT_SEC']};
+                text-align: left;
+                padding-left: 12px;
+                font-weight: 400;
+                font-style: italic;
+            }}
+            QPushButton:hover {{
+                background: rgba(255,255,255,0.05);
+                border-left: 4px solid {COLORS['TXT_SEC']}55;
+                color: {COLORS['TXT_PRI']};
+            }}
+        """)
+        about_btn.clicked.connect(self.show_about)
+        nav_layout.addWidget(about_btn)
+
         layout.addWidget(nav_widget)
         layout.addStretch()
 
@@ -246,12 +282,12 @@ class MainWindow(QMainWindow):
                 font-weight: 500;
             }}
             QPushButton:hover {{
-                background: {color}15;
-                border-left: 4px solid {color}66;
+                background: {color}18;
+                border-left: 4px solid {color}55;
                 color: {COLORS['TXT_PRI']};
             }}
         """)
-        btn.clicked.connect(lambda: self.show_page(key))
+        btn.clicked.connect(lambda checked=False, k=key: self.show_page(k))
         return btn
 
     def update_nav_buttons(self, active_key):
@@ -262,17 +298,17 @@ class MainWindow(QMainWindow):
             if key == active_key:
                 btn.setStyleSheet(f"""
                     QPushButton {{
-                        background: {color}20;
+                        background: {color}22;
                         border-left: 4px solid {color};
-                        color: {COLORS['TXT_PRI']};
+                        color: {color};
                         text-align: left;
                         padding-left: 12px;
                         font-weight: bold;
                     }}
                     QPushButton:hover {{
-                        background: {color}25;
+                        background: {color}30;
                         border-left: 4px solid {color};
-                        color: {COLORS['TXT_PRI']};
+                        color: {color};
                     }}
                 """)
             else:
@@ -286,8 +322,8 @@ class MainWindow(QMainWindow):
                         font-weight: 500;
                     }}
                     QPushButton:hover {{
-                        background: {color}15;
-                        border-left: 4px solid {color}66;
+                        background: {color}18;
+                        border-left: 4px solid {color}55;
                         color: {COLORS['TXT_PRI']};
                     }}
                 """)
@@ -369,40 +405,230 @@ class MainWindow(QMainWindow):
             )
 
     def show_about(self):
-        """Affiche la boîte de dialogue À propos"""
-        about_text = """
-        <h2 style='color: #0A84FF;'>🏢 ERP Pro - Version 2.0.0</h2>
-        <p><b>Système de Gestion Professionnel</b></p>
-        
-        <h3>✨ Fonctionnalités:</h3>
-        <ul>
-            <li>📊 Tableau de bord avec statistiques en temps réel</li>
-            <li>👥 Gestion complète des clients</li>
-            <li>📦 Gestion des produits avec import/export CSV</li>
-            <li>💰 Point de vente avec dialogue d'ajout professionnel</li>
-            <li>🛒 Gestion des achats et fournisseurs</li>
-            <li>📊 Historique des ventes avec filtres avancés</li>
-            <li>📈 Statistiques et graphiques détaillés</li>
-            <li>📄 Génération de factures PDF (à venir)</li>
-            <li>📧 Envoi d'emails automatique (à venir)</li>
-            <li>💳 Gestion des paiements multi-modes (à venir)</li>
-        </ul>
-        
-        <h3>🛠️ Technologies:</h3>
-        <ul>
-            <li>PyQt6 - Interface graphique moderne</li>
-            <li>QDarkTheme - Thème professionnel</li>
-            <li>PyQtGraph - Graphiques interactifs</li>
-            <li>ReportLab - Génération de PDF</li>
-        </ul>
-        
-        <p style='margin-top: 20px;'>
-        <b>Développé avec ❤️ pour une gestion efficace</b><br>
-        © 2026 - Tous droits réservés
-        </p>
-        """
-        
-        QMessageBox.about(self, "À propos d'ERP Pro", about_text)
+        """Affiche la fenêtre À propos moderne"""
+        dialog = AboutDialog(self)
+        dialog.exec()
+
+
+
+class AboutDialog(QDialog):
+    """Fenêtre À propos moderne avec fond sombre"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("À propos")
+        self.setFixedSize(480, 600)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self._drag_pos = None
+        self._build_ui()
+
+    # ── Drag pour déplacer la fenêtre ──────────────────────────
+    def mousePressEvent(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
+
+    def mouseMoveEvent(self, e):
+        if self._drag_pos and e.buttons() == Qt.MouseButton.LeftButton:
+            self.move(e.globalPosition().toPoint() - self._drag_pos)
+
+    def mouseReleaseEvent(self, e):
+        self._drag_pos = None
+
+    def _build_ui(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+
+        # ── Carte principale ────────────────────────────────────
+        card = QFrame()
+        card.setObjectName("about_card")
+        card.setStyleSheet(f"""
+            QFrame#about_card {{
+                background: {COLORS['bg_dark']};
+                border-radius: 18px;
+                border: 1.5px solid {COLORS['primary']}55;
+            }}
+        """)
+
+        # Ombre portée
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(40)
+        shadow.setOffset(0, 8)
+        shadow.setColor(QColor(0, 0, 0, 160))
+        card.setGraphicsEffect(shadow)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(0, 0, 0, 24)
+        layout.setSpacing(0)
+
+        # ── Bandeau header dégradé ──────────────────────────────
+        header = QFrame()
+        header.setFixedHeight(160)
+        header.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 {COLORS['primary']},
+                    stop:1 {COLORS['secondary']}
+                );
+                border-radius: 16px 16px 0 0;
+            }}
+        """)
+        header_lay = QVBoxLayout(header)
+        header_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        header_lay.setSpacing(6)
+
+        # Logo / icône
+        logo_lbl = QLabel()
+        logo_lbl.setFixedSize(72, 72)
+        logo_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo_lbl.setStyleSheet("""
+            QLabel {
+                background: rgba(255,255,255,0.18);
+                border-radius: 18px;
+                border: 2px solid rgba(255,255,255,0.35);
+            }
+        """)
+        db = get_database()
+        logo_path = db.get_setting('logo_path', '')
+        from PyQt6.QtCore import QFileInfo
+        if logo_path and QFileInfo.exists(logo_path):
+            try:
+                px = QPixmap(logo_path)
+                if not px.isNull():
+                    logo_lbl.setPixmap(px.scaled(64, 64,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation))
+            except Exception:
+                logo_lbl.setText("🏢")
+                logo_lbl.setFont(QFont("Segoe UI", 28))
+        else:
+            logo_lbl.setText("🏢")
+            logo_lbl.setFont(QFont("Segoe UI", 28))
+
+        app_name = QLabel("DAR ELSSALEM ERP")
+        app_name.setFont(QFont("Segoe UI", 17, QFont.Weight.Bold))
+        app_name.setStyleSheet("color: white; background: transparent; border: none;")
+        app_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        version_lbl = QLabel("Version 2.0.0  •  2026")
+        version_lbl.setFont(QFont("Segoe UI", 10))
+        version_lbl.setStyleSheet("color: rgba(255,255,255,0.75); background: transparent; border: none;")
+        version_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        header_lay.addWidget(logo_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
+        header_lay.addWidget(app_name)
+        header_lay.addWidget(version_lbl)
+        layout.addWidget(header)
+
+        # ── Corps ───────────────────────────────────────────────
+        body = QWidget()
+        body.setStyleSheet("background: transparent;")
+        body_lay = QVBoxLayout(body)
+        body_lay.setContentsMargins(28, 20, 28, 0)
+        body_lay.setSpacing(16)
+
+        # Développeur / Société
+        dev_card = self._info_card(
+            "👨‍💼  Développé par",
+            "Équipe DAR ELSSALEM\n© 2026 — Tous droits réservés",
+            COLORS['primary']
+        )
+        body_lay.addWidget(dev_card)
+
+        # Fonctionnalités
+        feat_title = QLabel("✨  Fonctionnalités")
+        feat_title.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        feat_title.setStyleSheet(f"color: {COLORS['secondary']}; background: transparent;")
+        body_lay.addWidget(feat_title)
+
+        features = [
+            ("📊", "Tableau de bord temps réel"),
+            ("👥", "Gestion clients & fournisseurs"),
+            ("📦", "Gestion produits & stock"),
+            ("💰", "Point de vente & facturation"),
+            ("🛒", "Gestion des achats"),
+            ("📈", "Statistiques & graphiques"),
+            ("📂", "Import/Export factures .DAT"),
+        ]
+        feat_frame = QFrame()
+        feat_frame.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS['bg_medium'] if 'bg_medium' in COLORS else COLORS['bg_dark']};
+                border-radius: 10px;
+                border: 1px solid {COLORS['primary']}22;
+            }}
+        """)
+        feat_lay = QVBoxLayout(feat_frame)
+        feat_lay.setContentsMargins(14, 10, 14, 10)
+        feat_lay.setSpacing(5)
+
+        for icon, txt in features:
+            row = QHBoxLayout()
+            row.setSpacing(10)
+            ico = QLabel(icon)
+            ico.setFont(QFont("Segoe UI", 11))
+            ico.setFixedWidth(22)
+            ico.setStyleSheet("background: transparent; border: none;")
+            lbl = QLabel(txt)
+            lbl.setFont(QFont("Segoe UI", 10))
+            lbl.setStyleSheet(f"color: {COLORS['TXT_PRI'] if 'TXT_PRI' in COLORS else '#F0F4FF'}; background: transparent; border: none;")
+            row.addWidget(ico)
+            row.addWidget(lbl)
+            row.addStretch()
+            feat_lay.addLayout(row)
+
+        body_lay.addWidget(feat_frame)
+        layout.addWidget(body)
+
+        # ── Bouton Fermer ───────────────────────────────────────
+        close_btn = QPushButton("Fermer")
+        close_btn.setFixedHeight(42)
+        close_btn.setFixedWidth(140)
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        close_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {COLORS['primary']};
+                color: white;
+                border: none;
+                border-radius: 10px;
+            }}
+            QPushButton:hover {{
+                background: {COLORS['primary_dark'] if 'primary_dark' in COLORS else COLORS['primary']};
+            }}
+        """)
+        close_btn.clicked.connect(self.accept)
+        layout.addSpacing(4)
+        layout.addWidget(close_btn, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        root.addWidget(card)
+
+    def _info_card(self, title, body, color):
+        frame = QFrame()
+        frame.setStyleSheet(f"""
+            QFrame {{
+                background: {color}15;
+                border-radius: 10px;
+                border: 1px solid {color}44;
+            }}
+        """)
+        lay = QVBoxLayout(frame)
+        lay.setContentsMargins(14, 10, 14, 10)
+        lay.setSpacing(3)
+
+        t = QLabel(title)
+        t.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        t.setStyleSheet(f"color: {color}; background: transparent; border: none;")
+
+        b = QLabel(body)
+        b.setFont(QFont("Segoe UI", 10))
+        txt_color = COLORS.get('TXT_PRI', '#F0F4FF')
+        b.setStyleSheet(f"color: {txt_color}; background: transparent; border: none;")
+
+        lay.addWidget(t)
+        lay.addWidget(b)
+        return frame
 
 
 def main():

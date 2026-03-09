@@ -676,7 +676,7 @@ class PurchasesPage(QWidget):
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 {COLORS['bg_card']}, stop:1 #252525);
                 border-radius: 10px;
-                border: 2px solid {COLORS['warning']};
+                border: 2px solid {COLORS['border']};
             }}
         """)
         
