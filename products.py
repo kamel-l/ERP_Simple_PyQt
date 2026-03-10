@@ -9,9 +9,7 @@ from PyQt6.QtWidgets import (
     QSpinBox, QDoubleSpinBox, QComboBox
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
-
-PAGE_SIZE = 50  # Nombre de lignes chargées par page
+from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 import csv
@@ -227,6 +225,9 @@ class ProductDialog(QDialog):
 
 
 class ProductsPage(QWidget):
+    # Émis après tout changement de stock (ajout, modif, suppression)
+    product_changed = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         
@@ -343,12 +344,6 @@ class ProductsPage(QWidget):
         table_layout.addWidget(self.table)
         layout.addWidget(table_container)
 
-        # ── Pagination au scroll ──────────────────────────────────
-        self._page_offset = 0
-        self._all_loaded  = False
-        self._loading     = False
-        self.table.verticalScrollBar().valueChanged.connect(self._on_scroll)
-
         # Action Buttons
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(10)
@@ -446,41 +441,12 @@ class ProductsPage(QWidget):
         )
 
     def load_products(self):
-        """Charge la première page de produits."""
+        """Charge les produits depuis la base"""
         self.table.setRowCount(0)
-        self._page_offset = 0
-        self._all_loaded  = False
-        self._loading     = False
-        self._load_next_page()
-
-    def _on_scroll(self, value):
-        """Charge la page suivante quand l'utilisateur approche du bas."""
-        bar = self.table.verticalScrollBar()
-        if value >= bar.maximum() - 10:
-            self._load_next_page()
-
-    def _load_next_page(self):
-        """Charge PAGE_SIZE enregistrements supplémentaires."""
-        if self._loading or self._all_loaded:
-            return
-        self._loading = True
-
-        search = self.search_input.text().strip()
-        if search:
-            # En mode recherche : pas de pagination (résultats déjà filtrés)
-            self._loading = False
-            return
-
-        products = self.db.get_all_products(limit=PAGE_SIZE, offset=self._page_offset)
-
-        if len(products) < PAGE_SIZE:
-            self._all_loaded = True  # dernière page atteinte
-
+        products = self.db.get_all_products()
+        
         for product in products:
             self.add_product_to_table(product)
-
-        self._page_offset += len(products)
-        self._loading = False
 
     def add_product_to_table(self, product):
         """Ajoute un produit au tableau"""
@@ -518,10 +484,8 @@ class ProductsPage(QWidget):
         self.table.setItem(row, 6, value_item)
 
     def refresh_page(self):
-        """Actualise la liste des produits et les statistiques."""
+        """Actualise la liste des produits et les statistiques"""
         self.search_input.clear()
-        self._page_offset = 0
-        self._all_loaded  = False
         self.load_products()
         self.update_statistics()
 
@@ -554,6 +518,7 @@ class ProductsPage(QWidget):
                 QMessageBox.information(self, "Succès", "Produit ajouté avec succès!")
                 self.load_products()
                 self.update_statistics()
+                self.product_changed.emit()
             else:
                 QMessageBox.critical(self, "Erreur", "Impossible d'ajouter le produit!")
 
@@ -595,6 +560,7 @@ class ProductsPage(QWidget):
             ):
                 QMessageBox.information(self, "Succès", "Produit modifié avec succès!")
                 self.load_products()
+                self.product_changed.emit()
                 self.update_statistics()
             else:
                 QMessageBox.critical(self, "Erreur", "Impossible de modifier le produit!")
@@ -621,6 +587,7 @@ class ProductsPage(QWidget):
                 QMessageBox.information(self, "Succès", "Produit supprimé!")
                 self.load_products()
                 self.update_statistics()
+                self.product_changed.emit()
             else:
                 QMessageBox.critical(self, "Erreur", "Impossible de supprimer!")
 

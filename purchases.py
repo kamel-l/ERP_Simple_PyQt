@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QMessageBox, QDialog, QLineEdit, QFormLayout, QInputDialog
 )
 from PyQt6.QtGui import QFont, QDoubleValidator, QIntValidator
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
@@ -22,13 +22,6 @@ def fmt_da(value, decimals=2):
     if decimals == 0:
         return f"{v:,.0f} DA"
     return f"{v:,.2f} DA"
-
-def clean_num(text):
-    """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
-    try:
-        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
-    except (ValueError, TypeError):
-        return 0.0
 
 def clean_num(text):
     """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
@@ -590,6 +583,9 @@ class SupplierDialog(QDialog):
 
 # ------------------ PAGE PRINCIPALE DES ACHATS ------------------
 class PurchasesPage(QWidget):
+    # Émis après chaque achat enregistré (met à jour stock + dashboard)
+    purchase_saved = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         
@@ -810,17 +806,6 @@ class PurchasesPage(QWidget):
         # Connexion du signal pour mettre à jour les totaux
         self.table.itemChanged.connect(self.update_totals)
 
-    def showEvent(self, event):
-        """Rafraîchissement automatique : fournisseurs et TVA à chaque affichage."""
-        super().showEvent(event)
-        self.load_suppliers()
-        # Mettre à jour le label Taxe avec le taux actuel
-        try:
-            tax_rate_pct = float(self.db.get_setting('purchase_vat', '10') or '10')
-        except (ValueError, TypeError):
-            tax_rate_pct = 10.0
-        self.tax_title_label.setText(f"Taxe ({tax_rate_pct:.0f}%)")
-
     def load_suppliers(self):
         self.supplier_combo.clear()
         self.supplier_combo.addItem("Sélectionner un fournisseur", None)
@@ -1003,5 +988,7 @@ class PurchasesPage(QWidget):
             self.table.setRowCount(0)
             self.supplier_combo.setCurrentIndex(0)
             self.update_totals()
+            # Notifier les autres pages (dashboard, produits, stats)
+            self.purchase_saved.emit()
         else:
             QMessageBox.critical(self, "Erreur", "Impossible d'enregistrer l'achat!")

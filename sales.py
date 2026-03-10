@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QScrollArea, QSizePolicy
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
@@ -381,6 +381,9 @@ class AddProductDialog(QDialog):
 
 
 class SalesPage(QWidget):
+    # Émis après chaque vente enregistrée
+    sale_saved = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         
@@ -666,15 +669,6 @@ class SalesPage(QWidget):
         self.update_totals()
 
 
-    def showEvent(self, event):
-        """Rafraîchissement automatique : clients et TVA à chaque affichage."""
-        super().showEvent(event)
-        self.vat_rate = self._get_vat_rate()
-        self.vat_percent = self.vat_rate * 100
-        self.tax_header_label.setText(f"TVA ({self.vat_percent:.0f}%) :")
-        self.load_clients()
-        self.update_totals()
-
     def load_clients(self):
         """Charge les clients (peut être appelée depuis l'extérieur pour rafraîchir)"""
         self.client_combo.clear()
@@ -884,6 +878,9 @@ class SalesPage(QWidget):
                 f"{payment_details}"
             )
             
+            # Notifier les autres pages (dashboard, historique, stats)
+            self.sale_saved.emit()
+
             # Réinitialiser
             self.cart_items = []
             self.table.setRowCount(0)

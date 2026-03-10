@@ -50,9 +50,23 @@ class MainWindow(QMainWindow):
         self.clients_page = ClientsPage()
         self.sales_page = SalesPage()
         
-        # Connecter le signal : quand un client est ajouté/modifié/supprimé,
-        # la liste dans la page Ventes se rafraîchit automatiquement
+        # ── Signaux inter-pages ──────────────────────────────────────────
+        # Client ajouté/modifié → rafraîchir la liste clients dans Ventes
         self.clients_page.client_added.connect(self.sales_page.load_clients)
+
+        # Vente enregistrée → dashboard + historique + statistiques
+        self.sales_page.sale_saved.connect(self.dashboard_page.refresh)
+        self.sales_page.sale_saved.connect(self.history_page.load_sales)
+        self.sales_page.sale_saved.connect(self.statistics_page.refresh)
+
+        # Produit ajouté/modifié/supprimé → dashboard + statistiques
+        self.products_page.product_changed.connect(self.dashboard_page.refresh)
+        self.products_page.product_changed.connect(self.statistics_page.refresh)
+
+        # Achat enregistré → dashboard + produits (stock mis à jour) + stats
+        self.purchases_page.purchase_saved.connect(self.dashboard_page.refresh)
+        self.purchases_page.purchase_saved.connect(self.products_page.refresh_page)
+        self.purchases_page.purchase_saved.connect(self.statistics_page.refresh)
         
         # Widget central
         central_widget = QWidget()
@@ -78,14 +92,21 @@ class MainWindow(QMainWindow):
         
         # Ajouter les pages (utiliser les instances déjà créées pour clients et sales)
         self.pages = {}
-        self.add_page("dashboard", DashboardPage(), "📊 Tableau de Bord")
-        self.add_page("clients", self.clients_page, "👥 Clients")
-        self.add_page("products", ProductsPage(), "📦 Produits")
-        self.add_page("sales", self.sales_page, "💰 Ventes")
-        self.add_page("purchases", PurchasesPage(), "🛒 Achats")
-        self.add_page("history", SalesHistoryPage(), "📊 Historique")
-        self.add_page("statistics", StatisticsPage(), "📈 Statistiques")
-        self.add_page("settings", SettingsPage(), "⚙️ Paramètres")
+        self.dashboard_page   = DashboardPage()
+        self.products_page    = ProductsPage()
+        self.purchases_page   = PurchasesPage()
+        self.history_page     = SalesHistoryPage()
+        self.statistics_page  = StatisticsPage()
+        self.settings_page    = SettingsPage()
+
+        self.add_page("dashboard",  self.dashboard_page,  "📊 Tableau de Bord")
+        self.add_page("clients",    self.clients_page,    "👥 Clients")
+        self.add_page("products",   self.products_page,   "📦 Produits")
+        self.add_page("sales",      self.sales_page,      "💰 Ventes")
+        self.add_page("purchases",  self.purchases_page,  "🛒 Achats")
+        self.add_page("history",    self.history_page,    "📊 Historique")
+        self.add_page("statistics", self.statistics_page, "📈 Statistiques")
+        self.add_page("settings",   self.settings_page,   "⚙️ Paramètres")
         # New ERP Cleanup Menu
         cleanup_menu = self.menuBar().addMenu("ERP Tools")
 
