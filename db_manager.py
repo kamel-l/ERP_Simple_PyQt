@@ -334,10 +334,23 @@ class Database:
             print(f"❌ Erreur lors de l'ajout du client: {e}")
             return None
     
-    def get_all_clients(self):
-        """Récupère tous les clients"""
-        self.cursor.execute("SELECT * FROM clients ORDER BY name")
+    def get_all_clients(self, limit=None, offset=0):
+        """Récupère les clients (pagination via limit/offset)."""
+        query = "SELECT * FROM clients ORDER BY name"
+        if limit is not None:
+            query += f" LIMIT {limit} OFFSET {offset}"
+        self.cursor.execute(query)
         return [dict(row) for row in self.cursor.fetchall()]
+
+    def count_clients(self, search=None):
+        """Retourne le nombre total de clients (pour la pagination)."""
+        if search:
+            self.cursor.execute(
+                "SELECT COUNT(*) FROM clients WHERE name LIKE ? OR email LIKE ?",
+                (f"%{search}%", f"%{search}%"))
+        else:
+            self.cursor.execute("SELECT COUNT(*) FROM clients")
+        return self.cursor.fetchone()[0]
     
     def get_client_by_id(self, client_id):
         """Récupère un client par son ID"""
@@ -490,15 +503,28 @@ class Database:
             print(f"❌ Erreur lors de l'ajout du produit: {e}")
             return None
     
-    def get_all_products(self):
-        """Récupère tous les produits avec leurs catégories"""
-        self.cursor.execute("""
+    def get_all_products(self, limit=None, offset=0):
+        """Récupère les produits avec leurs catégories (pagination via limit/offset)."""
+        query = """
             SELECT p.*, c.name as category_name
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
             ORDER BY p.name
-        """)
+        """
+        if limit is not None:
+            query += f" LIMIT {limit} OFFSET {offset}"
+        self.cursor.execute(query)
         return [dict(row) for row in self.cursor.fetchall()]
+
+    def count_products(self, search=None):
+        """Retourne le nombre total de produits (pour la pagination)."""
+        if search:
+            self.cursor.execute(
+                "SELECT COUNT(*) FROM products WHERE name LIKE ? OR barcode LIKE ?",
+                (f"%{search}%", f"%{search}%"))
+        else:
+            self.cursor.execute("SELECT COUNT(*) FROM products")
+        return self.cursor.fetchone()[0]
     
     def get_product_by_id(self, product_id):
         """Récupère un produit par son ID"""
@@ -695,8 +721,8 @@ class Database:
             self.conn.rollback()
             return None
     
-    def get_all_sales(self, limit=None):
-        """Récupère toutes les ventes avec le nombre d'articles par vente."""
+    def get_all_sales(self, limit=None, offset=0):
+        """Récupère toutes les ventes avec le nombre d'articles par vente (items_count)."""
         query = """
             SELECT s.*, c.name as client_name,
                    COUNT(si.id) AS items_count
@@ -706,8 +732,8 @@ class Database:
             GROUP BY s.id
             ORDER BY s.sale_date DESC
         """
-        if limit:
-            query += f" LIMIT {limit}"
+        if limit is not None:
+            query += f" LIMIT {limit} OFFSET {offset}"
         
         self.cursor.execute(query)
         return [dict(row) for row in self.cursor.fetchall()]

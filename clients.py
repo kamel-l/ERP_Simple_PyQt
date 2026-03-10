@@ -1,10 +1,11 @@
-import re
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QFrame, QMessageBox
 )
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, pyqtSignal
+
+PAGE_SIZE = 50  # Nombre de lignes chargées par page
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 
@@ -68,7 +69,7 @@ class ClientDialog(QDialog):
         
         save_btn = QPushButton("💾 Enregistrer")
         save_btn.setStyleSheet(BUTTON_STYLES['success'])
-        save_btn.clicked.connect(self._validate_and_accept)
+        save_btn.clicked.connect(self.accept)
         save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
         cancel_btn = QPushButton("❌ Annuler")
@@ -81,44 +82,6 @@ class ClientDialog(QDialog):
         btn_layout.addWidget(save_btn)
         
         main_layout.addLayout(btn_layout)
-
-
-    def _validate_and_accept(self):
-        """Valide les champs avant de fermer le dialogue."""
-        name  = self.name_edit.text().strip()
-        phone = self.phone_edit.text().strip()
-        email = self.email_edit.text().strip()
-
-        # ── Nom obligatoire ──────────────────────────────
-        if not name:
-            QMessageBox.warning(self, "Champ manquant", "Le nom du client est obligatoire.")
-            self.name_edit.setFocus()
-            return
-
-        # ── Téléphone : chiffres uniquement, 9 à 13 chiffres (optionnel) ─────
-        if phone:
-            phone_clean = phone.replace(" ", "").replace("-", "").replace(".", "")
-            if not re.fullmatch(r'[0-9]{9,13}', phone_clean):
-                QMessageBox.warning(
-                    self, "Téléphone invalide",
-                    "Le numéro de téléphone doit contenir entre 9 et 13 chiffres.\n"
-                    "Exemple valide : 0555 123 456"
-                )
-                self.phone_edit.setFocus()
-                return
-
-        # ── Email : format standard (optionnel) ───────────────────────────────
-        if email:
-            if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
-                QMessageBox.warning(
-                    self, "Email invalide",
-                    "L'adresse email n'est pas valide.\n"
-                    "Exemple valide : nom@domaine.com"
-                )
-                self.email_edit.setFocus()
-                return
-
-        self.accept()
 
 
 # ------------------ PAGE CLIENTS ------------------
@@ -220,6 +183,12 @@ class ClientsPage(QWidget):
         """)
         
         table_layout.addWidget(self.table)
+
+        # ── Pagination au scroll ──────────────────────────────────
+        self._page_offset = 0
+        self._all_loaded  = False
+        self._loading     = False
+        self.table.verticalScrollBar().valueChanged.connect(self._on_scroll)
         layout.addWidget(table_container)
 
         # ------------------- ACTIONS BUTTONS -------------------
@@ -300,36 +269,52 @@ class ClientsPage(QWidget):
 
     # ------------------ CHARGEMENT DES DONNÉES ------------------
     def load_clients(self):
-        """Charge tous les clients depuis la base de données"""
+        """Charge la première page de clients."""
         self.table.setRowCount(0)
-        clients = self.db.get_all_clients()
-        
+        self._page_offset = 0
+        self._all_loaded  = False
+        self._loading     = False
+        self._load_next_page()
+
+    def _on_scroll(self, value):
+        """Charge la page suivante quand l'utilisateur approche du bas."""
+        bar = self.table.verticalScrollBar()
+        if value >= bar.maximum() - 10:
+            self._load_next_page()
+
+    def _load_next_page(self):
+        """Charge PAGE_SIZE clients supplémentaires depuis la base."""
+        if self._loading or self._all_loaded:
+            return
+        self._loading = True
+
+        search = self.search_input.text().strip()
+        if search:
+            # En mode recherche : pas de pagination
+            self._loading = False
+            return
+
+        clients = self.db.get_all_clients(limit=PAGE_SIZE, offset=self._page_offset)
+
+        if len(clients) < PAGE_SIZE:
+            self._all_loaded = True
+
         for client in clients:
             row = self.table.rowCount()
             self.table.insertRow(row)
-            
-            # ID
+
             id_item = QTableWidgetItem(str(client["id"]))
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            id_item.setData(Qt.ItemDataRole.UserRole, client["id"])  # Stocker l'ID
-            
-            # Nom
-            name_item = QTableWidgetItem(client["name"])
-            
-            # Téléphone
-            phone_item = QTableWidgetItem(client["phone"] or "")
-            
-            # Email
-            email_item = QTableWidgetItem(client["email"] or "")
-            
-            # Adresse
-            address_item = QTableWidgetItem(client["address"] or "")
-            
+            id_item.setData(Qt.ItemDataRole.UserRole, client["id"])
+
             self.table.setItem(row, 0, id_item)
-            self.table.setItem(row, 1, name_item)
-            self.table.setItem(row, 2, phone_item)
-            self.table.setItem(row, 3, email_item)
-            self.table.setItem(row, 4, address_item)
+            self.table.setItem(row, 1, QTableWidgetItem(client["name"]))
+            self.table.setItem(row, 2, QTableWidgetItem(client["phone"] or ""))
+            self.table.setItem(row, 3, QTableWidgetItem(client["email"] or ""))
+            self.table.setItem(row, 4, QTableWidgetItem(client["address"] or ""))
+
+        self._page_offset += len(clients)
+        self._loading = False
 
     # ------------------ RECHERCHE ------------------
     def filter_clients(self, text):
