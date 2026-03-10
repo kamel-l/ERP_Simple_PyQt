@@ -696,11 +696,14 @@ class Database:
             return None
     
     def get_all_sales(self, limit=None):
-        """Récupère toutes les ventes"""
+        """Récupère toutes les ventes avec le nombre d'articles par vente."""
         query = """
-            SELECT s.*, c.name as client_name
+            SELECT s.*, c.name as client_name,
+                   COUNT(si.id) AS items_count
             FROM sales s
             LEFT JOIN clients c ON s.client_id = c.id
+            LEFT JOIN sale_items si ON si.sale_id = s.id
+            GROUP BY s.id
             ORDER BY s.sale_date DESC
         """
         if limit:

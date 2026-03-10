@@ -651,9 +651,18 @@ class SalesHistoryPage(QWidget):
         self.search_input.textChanged.connect(self.apply_filters)
         self.search_input.setMinimumHeight(45)
 
+        # Bouton rafraîchir
+        refresh_btn = QPushButton("🔄 Actualiser")
+        refresh_btn.setStyleSheet(BUTTON_STYLES['secondary'])
+        refresh_btn.setMinimumHeight(45)
+        refresh_btn.setFixedWidth(150)
+        refresh_btn.clicked.connect(self.load_sales)
+        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+
         filters_layout.addWidget(period_label)
         filters_layout.addWidget(self.period_combo)
         filters_layout.addWidget(self.search_input)
+        filters_layout.addWidget(refresh_btn)
 
         layout.addWidget(filters_card)
 
@@ -809,11 +818,6 @@ class SalesHistoryPage(QWidget):
             "Total Ventes", f"{fmt_da(stats['sales_total'])}", COLORS['secondary']
         ))
 
-    def showEvent(self, event):
-        """Rafraîchissement automatique à chaque affichage."""
-        super().showEvent(event)
-        self.load_sales()
-
     def load_sales(self):
         """Charge toutes les ventes"""
         self.table.setRowCount(0)
@@ -844,9 +848,8 @@ class SalesHistoryPage(QWidget):
         client_item = QTableWidgetItem(sale.get('client_name', 'Anonyme'))
         self.table.setItem(row, 2, client_item)
         
-        # Nombre d'articles (nécessite une requête supplémentaire)
-        sale_details = self.db.get_sale_by_id(sale['id'])
-        items_count = len(sale_details['items']) if sale_details else 0
+        # Nombre d'articles (inclus directement dans get_all_sales — pas de requête supplémentaire)
+        items_count = sale.get('items_count', 0)
         items_item = QTableWidgetItem(f"{items_count} article(s)")
         items_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.table.setItem(row, 3, items_item)
