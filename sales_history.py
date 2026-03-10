@@ -651,18 +651,9 @@ class SalesHistoryPage(QWidget):
         self.search_input.textChanged.connect(self.apply_filters)
         self.search_input.setMinimumHeight(45)
 
-        # Bouton rafraîchir
-        refresh_btn = QPushButton("🔄 Actualiser")
-        refresh_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        refresh_btn.setMinimumHeight(45)
-        refresh_btn.setFixedWidth(150)
-        refresh_btn.clicked.connect(self.load_sales)
-        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-
         filters_layout.addWidget(period_label)
         filters_layout.addWidget(self.period_combo)
         filters_layout.addWidget(self.search_input)
-        filters_layout.addWidget(refresh_btn)
 
         layout.addWidget(filters_card)
 
@@ -817,6 +808,11 @@ class SalesHistoryPage(QWidget):
         stats_layout.insertWidget(2, self.build_stat_card(
             "Total Ventes", f"{fmt_da(stats['sales_total'])}", COLORS['secondary']
         ))
+
+    def showEvent(self, event):
+        """Rafraîchissement automatique à chaque affichage."""
+        super().showEvent(event)
+        self.load_sales()
 
     def load_sales(self):
         """Charge toutes les ventes"""

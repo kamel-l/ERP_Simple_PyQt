@@ -141,25 +141,7 @@ class DashboardPage(QWidget):
         row.addLayout(col)
         row.addStretch()
 
-        # Bouton actualiser
-        btn = QPushButton("↻   Actualiser")
-        btn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        btn.setFixedHeight(38)
-        btn.setFixedWidth(130)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet("""
-            QPushButton {
-                background: #6366F1;
-                color: white;
-                border: none;
-                border-radius: 10px;
-                padding: 0 18px;
-            }
-            QPushButton:hover  { background: #4F46E5; }
-            QPushButton:pressed{ background: #4338CA; }
-        """)
-        btn.clicked.connect(self.refresh)
-        row.addWidget(btn)
+
 
         self._main.addLayout(row)
 
@@ -405,6 +387,11 @@ class DashboardPage(QWidget):
         self._main.addWidget(card)
 
     # ── Chargement des données ────────────────────────────────
+    def showEvent(self, event):
+        """Rafraîchissement automatique à chaque affichage."""
+        super().showEvent(event)
+        self.refresh()
+
     def refresh(self):
         self._load_kpis()
         self._load_activities()

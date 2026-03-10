@@ -30,6 +30,20 @@ def clean_num(text):
     except (ValueError, TypeError):
         return 0.0
 
+def clean_num(text):
+    """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
+    try:
+        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
+    except (ValueError, TypeError):
+        return 0.0
+
+def clean_num(text):
+    """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
+    try:
+        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
+    except (ValueError, TypeError):
+        return 0.0
+
 # ------------------ DIALOG POUR CRÉER UN NOUVEAU PRODUIT ------------------
 class NewProductDialog(QDialog):
     def __init__(self):
@@ -733,9 +747,9 @@ class PurchasesPage(QWidget):
         tax_line = QHBoxLayout()
         tax_line.setSpacing(10)
         
-        tax_label = QLabel("Taxe (10%)")
-        tax_label.setFont(QFont("Segoe UI", 12))
-        tax_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
+        self.tax_title_label = QLabel("Taxe (10%)")
+        self.tax_title_label.setFont(QFont("Segoe UI", 12))
+        self.tax_title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}")
         
         self.tax_label = QLabel("0.00 DA")
 
@@ -748,7 +762,7 @@ class PurchasesPage(QWidget):
 
         self.tax_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
-        tax_line.addWidget(tax_label)
+        tax_line.addWidget(self.tax_title_label)
         tax_line.addStretch()
         tax_line.addWidget(self.tax_label)
         summary_layout.addLayout(tax_line)
@@ -795,6 +809,17 @@ class PurchasesPage(QWidget):
 
         # Connexion du signal pour mettre à jour les totaux
         self.table.itemChanged.connect(self.update_totals)
+
+    def showEvent(self, event):
+        """Rafraîchissement automatique : fournisseurs et TVA à chaque affichage."""
+        super().showEvent(event)
+        self.load_suppliers()
+        # Mettre à jour le label Taxe avec le taux actuel
+        try:
+            tax_rate_pct = float(self.db.get_setting('purchase_vat', '10') or '10')
+        except (ValueError, TypeError):
+            tax_rate_pct = 10.0
+        self.tax_title_label.setText(f"Taxe ({tax_rate_pct:.0f}%)")
 
     def load_suppliers(self):
         self.supplier_combo.clear()
@@ -918,9 +943,15 @@ class PurchasesPage(QWidget):
             except:
                 continue
 
-        tax = subtotal * 0.10
+        try:
+            tax_rate_pct = float(self.db.get_setting('purchase_vat', '10') or '10')
+        except (ValueError, TypeError):
+            tax_rate_pct = 10.0
+
+        tax = subtotal * (tax_rate_pct / 100)
         total = subtotal + tax
 
+        self.tax_title_label.setText(f"Taxe ({tax_rate_pct:.0f}%)")
         self.subtotal_label.setText(fmt_da(subtotal))
         self.tax_label.setText(fmt_da(tax))
         self.total_label.setText(fmt_da(total))
@@ -964,7 +995,7 @@ class PurchasesPage(QWidget):
             supplier_id=supplier_id,
             items=items,
             payment_method="cash",
-            tax_rate=10.0
+            tax_rate=float(self.db.get_setting('purchase_vat', '10') or '10')
         )
         
         if purchase_id:

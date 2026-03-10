@@ -547,6 +547,11 @@ class SettingsPage(QWidget):
 
         return item
 
+    def showEvent(self, event):
+        """Rafraîchissement automatique des statistiques à chaque affichage."""
+        super().showEvent(event)
+        self.load_statistics()
+
     def load_statistics(self):
         while self.stats_grid.count():
             child = self.stats_grid.takeAt(0)

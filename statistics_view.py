@@ -116,20 +116,6 @@ class StatisticsPage(QWidget):
         self.year_combo.currentTextChanged.connect(self.refresh)
         row.addWidget(self.year_combo)
 
-        # Refresh Button
-        btn = QPushButton("↻   Actualiser")
-        btn.setFixedHeight(36)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background:{C_BLUE}; color:white; border:none;
-                border-radius:8px; padding:0 18px;
-            }}
-            QPushButton:hover {{ background:#2563EB; }}
-        """)
-        btn.clicked.connect(self.refresh)
-        row.addWidget(btn)
-
         # Export CSV
         csv_btn = QPushButton("📥 Export CSV")
         csv_btn.setFixedHeight(36)
@@ -593,6 +579,11 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
     # Refresh Data
     # ─────────────────────────────────────────────────────────
+
+    def showEvent(self, event):
+        """Rafraîchissement automatique à chaque affichage."""
+        super().showEvent(event)
+        self.refresh()
 
     def refresh(self):
         self._populate_years()   # Mettre à jour la liste des années à chaque refresh

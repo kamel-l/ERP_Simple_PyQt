@@ -273,24 +273,7 @@ class ProductsPage(QWidget):
         self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         search_layout.addWidget(self.add_btn)
 
-        self.refresh_btn = QPushButton("↻   Actualiser")
-        self.refresh_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        self.refresh_btn.setFixedHeight(45)
-        self.refresh_btn.setFixedWidth(130)
-        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.refresh_btn.setStyleSheet("""
-            QPushButton {
-                background: #3B82F6;
-                color: white;
-                border: none;
-                border-radius: 10px;
-                padding: 0 18px;
-            }
-            QPushButton:hover  { background: #2563EB; }
-            QPushButton:pressed{ background: #1D4ED8; }
-        """)
-        self.refresh_btn.clicked.connect(self.refresh_page)
-        search_layout.addWidget(self.refresh_btn)
+
 
         # Table
         table_container = QFrame()
@@ -479,6 +462,11 @@ class ProductsPage(QWidget):
         value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.table.setItem(row, 6, value_item)
+
+    def showEvent(self, event):
+        """Rafraîchissement automatique à chaque affichage."""
+        super().showEvent(event)
+        self.refresh_page()
 
     def refresh_page(self):
         """Actualise la liste des produits et les statistiques"""
