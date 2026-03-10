@@ -1,3 +1,4 @@
+import re
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QFrame, QMessageBox
@@ -6,7 +7,6 @@ from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
-import re
 
 # ------------------ DIALOG POUR AJOUTER / MODIFIER CLIENT ------------------
 class ClientDialog(QDialog):
@@ -18,7 +18,7 @@ class ClientDialog(QDialog):
         self.setMinimumWidth(500)
         self.setStyleSheet(f"""
             QDialog {{
-                background-color: {COLORS['bg_card']};
+                background-color: {COLORS['BG_CARD']};
             }}
             QLabel {{
                 color: {COLORS['text_primary']};
@@ -68,7 +68,7 @@ class ClientDialog(QDialog):
         
         save_btn = QPushButton("💾 Enregistrer")
         save_btn.setStyleSheet(BUTTON_STYLES['success'])
-        save_btn.clicked.connect(self.accept)
+        save_btn.clicked.connect(self._validate_and_accept)
         save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         
         cancel_btn = QPushButton("❌ Annuler")
@@ -82,12 +82,45 @@ class ClientDialog(QDialog):
         
         main_layout.addLayout(btn_layout)
 
-    def validate_email(self):
-        email = self.email_edit.text()
-        if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            QMessageBox.warning(self, "Erreur", "Format d'email invalide.")
-            return False
-        return True
+
+    def _validate_and_accept(self):
+        """Valide les champs avant de fermer le dialogue."""
+        name  = self.name_edit.text().strip()
+        phone = self.phone_edit.text().strip()
+        email = self.email_edit.text().strip()
+
+        # ── Nom obligatoire ──────────────────────────────
+        if not name:
+            QMessageBox.warning(self, "Champ manquant", "Le nom du client est obligatoire.")
+            self.name_edit.setFocus()
+            return
+
+        # ── Téléphone : chiffres uniquement, 9 à 13 chiffres (optionnel) ─────
+        if phone:
+            phone_clean = phone.replace(" ", "").replace("-", "").replace(".", "")
+            if not re.fullmatch(r'[0-9]{9,13}', phone_clean):
+                QMessageBox.warning(
+                    self, "Téléphone invalide",
+                    "Le numéro de téléphone doit contenir entre 9 et 13 chiffres.\n"
+                    "Exemple valide : 0555 123 456"
+                )
+                self.phone_edit.setFocus()
+                return
+
+        # ── Email : format standard (optionnel) ───────────────────────────────
+        if email:
+            if not re.fullmatch(r'[^@\s]+@[^@\s]+\.[^@\s]+', email):
+                QMessageBox.warning(
+                    self, "Email invalide",
+                    "L'adresse email n'est pas valide.\n"
+                    "Exemple valide : nom@domaine.com"
+                )
+                self.email_edit.setFocus()
+                return
+
+        self.accept()
+
+
 # ------------------ PAGE CLIENTS ------------------
 class ClientsPage(QWidget):
     # Signal émis quand un client est ajouté ou modifié
@@ -106,7 +139,7 @@ class ClientsPage(QWidget):
         # ------------------- HEADER -------------------
         title = QLabel("👥 Gestion des Clients")
         title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 5px;")
+        title.setStyleSheet(f"color: {COLORS['BG_CARD']}; margin-bottom: 5px;")
         layout.addWidget(title)
 
         subtitle = QLabel("Gérez vos clients et leurs informations")
@@ -147,7 +180,18 @@ class ClientsPage(QWidget):
 
         # ------------------- CLIENT TABLE -------------------
         table_container = QFrame()
-        table_container.setStyleSheet(f"QFrame#inv {{ background:{COLORS['BG_CARD']}; border-radius:16px; border:1px solid {COLORS['BORDER']}; }}")
+        table_container.setStyleSheet(
+            f"""
+            QDialog {{
+                background-color: {COLORS['info']};
+            }}
+            QLabel {{
+                color: {COLORS['secondary']};
+                font-size: 13px;
+            }}
+            {INPUT_STYLE}
+        """
+        )
         table_layout = QVBoxLayout()
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
@@ -161,13 +205,13 @@ class ClientsPage(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setStyleSheet(TABLE_STYLE + f"""
             QHeaderView::section {{
-                background-color: {COLORS['BG_DEEP']};
+                background-color: {COLORS['success']};
                 color: {COLORS['text_primary']};
                 font-size: 13px;
                 font-weight: bold;
                 padding: 10px 8px;
                 border: none;
-                border-right: 1px solid {COLORS['BORDER']};
+                border-right: 1px solid {COLORS['primary']};
                 border-bottom: 2px solid {COLORS['primary']};
             }}
             QHeaderView::section:last {{
@@ -183,12 +227,6 @@ class ClientsPage(QWidget):
         actions_layout.setSpacing(10)
         layout.addLayout(actions_layout)
 
-        self.invoice_btn = QPushButton("📄 Factures")
-        self.invoice_btn.setStyleSheet(BUTTON_STYLES['primary'])
-        self.invoice_btn.clicked.connect(self.show_invoices)
-        self.invoice_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.invoice_btn.setMinimumHeight(40)
-
         self.edit_btn = QPushButton("✏️ Modifier")
         self.edit_btn.setStyleSheet(BUTTON_STYLES['secondary'])
         self.edit_btn.clicked.connect(self.edit_client)
@@ -202,7 +240,6 @@ class ClientsPage(QWidget):
         self.delete_btn.setMinimumHeight(40)
 
         actions_layout.addStretch()
-        actions_layout.addWidget(self.invoice_btn)
         actions_layout.addWidget(self.edit_btn)
         actions_layout.addWidget(self.delete_btn)
 
@@ -213,32 +250,30 @@ class ClientsPage(QWidget):
     def build_stat_card(self, title, value, color):
         """Construit une petite carte de statistique"""
         card = QFrame()
-        card.setObjectName("stat")
         card.setStyleSheet(f"""
-            QFrame#stat {{
-                background: {COLORS['BG_CARD']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['BORDER']};
-            }}
-            QFrame#stat:hover {{
-                border: 1px solid {COLORS['primary']};
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                    stop:0 {COLORS['BG_CARD']}, stop:1 #242424);
+                border-radius: 10px;
+                border: 1px solid {COLORS['border']};
+               
             }}
         """)
-        card.setFixedHeight(90)
-        card.setMinimumWidth(160)
+        card.setFixedHeight(80)
+        card.setMinimumWidth(180)
 
         card_layout = QVBoxLayout()
         card.setLayout(card_layout)
-        card_layout.setSpacing(8)
-        card_layout.setContentsMargins(16, 14, 16, 14)
+        card_layout.setSpacing(5)
+        card_layout.setContentsMargins(15, 10, 15, 10)
 
         title_label = QLabel(title)
         title_label.setFont(QFont("Segoe UI", 11))
-        title_label.setStyleSheet(f"color: {COLORS['TXT_SEC']}; border: none;")
+        title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
         card_layout.addWidget(title_label)
 
         value_label = QLabel(str(value))
-        value_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+        value_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
         value_label.setStyleSheet(f"color: {color}; border: none;")
         card_layout.addWidget(value_label)
 
@@ -466,243 +501,3 @@ class ClientsPage(QWidget):
                     "Erreur",
                     "Impossible de supprimer le client!"
                 )
-
-    # ------------------ AFFICHER FACTURES ------------------
-    def show_invoices(self):
-        """Affiche les factures d'un client sélectionné"""
-        selected = self.table.currentRow()
-        if selected < 0:
-            QMessageBox.warning(
-                self,
-                "Attention",
-                "Veuillez sélectionner un client!"
-            )
-            return
-        
-        # Récupérer l'ID et le nom du client
-        client_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
-        client_name = self.table.item(selected, 1).text()
-        
-        # Récupérer les factures du client
-        invoices = self.db.get_invoices_by_client(client_id)
-        
-        if not invoices:
-            QMessageBox.information(
-                self,
-                "Aucune facture",
-                f"Le client '{client_name}' n'a pas de factures."
-            )
-            return
-        
-        # Créer un dialogue pour afficher les factures
-        dialog = QDialog(self)
-        dialog.setWindowTitle(f"📄 Factures - {client_name}")
-        dialog.setMinimumWidth(900)
-        dialog.setMinimumHeight(500)
-        dialog.setStyleSheet(f"QDialog {{ background-color: {COLORS['bg_medium']}; }}")
-        
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
-        
-        # Titre
-        title = QLabel(f"📄 Factures de {client_name}")
-        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']};")
-        layout.addWidget(title)
-        
-        # Tableau des factures
-        table = QTableWidget(0, 5)
-        table.setHorizontalHeaderLabels(["N° Facture", "Date", "Montant Total", "Méthode de Paiement", "Statut"])
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        table.setAlternatingRowColors(True)
-        table.verticalHeader().setVisible(False)
-        table.setStyleSheet(TABLE_STYLE + f"""
-            QHeaderView::section {{
-                background-color: {COLORS['bg_light']};
-                color: {COLORS['text_primary']};
-                font-size: 12px;
-                font-weight: bold;
-                padding: 10px 8px;
-                border: none;
-                border-right: 1px solid {COLORS['border']};
-                border-bottom: 2px solid {COLORS['primary']};
-            }}
-        """)
-        
-        # Ajouter les factures dans le tableau
-        for invoice in invoices:
-            row = table.rowCount()
-            table.insertRow(row)
-            
-            invoice_num = QTableWidgetItem(str(invoice.get('invoice_number', 'N/A')))
-            invoice_num.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            
-            date_item = QTableWidgetItem(str(invoice.get('created_at', 'N/A')))
-            date_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            
-            amount = QTableWidgetItem(f"{invoice.get('total_amount', 0):,.2f} DA")
-            amount.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            
-            payment = QTableWidgetItem(str(invoice.get('payment_method', 'N/A')))
-            payment.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            
-            status = QTableWidgetItem(str(invoice.get('status', 'Complétée')))
-            status.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            
-            table.setItem(row, 0, invoice_num)
-            table.setItem(row, 1, date_item)
-            table.setItem(row, 2, amount)
-            table.setItem(row, 3, payment)
-            table.setItem(row, 4, status)
-        
-        layout.addWidget(table)
-        
-        # Boutons
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(10)
-        
-        details_btn = QPushButton("📋 Voir les détails")
-        details_btn.setStyleSheet(BUTTON_STYLES['primary'])
-        details_btn.setMinimumHeight(40)
-        details_btn.clicked.connect(lambda: self.show_invoice_details(table, invoices))
-        
-        close_btn = QPushButton("✕ Fermer")
-        close_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        close_btn.setMinimumHeight(40)
-        close_btn.clicked.connect(dialog.close)
-        
-        btn_layout.addWidget(details_btn)
-        btn_layout.addStretch()
-        btn_layout.addWidget(close_btn)
-        layout.addLayout(btn_layout)
-        
-        dialog.exec()
-
-    def show_invoice_details(self, table, invoices):
-        """Affiche les détails d'une facture sélectionnée"""
-        selected = table.currentRow()
-        if selected < 0:
-            QMessageBox.warning(
-                self,
-                "Attention",
-                "Veuillez sélectionner une facture!"
-            )
-            return
-        
-        # Récupérer la facture sélectionnée
-        invoice = invoices[selected]
-        invoice_id = invoice.get('id')
-        invoice_number = invoice.get('invoice_number', 'N/A')
-        
-        # Récupérer les items de la facture
-        items = self.db.get_sale_items(invoice_id)
-        
-        # Créer un dialogue pour afficher les détails
-        dialog = QDialog(self)
-        dialog.setWindowTitle(f"📋 Détails de la facture - {invoice_number}")
-        dialog.setMinimumWidth(900)
-        dialog.setMinimumHeight(600)
-        dialog.setStyleSheet(f"QDialog {{ background-color: {COLORS['bg_medium']}; }}")
-        
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(15)
-        layout.setContentsMargins(20, 20, 20, 20)
-        
-        # Titre
-        title = QLabel(f"📋 Facture N° {invoice_number}")
-        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']};")
-        layout.addWidget(title)
-        
-        # Infos facture
-        info_layout = QHBoxLayout()
-        info_layout.setSpacing(30)
-        
-        date_text = QLabel(f"📅 Date: {invoice.get('created_at', 'N/A')}")
-        date_text.setFont(QFont("Segoe UI", 11))
-        date_text.setStyleSheet(f"color: {COLORS['text_primary']};")
-        
-        payment_text = QLabel(f"💳 Paiement: {invoice.get('payment_method', 'N/A')}")
-        payment_text.setFont(QFont("Segoe UI", 11))
-        payment_text.setStyleSheet(f"color: {COLORS['text_primary']};")
-        
-        status_text = QLabel(f"📌 Statut: {invoice.get('status', 'Complétée')}")
-        status_text.setFont(QFont("Segoe UI", 11))
-        status_text.setStyleSheet(f"color: {COLORS['success']};")
-        
-        info_layout.addWidget(date_text)
-        info_layout.addWidget(payment_text)
-        info_layout.addWidget(status_text)
-        info_layout.addStretch()
-        layout.addLayout(info_layout)
-        
-        # Tableau des articles
-        items_table = QTableWidget(0, 4)
-        items_table.setHorizontalHeaderLabels(["Produit", "Quantité", "Prix Unitaire", "Total"])
-        items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        items_table.setAlternatingRowColors(True)
-        items_table.verticalHeader().setVisible(False)
-        items_table.setStyleSheet(TABLE_STYLE + f"""
-            QHeaderView::section {{
-                background-color: {COLORS['bg_light']};
-                color: {COLORS['text_primary']};
-                font-size: 12px;
-                font-weight: bold;
-                padding: 10px 8px;
-                border: none;
-                border-right: 1px solid {COLORS['border']};
-                border-bottom: 2px solid {COLORS['primary']};
-            }}
-        """)
-        
-        # Ajouter les articles
-        for item in items:
-            row = items_table.rowCount()
-            items_table.insertRow(row)
-            
-            product_name = QTableWidgetItem(str(item.get('product_name', 'N/A')))
-            qty_item = QTableWidgetItem(str(item.get('quantity', 0)))
-            qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            price_item = QTableWidgetItem(f"{item.get('unit_price', 0):,.2f} DA")
-            price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            total_item = QTableWidgetItem(f"{item.get('total', 0):,.2f} DA")
-            total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            total_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-            
-            items_table.setItem(row, 0, product_name)
-            items_table.setItem(row, 1, qty_item)
-            items_table.setItem(row, 2, price_item)
-            items_table.setItem(row, 3, total_item)
-        
-        layout.addWidget(items_table)
-        
-        # Résumé des montants
-        summary_layout = QHBoxLayout()
-        summary_layout.addStretch()
-        
-        subtotal_text = QLabel(f"Sous-total HT: {invoice.get('subtotal', 0):,.2f} DA")
-        subtotal_text.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        subtotal_text.setStyleSheet(f"color: {COLORS['text_primary']};")
-        
-        tax_text = QLabel(f"TVA: {invoice.get('tax_amount', 0):,.2f} DA")
-        tax_text.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        tax_text.setStyleSheet(f"color: {COLORS['warning']};")
-        
-        total_text = QLabel(f"Total TTC: {invoice.get('total_amount', 0):,.2f} DA")
-        total_text.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        total_text.setStyleSheet(f"color: {COLORS['success']};")
-        
-        summary_layout.addWidget(subtotal_text)
-        summary_layout.addWidget(tax_text)
-        summary_layout.addWidget(total_text)
-        layout.addLayout(summary_layout)
-        
-        # Bouton fermer
-        close_btn = QPushButton("✕ Fermer")
-        close_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        close_btn.setMinimumHeight(40)
-        close_btn.clicked.connect(dialog.close)
-        layout.addWidget(close_btn)
-        
-        dialog.exec()
