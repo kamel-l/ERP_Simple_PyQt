@@ -6,6 +6,7 @@ Fond anthracite #1E1E2E
 
 # ==================== COULEURS ====================
 COLORS = {
+<<<<<<< HEAD
     # Couleurs principales vives
     'primary':        '#00B4FF',        # Bleu électrique vif
     'primary_dark':   '#0090DD',        # Bleu électrique foncé
@@ -45,6 +46,27 @@ COLORS = {
     'TXT_PRI':        '#F0F4FF',
     'TXT_SEC':        'rgba(160,170,204,0.85)',
     'TXT_MUTED':      'rgba(160,170,204,0.40)',
+=======
+    'primary': '#3B82F6',        # Bleu royal
+    'primary_dark': '#2563EB',
+    'secondary': '#A855F7',      # Violet pourpre
+    'success': '#22C55E',        # Vert
+    'warning': '#FBBF24',        # Jaune or
+    'danger': '#F87171',         # Rouge doux
+    'info': '#38BDF8',           # Bleu ciel
+    'bg_dark': '#0A0E1A',        # Bleu nuit profond
+    'bg_medium': '#141B2D',
+    'bg_light': '#1E2A42',
+    'bg_card': '#141B2D',
+    'text_primary': '#F8FAFC',
+    'text_secondary': '#E2E8F0',
+    'text_tertiary': '#94A3B8',
+    'border': '#2D3A54',
+    'border_light': '#3B4B68',
+    'accent_dark':  "#1E5FA8",   # bleu foncé pressé,
+    'accent':       "#4DA6FF",   # bleu néon vif
+    'accent_light': "#99CCFF",   # bleu clair survol
+>>>>>>> 7339e72 (add logo)
 }
 
 

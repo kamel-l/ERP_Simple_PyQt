@@ -173,6 +173,7 @@ class MainWindow(QMainWindow):
         from PyQt6.QtGui import QPixmap
         from PyQt6.QtCore import QFileInfo
         
+<<<<<<< HEAD
         if logo_path and QFileInfo.exists(logo_path):
             try:
                 pixmap = QPixmap(logo_path)
@@ -191,6 +192,37 @@ class MainWindow(QMainWindow):
             # Aucun logo défini - afficher icône par défaut
             logo_label.setText("📦")
             logo_label.setFont(QFont("Segoe UI", 32, QFont.Weight.Bold))
+=======
+        # ================= LOGO / TITRE =================
+        # ── Logo ─────────────────────────────────────────────
+        logo_frame = QFrame()
+        logo_frame.setStyleSheet(f"""
+            QFrame {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {COLORS['accent_dark']}, stop:1 {COLORS['accent']});
+                border-radius: 10px;
+                border: none;
+            }}
+        """)
+        logo_frame.setFixedHeight(64)
+        logo_inner = QVBoxLayout(logo_frame)
+        logo_inner.setContentsMargins(12, 8, 12, 8)
+
+        logo_title = QLabel("ERP Pro")
+        logo_title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        logo_title.setStyleSheet("color: #FFFFFF; border: none; background: transparent;")
+        logo_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        logo_sub = QLabel("Gestion d'entreprise")
+        logo_sub.setFont(QFont("Segoe UI", 9))
+        logo_sub.setStyleSheet(f"color: rgba(255,255,255,0.75); border: none; background: transparent;")
+        logo_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        logo_inner.addWidget(logo_title)
+        logo_inner.addWidget(logo_sub)
+        layout.addWidget(logo_frame)
+        layout.addSpacing(16)
+>>>>>>> 7339e72 (add logo)
         
         logo_label.setStyleSheet(f"""
             QLabel {{
