@@ -27,6 +27,8 @@ from statistics_view import StatisticsPage
 from sales_history import SalesHistoryPage
 from PyQt6.QtGui import QAction
 from db_manager import get_database
+from auth import session
+from login_dialog import LoginDialog, UsersPage, UserBadge
 try:
     from advanced_analytics_view import AdvancedAnalyticsPage
 except ImportError:
@@ -76,16 +78,18 @@ class MainWindow(QMainWindow):
             }}
         """)
         
-        # Ajouter les pages (utiliser les instances déjà créées pour clients et sales)
+        # Ajouter les pages
         self.pages = {}
-        self.add_page("dashboard", DashboardPage(), "📊 Tableau de Bord")
-        self.add_page("clients", self.clients_page, "👥 Clients")
-        self.add_page("products", ProductsPage(), "📦 Produits")
-        self.add_page("sales", self.sales_page, "💰 Ventes")
-        self.add_page("purchases", PurchasesPage(), "🛒 Achats")
-        self.add_page("history", SalesHistoryPage(), "📊 Historique")
-        self.add_page("statistics", StatisticsPage(), "📈 Statistiques")
-        self.add_page("settings", SettingsPage(), "⚙️ Paramètres")
+        self.users_page = UsersPage()
+        self.add_page("dashboard",  DashboardPage(),        "📊 Tableau de Bord")
+        self.add_page("clients",    self.clients_page,      "👥 Clients")
+        self.add_page("products",   ProductsPage(),         "📦 Produits")
+        self.add_page("sales",      self.sales_page,        "💰 Ventes")
+        self.add_page("purchases",  PurchasesPage(),        "🛒 Achats")
+        self.add_page("history",    SalesHistoryPage(),     "📊 Historique")
+        self.add_page("statistics", StatisticsPage(),       "📈 Statistiques")
+        self.add_page("settings",   SettingsPage(),         "⚙️ Paramètres")
+        self.add_page("users",      self.users_page,        "👥 Utilisateurs")
         # New ERP Cleanup Menu
         cleanup_menu = self.menuBar().addMenu("ERP Tools")
 
@@ -226,7 +230,24 @@ class MainWindow(QMainWindow):
         nav_layout.addWidget(settings_btn)
         self.nav_buttons["settings"] = settings_btn
 
+        # Bouton Utilisateurs (admin seulement — masqué pour les autres rôles)
+        if session.can("manage_users"):
+            users_btn = self.create_compact_nav_button("👤", "Utilisateurs", "users", COLORS['danger'])
+            nav_layout.addWidget(users_btn)
+            self.nav_buttons["users"] = users_btn
+
         nav_layout.addStretch()
+
+        # ── Badge utilisateur connecté ──────────────────────────
+        sep_user = QFrame()
+        sep_user.setFrameShape(QFrame.Shape.HLine)
+        sep_user.setFixedHeight(1)
+        sep_user.setStyleSheet(f"background: {COLORS['BORDER']}; border: none; margin: 0 4px;")
+        nav_layout.addWidget(sep_user)
+
+        self._user_badge = UserBadge()
+        self._user_badge.logout_requested.connect(self._do_logout)
+        nav_layout.addWidget(self._user_badge)
 
         # Séparateur avant About
         sep2 = QFrame()
@@ -329,15 +350,42 @@ class MainWindow(QMainWindow):
                 """)
 
     def show_page(self, key):
-        """Affiche une page spécifique"""
+        """Affiche une page si l'utilisateur est autorisé."""
+        if not session.can_access_page(key):
+            QMessageBox.warning(
+                self, "Accès refusé",
+                f"Votre rôle ({session.role_label}) ne permet pas "
+                f"d'accéder à cette section.")
+            return
         if key in self.pages:
             page_info = self.pages[key]
             self.stack.setCurrentIndex(page_info['index'])
             self.update_nav_buttons(key)
-            
-            # Mettre à jour le titre de la fenêtre
-            self.setWindowTitle(f"ERP Pro - {page_info['title']}")
+            self.setWindowTitle(f"ERP Pro — {page_info['title']}")
     
+    def _do_logout(self) -> None:
+        """Déconnecte l'utilisateur et affiche à nouveau l'écran de connexion."""
+        reply = QMessageBox.question(
+            self, "Déconnexion",
+            f"Déconnecter {session.display_name} ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        session.logout()
+        self.hide()
+        login = LoginDialog()
+        if login.exec() == QDialog.DialogCode.Accepted:
+            # Reconstruire la sidebar avec les droits du nouvel utilisateur
+            old_sidebar = self.findChild(QFrame, "sidebar")
+            if old_sidebar:
+                old_sidebar.deleteLater()
+            new_sidebar = self.create_sidebar()
+            self.centralWidget().layout().insertWidget(0, new_sidebar)
+            self.show_page("dashboard")
+            self.show()
+        else:
+            self.close()
+
     def run_erp_cleanup(self):
         """
         Lance le nettoyage complet de la base de données ERP.
@@ -436,7 +484,6 @@ class AboutDialog(QDialog):
         self._drag_pos = None
 
     def _build_ui(self):
-        """Construit l'interface interne de la boîte de dialogue About."""
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
 
@@ -633,15 +680,18 @@ class AboutDialog(QDialog):
 
 
 def main():
-    """Point d'entrée de l'application"""
+    """Point d'entrée de l'application avec écran de connexion."""
     app = QApplication(sys.argv)
-    
-    # Configuration de l'application
     app.setApplicationName("ERP Pro")
-    app.setOrganizationName("Ma Société")
+    app.setOrganizationName("DAR ELSSALEM")
     app.setApplicationVersion("2.0.0")
-    
-    # Créer et afficher la fenêtre principale
+
+    # ── Écran de connexion obligatoire ────────────────────────────
+    login = LoginDialog()
+    if login.exec() != QDialog.DialogCode.Accepted:
+        sys.exit(0)     # L'utilisateur a fermé la fenêtre sans se connecter
+
+    # ── Fenêtre principale ────────────────────────────────────────
     window = MainWindow()
     window.show()
     

@@ -3,22 +3,13 @@ from PyQt6.QtWidgets import (
     QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QFrame, QMessageBox
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
+from auth import session, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 
 # ------------------ DIALOG POUR AJOUTER / MODIFIER CLIENT ------------------
 class ClientDialog(QDialog):
-    """Dialogue de création et modification d'un client.
-
-    Args:
-        name (str): Nom du client (pré-rempli en modification).
-        phone (str): Numéro de téléphone.
-        email (str): Adresse email.
-        address (str): Adresse postale.
-        client_id (int | None): ID du client existant, None pour un nouveau.
-    """
-
     def __init__(self, name="", phone="", email="", address="", client_id=None):
         super().__init__()
 
@@ -94,15 +85,6 @@ class ClientDialog(QDialog):
 
 # ------------------ PAGE CLIENTS ------------------
 class ClientsPage(QWidget):
-    """Page de gestion des clients.
-
-    Affiche la liste paginée des clients avec recherche,
-    et permet l'ajout, la modification et la suppression.
-
-    Signals:
-        client_added: Émis après tout changement (ajout, modif, suppression).
-    """
-
     # Signal émis quand un client est ajouté ou modifié
     client_added = pyqtSignal()
     
@@ -338,6 +320,9 @@ class ClientsPage(QWidget):
     # ------------------ AJOUTER CLIENT ------------------
     def add_client(self):
         """Ajoute un nouveau client"""
+        if not session.can('add_client'):
+            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'ajouter des clients.")
+            return
         dialog = ClientDialog()
         if dialog.exec():
             name = dialog.name_edit.text().strip()
@@ -376,6 +361,9 @@ class ClientsPage(QWidget):
     # ------------------ MODIFIER CLIENT ------------------
     def edit_client(self):
         """Modifie un client existant"""
+        if not session.can('edit_client'):
+            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas de modifier des clients.")
+            return
         selected = self.table.currentRow()
         if selected < 0:
             QMessageBox.warning(
@@ -441,6 +429,9 @@ class ClientsPage(QWidget):
     # ------------------ SUPPRIMER CLIENT ------------------
     def delete_client(self):
         """Supprime un client"""
+        if not session.can('delete_client'):
+            QMessageBox.warning(self, "Accès refusé", "Seul un administrateur peut supprimer des clients.")
+            return
         selected = self.table.currentRow()
         if selected < 0:
             QMessageBox.warning(

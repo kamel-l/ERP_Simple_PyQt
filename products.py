@@ -9,7 +9,8 @@ from PyQt6.QtWidgets import (
     QSpinBox, QDoubleSpinBox, QComboBox
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
+from auth import session
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 import csv
@@ -225,9 +226,6 @@ class ProductDialog(QDialog):
 
 
 class ProductsPage(QWidget):
-    # Émis après tout changement de stock (ajout, modif, suppression)
-    product_changed = pyqtSignal()
-
     def __init__(self):
         super().__init__()
         
@@ -491,6 +489,10 @@ class ProductsPage(QWidget):
 
     def add_product(self):
         """Ajoute un nouveau produit"""
+        if not session.can('add_product'):
+            QMessageBox.warning(self, "Accès refusé",
+                "Votre rôle ne permet pas d'ajouter des produits.")
+            return
         dialog = ProductDialog()
         if dialog.exec():
             category_name = dialog.category.currentText().strip()
@@ -518,12 +520,15 @@ class ProductsPage(QWidget):
                 QMessageBox.information(self, "Succès", "Produit ajouté avec succès!")
                 self.load_products()
                 self.update_statistics()
-                self.product_changed.emit()
             else:
                 QMessageBox.critical(self, "Erreur", "Impossible d'ajouter le produit!")
 
     def edit_product(self):
         """Modifie un produit"""
+        if not session.can('edit_product'):
+            QMessageBox.warning(self, "Accès refusé",
+                "Votre rôle ne permet pas de modifier des produits.")
+            return
         selected = self.table.currentRow()
         if selected < 0:
             QMessageBox.warning(self, "Attention", "Veuillez sélectionner un produit!")
@@ -560,13 +565,16 @@ class ProductsPage(QWidget):
             ):
                 QMessageBox.information(self, "Succès", "Produit modifié avec succès!")
                 self.load_products()
-                self.product_changed.emit()
                 self.update_statistics()
             else:
                 QMessageBox.critical(self, "Erreur", "Impossible de modifier le produit!")
 
     def delete_product(self):
         """Supprime un produit"""
+        if not session.can('delete_product'):
+            QMessageBox.warning(self, "Accès refusé",
+                "Seul un administrateur peut supprimer des produits.")
+            return
         selected = self.table.currentRow()
         if selected < 0:
             QMessageBox.warning(self, "Attention", "Veuillez sélectionner un produit!")
@@ -587,12 +595,15 @@ class ProductsPage(QWidget):
                 QMessageBox.information(self, "Succès", "Produit supprimé!")
                 self.load_products()
                 self.update_statistics()
-                self.product_changed.emit()
             else:
                 QMessageBox.critical(self, "Erreur", "Impossible de supprimer!")
 
     def delete_all_products(self):
         """Supprime tous les produits après double confirmation"""
+        if not session.can('delete_all_products'):
+            QMessageBox.warning(self, "Accès refusé",
+                "Seul un administrateur peut effectuer cette opération.")
+            return
         count = self.table.rowCount()
         if count == 0:
             QMessageBox.information(self, "Info", "Aucun produit à supprimer.")

@@ -8,7 +8,8 @@ from PyQt6.QtWidgets import (
     QMessageBox, QDialog, QLineEdit, QFormLayout, QInputDialog
 )
 from PyQt6.QtGui import QFont, QDoubleValidator, QIntValidator
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
+from auth import session, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
@@ -39,12 +40,6 @@ def clean_num(text):
 
 # ------------------ DIALOG POUR CRÉER UN NOUVEAU PRODUIT ------------------
 class NewProductDialog(QDialog):
-    """Dialogue de création rapide d'un nouveau produit depuis le module Achats.
-
-    Permet d'ajouter un produit directement lors de la saisie d'un achat,
-    sans quitter la page.
-    """
-
     def __init__(self):
         super().__init__()
         
@@ -177,13 +172,6 @@ class NewProductDialog(QDialog):
 
 # ------------------ DIALOG POUR MODIFIER UN PRODUIT ET SAISIR LA QUANTITÉ ------------------
 class ProductEditDialog(QDialog):
-    """Dialogue de modification d'un produit existant depuis le module Achats.
-
-    Args:
-        product (dict): Données du produit à modifier.
-        parent: Widget parent Qt.
-    """
-
     def __init__(self, product, parent=None):
         super().__init__(parent)
         self.product = product
@@ -351,12 +339,6 @@ class ProductEditDialog(QDialog):
 
 # ------------------ DIALOG POUR SÉLECTIONNER UN PRODUIT ------------------
 class ProductSelectorDialog(QDialog):
-    """Dialogue de sélection d'un produit à ajouter à la commande d'achat.
-
-    Args:
-        products (list[dict]): Liste des produits disponibles.
-    """
-
     def __init__(self, products):
         super().__init__()
         
@@ -509,9 +491,6 @@ class ProductSelectorDialog(QDialog):
 
 # ------------------ DIALOG POUR AJOUTER UN FOURNISSEUR ------------------
 class SupplierDialog(QDialog):
-    """Dialogue de création d'un nouveau fournisseur.
-    """
-
     def __init__(self):
         super().__init__()
         
@@ -605,15 +584,6 @@ class SupplierDialog(QDialog):
 
 # ------------------ PAGE PRINCIPALE DES ACHATS ------------------
 class PurchasesPage(QWidget):
-    """Page de gestion des achats fournisseurs.
-
-    Permet de saisir des commandes d'achat, gérer les fournisseurs
-    et mettre à jour le stock automatiquement.
-
-    Signals:
-        purchase_saved: Émis après chaque achat enregistré avec succès.
-    """
-
     # Émis après chaque achat enregistré (met à jour stock + dashboard)
     purchase_saved = pyqtSignal()
 
@@ -838,9 +808,6 @@ class PurchasesPage(QWidget):
         self.table.itemChanged.connect(self.update_totals)
 
     def load_suppliers(self):
-        """Charge la liste des fournisseurs dans le ComboBox.
-        """
-
         self.supplier_combo.clear()
         self.supplier_combo.addItem("Sélectionner un fournisseur", None)
         
@@ -849,9 +816,9 @@ class PurchasesPage(QWidget):
             self.supplier_combo.addItem(supplier['name'], supplier['id'])
 
     def add_supplier(self):
-        """Ouvre le dialogue de création d'un nouveau fournisseur.
-        """
-
+        if not session.can('add_supplier'):
+            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'ajouter des fournisseurs.")
+            return
         dialog = SupplierDialog()
         if dialog.exec():
             name = dialog.name_edit.text().strip()
@@ -870,9 +837,6 @@ class PurchasesPage(QWidget):
                     self.supplier_combo.setCurrentIndex(index)
 
     def add_item(self):
-        """Ouvre le sélecteur de produit et ajoute l'article sélectionné au tableau.
-        """
-
         products = self.db.get_all_products()
         
         if not products:
@@ -947,11 +911,6 @@ class PurchasesPage(QWidget):
         self.update_totals()
 
     def update_totals(self):
-        """Recalcule le sous-total, la taxe et le total depuis les lignes du tableau.
-
-        Le taux de taxe est lu dynamiquement depuis les paramètres (purchase_vat).
-        """
-
         try:
             self.table.itemChanged.disconnect(self.update_totals)
         except:
@@ -989,11 +948,9 @@ class PurchasesPage(QWidget):
         self.table.itemChanged.connect(self.update_totals)
 
     def save_purchase(self):
-        """Valide et enregistre l'achat en base de données.
-
-        Met à jour le stock des produits et émet le signal purchase_saved.
-        """
-
+        if not session.can('create_purchase'):
+            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'enregistrer des achats.")
+            return
         if self.supplier_combo.currentIndex() == 0:
             QMessageBox.warning(self, "Attention", "Sélectionnez un fournisseur!")
             return
