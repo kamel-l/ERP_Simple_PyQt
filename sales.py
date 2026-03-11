@@ -669,6 +669,15 @@ class SalesPage(QWidget):
         self.update_totals()
 
 
+    def showEvent(self, event):
+        """Met à jour le label TVA et les clients à chaque affichage."""
+        super().showEvent(event)
+        self.vat_rate    = self._get_vat_rate()
+        self.vat_percent = self.vat_rate * 100
+        self.tax_header_label.setText(f"TVA ({self.vat_percent:.0f}%) :")
+        self.load_clients()
+        self.update_totals()
+
     def load_clients(self):
         """Charge les clients (peut être appelée depuis l'extérieur pour rafraîchir)"""
         self.client_combo.clear()

@@ -47,11 +47,17 @@ class MainWindow(QMainWindow):
         # qdarktheme.setup_theme("dark")
 
         # Créer les pages
-        self.clients_page = ClientsPage()
-        self.sales_page = SalesPage()
-        
-        # ── Signaux inter-pages ──────────────────────────────────────────
-        # Client ajouté/modifié → rafraîchir la liste clients dans Ventes
+        self.clients_page    = ClientsPage()
+        self.sales_page      = SalesPage()
+        self.dashboard_page  = DashboardPage()
+        self.products_page   = ProductsPage()
+        self.purchases_page  = PurchasesPage()
+        self.history_page    = SalesHistoryPage()
+        self.statistics_page = StatisticsPage()
+        self.settings_page   = SettingsPage()
+
+        # ── Signaux inter-pages ───────────────────────────────────
+        # Client ajouté/modifié → rafraîchir liste clients dans Ventes
         self.clients_page.client_added.connect(self.sales_page.load_clients)
 
         # Vente enregistrée → dashboard + historique + statistiques
@@ -63,7 +69,7 @@ class MainWindow(QMainWindow):
         self.products_page.product_changed.connect(self.dashboard_page.refresh)
         self.products_page.product_changed.connect(self.statistics_page.refresh)
 
-        # Achat enregistré → dashboard + produits (stock mis à jour) + stats
+        # Achat enregistré → dashboard + produits (stock) + statistiques
         self.purchases_page.purchase_saved.connect(self.dashboard_page.refresh)
         self.purchases_page.purchase_saved.connect(self.products_page.refresh_page)
         self.purchases_page.purchase_saved.connect(self.statistics_page.refresh)
@@ -92,13 +98,6 @@ class MainWindow(QMainWindow):
         
         # Ajouter les pages (utiliser les instances déjà créées pour clients et sales)
         self.pages = {}
-        self.dashboard_page   = DashboardPage()
-        self.products_page    = ProductsPage()
-        self.purchases_page   = PurchasesPage()
-        self.history_page     = SalesHistoryPage()
-        self.statistics_page  = StatisticsPage()
-        self.settings_page    = SettingsPage()
-
         self.add_page("dashboard",  self.dashboard_page,  "📊 Tableau de Bord")
         self.add_page("clients",    self.clients_page,    "👥 Clients")
         self.add_page("products",   self.products_page,   "📦 Produits")

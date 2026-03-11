@@ -806,6 +806,16 @@ class PurchasesPage(QWidget):
         # Connexion du signal pour mettre à jour les totaux
         self.table.itemChanged.connect(self.update_totals)
 
+    def showEvent(self, event):
+        """Met à jour le label Taxe et les fournisseurs à chaque affichage."""
+        super().showEvent(event)
+        self.load_suppliers()
+        try:
+            tax_rate_pct = float(self.db.get_setting('purchase_vat', '10') or '10')
+        except (ValueError, TypeError):
+            tax_rate_pct = 10.0
+        self.tax_title_label.setText(f"Taxe ({tax_rate_pct:.0f}%)")
+
     def load_suppliers(self):
         self.supplier_combo.clear()
         self.supplier_combo.addItem("Sélectionner un fournisseur", None)
