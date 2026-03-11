@@ -1,13 +1,6 @@
-
-.env
-/.qodo
-
-.database
-.backups
-*.pdf
 __pycache__/
 *.pyc
-
-backups/
-*.md
-*.log
+*.db
+*.sqlite3
+__pycache__/
+*.pyc

@@ -4,6 +4,7 @@ Gère toutes les opérations CRUD pour l'application ERP
 """
 
 import sqlite3
+from config import config
 from datetime import datetime
 from pathlib import Path
 import json
@@ -12,14 +13,14 @@ import json
 class Database:
     """Classe principale pour gérer la base de données SQLite"""
     
-    def __init__(self, db_path="erp_database.db"):
+    def __init__(self, db_path=None):
         """
         Initialise la connexion à la base de données
         
         Args:
             db_path: Chemin vers le fichier de base de données
         """
-        self.db_path = db_path
+        self.db_path = db_path or config.db_path
         self.conn = None
         self.cursor = None
         self.connect()
@@ -343,7 +344,7 @@ class Database:
         return [dict(row) for row in self.cursor.fetchall()]
 
     def count_clients(self, search=None):
-        """Retourne le nombre total de clients (pour la pagination)."""
+        """Retourne le nombre total de clients."""
         if search:
             self.cursor.execute(
                 "SELECT COUNT(*) FROM clients WHERE name LIKE ? OR email LIKE ?",
@@ -517,7 +518,7 @@ class Database:
         return [dict(row) for row in self.cursor.fetchall()]
 
     def count_products(self, search=None):
-        """Retourne le nombre total de produits (pour la pagination)."""
+        """Retourne le nombre total de produits."""
         if search:
             self.cursor.execute(
                 "SELECT COUNT(*) FROM products WHERE name LIKE ? OR barcode LIKE ?",
@@ -1612,11 +1613,11 @@ class Database:
 
 _db_instance = None
 
-def get_database(db_path="erp_database.db"):
+def get_database(db_path=None):
     """Retourne l'instance unique de la base de données"""
     global _db_instance
     if _db_instance is None:
-        _db_instance = Database(db_path)
+        _db_instance = Database(db_path or config.db_path)
     return _db_instance
 
 
