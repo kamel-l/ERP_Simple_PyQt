@@ -16,7 +16,7 @@ def fmt_da(value, decimals=2):
 from PyQt6.QtWidgets import (
     QSplitter, QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
     QPushButton, QScrollArea, QSizePolicy, QFileDialog, QMessageBox,
-    QGridLayout, QTableWidget, QHeaderView, QTableWidgetItem, QComboBox, QProgressBar
+    QGridLayout, QTableWidget, QHeaderView, QTableWidgetItem, QComboBox
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt
@@ -37,6 +37,11 @@ from ui_components import (
 # ─────────────────────────────────────────────────────────────
 
 class StatisticsPage(QWidget):
+    """Page des statistiques et analyses de l'ERP.
+
+    Affiche KPIs annuels, graphiques des ventes et marges,
+    tops produits et clients. Supporte export CSV, Excel et PDF.
+    """
     def __init__(self):
         super().__init__()
 
@@ -80,6 +85,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _build_header(self):
+        """Construit l'en-tête avec titre, sélecteur d'année et boutons d'export."""
         row = QHBoxLayout()
         row.setSpacing(14)
 
@@ -183,6 +189,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _build_kpi_row(self):
+        """Construit la rangée des KPIs annuels."""
         row = QHBoxLayout()
         row.setSpacing(16)
 
@@ -235,6 +242,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _build_charts_row(self):
+        """Construit la rangée des graphiques mensuels."""
         row = QHBoxLayout()
         row.setSpacing(16)
 
@@ -417,176 +425,112 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _build_advanced_kpi_card(self):
-        """Construit la carte des KPI avancés enrichie.
-
-        Contient 4 métriques avec barres de progression,
-        un sparkline de tendance du panier moyen et
-        le Top 5 produits par marge brute avec barres visuelles.
-        """
+        """Construit la carte des KPI avancés"""
         card = _card()
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(16, 14, 16, 14)
-        layout.setSpacing(14)
-
-        # ── Titre ──────────────────────────────────────────────
-        title = QLabel("📊 Indicateurs de Performance")
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(10)
+        
+        # Titre
+        title = QLabel("📊 KPI Avancés")
         title.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         title.setStyleSheet(f"color: {TXT_PRI};")
         layout.addWidget(title)
-
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet(f"color: {BG_DEEP};")
-        layout.addWidget(sep)
-
-        # ── Grille 2x2 métriques avec barres de progression ───
+        
+        # Grille 2x2 pour les métriques avancées
         grid = QGridLayout()
-        grid.setSpacing(10)
-
-        self.avg_cart_card   = self._create_metric_card(
-            "💳 Panier Moyen",    "0 DA", C_BLUE,   "Valeur moyenne par vente",       show_bar=False)
-        self.margin_card     = self._create_metric_card(
-            "📈 Marge Brute",     "0 %",  C_GREEN,  "Bénéfice / Chiffre d'affaires",  show_bar=True, bar_max=100)
-        self.turnover_card   = self._create_metric_card(
-            "🔄 Rotation Stock",  "0 x",  C_AMBER,  "Renouvellements du stock / an",  show_bar=True, bar_max=12)
-        self.conversion_card = self._create_metric_card(
-            "🎯 Taux Conversion", "0 %",  C_VIOLET, "Clients actifs / total clients", show_bar=True, bar_max=100)
-
-        grid.addWidget(self.avg_cart_card,   0, 0)
-        grid.addWidget(self.margin_card,     0, 1)
-        grid.addWidget(self.turnover_card,   1, 0)
+        grid.setSpacing(8)
+        
+        # Création des cartes de métriques
+        self.avg_cart_card = self._create_metric_card("Panier Moyen", "0 DA", C_BLUE)
+        self.margin_card = self._create_metric_card("Marge Globale", "0%", C_GREEN)
+        self.turnover_card = self._create_metric_card("Rotation Stock", "0x", C_AMBER)
+        self.conversion_card = self._create_metric_card("Conversion", "0%", C_VIOLET)
+        
+        grid.addWidget(self.avg_cart_card, 0, 0)
+        grid.addWidget(self.margin_card, 0, 1)
+        grid.addWidget(self.turnover_card, 1, 0)
         grid.addWidget(self.conversion_card, 1, 1)
+        
         layout.addLayout(grid)
+        
+        # Ligne des produits les plus rentables
+        profit_products_title = QLabel("💰 Top 5 Produits par Marge Brute")
+        profit_products_title.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        profit_products_title.setStyleSheet(f"color: {TXT_PRI}; margin-top: 10px;")
+        layout.addWidget(profit_products_title)
 
-        # ── Sparkline : tendance panier moyen 6 mois ──────────
-        spark_hdr = QHBoxLayout()
-        spark_title = QLabel("📉 Tendance Panier — 6 derniers mois")
-        spark_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        spark_title.setStyleSheet(f"color: {TXT_PRI};")
-        spark_hdr.addWidget(spark_title)
-        spark_hdr.addStretch()
-        self._spark_delta_lbl = QLabel("")
-        self._spark_delta_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        spark_hdr.addWidget(self._spark_delta_lbl)
-        layout.addLayout(spark_hdr)
-
-        self._sparkline = pg.PlotWidget(background=BG_DEEP)
-        self._sparkline.setFixedHeight(80)
-        self._sparkline.setMouseEnabled(x=False, y=False)
-        self._sparkline.hideButtons()
-        # ⚠️ pyqtgraph n'accepte PAS le format CSS rgba() — utiliser QColor
-        _axis_color = QColor(160, 170, 204, 180)
-        self._sparkline.getAxis("left").setStyle(tickLength=0, showValues=False)
-        self._sparkline.getAxis("bottom").setStyle(tickLength=3)
-        self._sparkline.getAxis("bottom").setTextPen(_axis_color)
-        self._sparkline.setContentsMargins(0, 0, 0, 0)
-        for side in ("top", "right"):
-            self._sparkline.showAxis(side)
-            self._sparkline.getAxis(side).setStyle(tickLength=0, showValues=False)
-        layout.addWidget(self._sparkline)
-
-        # ── Top 5 produits par marge brute ─────────────────────
-        prod_title = QLabel("💰 Top 5 — Marge Brute")
-        prod_title.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        prod_title.setStyleSheet(f"color: {TXT_PRI};")
-        layout.addWidget(prod_title)
-
-        self._profit_rows_widget = QWidget()
-        self._profit_rows_widget.setStyleSheet("background: transparent;")
-        self._profit_rows_layout = QVBoxLayout(self._profit_rows_widget)
-        self._profit_rows_layout.setSpacing(6)
-        self._profit_rows_layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._profit_rows_widget)
-
+        # Tableau des produits rentables
+        self.profit_products_table = QTableWidget(0, 4)
+        self.profit_products_table.setHorizontalHeaderLabels([
+            "Produit", "Qté vendue", "Marge Unitaire", "Marge Totale"
+        ])
+        self.profit_products_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.profit_products_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        self.profit_products_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.profit_products_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        self.profit_products_table.setColumnWidth(1, 80)
+        self.profit_products_table.setColumnWidth(2, 120)
+        self.profit_products_table.setColumnWidth(3, 120)
+        
+        self.profit_products_table.verticalHeader().setVisible(False)
+        self.profit_products_table.setAlternatingRowColors(True)
+        self.profit_products_table.setStyleSheet(f"""
+            QTableWidget {{
+                background: {BG_DEEP};
+                alternate-background-color: rgba(255,255,255,0.03);
+                color: {TXT_PRI};
+                border: none;
+                font-size: 11px;
+            }}
+            QHeaderView::section {{
+                background: {C_VIOLET}22;
+                color: {C_VIOLET};
+                font-size: 10px;
+                font-weight: bold;
+                padding: 6px;
+                border: none;
+                border-bottom: 2px solid {C_VIOLET};
+            }}
+        """)
+        self.profit_products_table.setMinimumHeight(150)
+        self.profit_products_table.setMaximumHeight(200)
+        
+        layout.addWidget(self.profit_products_table)
+        
         return card
 
 
-    def _create_metric_card(self, title, value, color, subtitle="",
-                             show_bar=False, bar_max=100):
-        """Crée une carte de métrique avec barre de progression optionnelle.
-
-        Args:
-            title (str): Libellé principal.
-            value (str): Valeur initiale affichée.
-            color (str): Couleur CSS d'accentuation.
-            subtitle (str): Description courte sous la valeur.
-            show_bar (bool): Afficher une barre de progression.
-            bar_max (float): Valeur max de la barre.
-
-        Returns:
-            QFrame: Le widget de la carte.
-        """
+    def _create_metric_card(self, title, value, color):
+        """Crée une petite carte de métrique"""
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
                 background: {BG_DEEP};
-                border-radius: 10px;
+                border-radius: 8px;
                 border: 1px solid {color}33;
             }}
         """)
-        card.setMinimumHeight(80 if show_bar else 72)
-
-        lay = QVBoxLayout(card)
-        lay.setContentsMargins(12, 10, 12, 10)
-        lay.setSpacing(3)
-
+        card.setMinimumHeight(70)
+        
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(2)
+        
+        # Titre
         title_lbl = QLabel(title)
         title_lbl.setFont(QFont("Segoe UI", 9))
         title_lbl.setStyleSheet(f"color: {TXT_SEC}; border: none;")
-        lay.addWidget(title_lbl)
-
+        layout.addWidget(title_lbl)
+        
+        # Valeur
         value_lbl = QLabel(value)
-        value_lbl.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
+        value_lbl.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
         value_lbl.setStyleSheet(f"color: {color}; border: none;")
-        lay.addWidget(value_lbl)
-
-        if subtitle:
-            sub_lbl = QLabel(subtitle)
-            sub_lbl.setFont(QFont("Segoe UI", 7))
-            sub_lbl.setStyleSheet(f"color: {TXT_SEC}; border: none;")
-            lay.addWidget(sub_lbl)
-
-        if show_bar:
-            bar = QProgressBar()
-            bar.setRange(0, 1000)
-            bar.setValue(0)
-            bar.setTextVisible(False)
-            bar.setFixedHeight(5)
-            bar.setStyleSheet(f"""
-                QProgressBar {{
-                    background: {color}22;
-                    border-radius: 2px;
-                    border: none;
-                }}
-                QProgressBar::chunk {{
-                    background: qlineargradient(
-                        x1:0, y1:0, x2:1, y2:0,
-                        stop:0 {color}88, stop:1 {color}
-                    );
-                    border-radius: 2px;
-                }}
-            """)
-            lay.addWidget(bar)
-            card._bar     = bar
-            card._bar_max = bar_max
-        else:
-            card._bar = None
-
+        layout.addWidget(value_lbl)
+        
         card.value_label = value_lbl
         return card
-
-
-    def _update_metric_bar(self, card, numeric_value):
-        """Met à jour la barre de progression d'une carte métrique.
-
-        Args:
-            card (QFrame): Carte retournée par _create_metric_card.
-            numeric_value (float): Valeur numérique courante.
-        """
-        if card._bar is None:
-            return
-        pct = min(numeric_value / card._bar_max, 1.0)
-        card._bar.setValue(int(pct * 1000))
 
 
     # ─────────────────────────────────────────────────────────
@@ -659,6 +603,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def refresh(self):
+        """Rafraîchit toutes les statistiques pour l'année sélectionnée."""
         self._populate_years()   # Mettre à jour la liste des années à chaque refresh
         self._load_kpis()
         self._load_sales_chart()
@@ -674,6 +619,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_kpis(self):
+        """Charge les KPIs depuis la base et les affiche."""
         stats = self.db.get_statistics(year=self._get_year()) or {}
 
         sales_total = float(stats.get("sales_total", 0))
@@ -699,6 +645,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_sales_chart(self):
+        """Trace le graphique des ventes mensuelles."""
         self.sales_chart.clear()
         year = self._get_year()
         data = self.db.get_sales_by_month(year) or []
@@ -734,6 +681,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_profit_chart(self):
+        """Trace le graphique de la marge brute mensuelle."""
         self.profit_chart.clear()
         year = self._get_year()
         data = self.db.get_profit_by_month(year) or []
@@ -765,6 +713,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_top_products(self):
+        """Affiche le classement des 5 meilleurs produits."""
         self.products_chart.clear()
         data = self.db.get_top_products(limit=5,  year=self._get_year()) or []
 
@@ -793,6 +742,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_top_clients(self):
+        """Affiche le classement des 5 meilleurs clients."""
         self.clients_chart.clear()
         data = self.db.get_top_clients(limit=5,  year=self._get_year()) or []
 
@@ -862,202 +812,71 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_advanced_kpis(self):
-        """Charge et affiche les 4 KPI avancés avec barres de progression et sparkline."""
+        """Charge les données pour les KPI avancés"""
         try:
-            year  = self._get_year()
-            stats = self.db.get_statistics(year=year) or {}
-            sales_total     = float(stats.get("sales_total",    0))
-            purchases_total = float(stats.get("purchases_total", 0))
-
-            # ── Panier moyen ──────────────────────────────────
+            # Panier moyen
             cart_data = self.db.get_average_cart_value()
-            avg_cart  = float(cart_data.get('avg_cart_value', 0))
-            self.avg_cart_card.value_label.setText(fmt_da(avg_cart, 0))
-
-            # ── Marge brute — couleur dynamique ──────────────
-            global_margin = ((sales_total - purchases_total) / sales_total * 100
-                             if sales_total > 0 else 0.0)
-            col_margin = C_GREEN if global_margin >= 20 else (C_AMBER if global_margin >= 10 else C_RED)
-            self.margin_card.value_label.setText(f"{global_margin:.1f} %")
-            self.margin_card.value_label.setStyleSheet(f"color: {col_margin}; border: none;")
-            self._update_metric_bar(self.margin_card, global_margin)
-
-            # ── Rotation stock ────────────────────────────────
+            avg_cart = cart_data.get('avg_cart_value', 0)
+            self.avg_cart_card.value_label.setText(f"{fmt_da(avg_cart, 0)}")
+            
+            # Marge brute globale
+            stats = self.db.get_statistics(year=self._get_year()) or {}
+            sales = float(stats.get("sales_total", 0))
+            purchases = float(stats.get("purchases_total", 0))
+            if sales > 0:
+                global_margin = ((sales - purchases) / sales) * 100
+            else:
+                global_margin = 0
+            self.margin_card.value_label.setText(f"{global_margin:.1f}%")
+            
+            # Rotation du stock
             turnover_data = self.db.get_inventory_turnover()
-            turnover      = float(turnover_data.get('turnover_rate', 0))
-            self.turnover_card.value_label.setText(f"{turnover:.1f} x")
-            self._update_metric_bar(self.turnover_card, turnover)
-
-            # ── Taux de conversion ────────────────────────────
-            conv_data       = self.db.get_conversion_rate()
-            conversion_rate = float(conv_data.get('conversion_rate', 0))
-            unique_buyers   = int(conv_data.get('unique_buyers', 0))
-            total_clients   = int(conv_data.get('total_clients', 0))
-            self.conversion_card.value_label.setText(f"{conversion_rate:.1f} %")
-            self.conversion_card.setToolTip(
-                f"{unique_buyers} acheteurs actifs sur {total_clients} clients (30 jours)")
-            self._update_metric_bar(self.conversion_card, conversion_rate)
-
-            # ── Sparkline panier moyen 6 mois ─────────────────
-            self._load_sparkline_cart()
-
-            # ── Top 5 produits par marge brute ────────────────
+            turnover = turnover_data.get('turnover_rate', 0)
+            self.turnover_card.value_label.setText(f"{turnover:.1f}x")
+            
+            # Taux de transformation (simplifié)
+            conversion_data = self.db.get_conversion_rate()
+            conversion_rate = conversion_data.get('conversion_rate', 0)
+            self.conversion_card.value_label.setText(f"{conversion_rate:.1f}%")
+            
+            # Produits les plus rentables
             self._load_profitable_products()
-
+            
         except Exception as e:
             print(f"Erreur chargement KPI avancés: {e}")
 
 
-    def _load_sparkline_cart(self):
-        """Trace le sparkline de tendance du panier moyen sur les 6 derniers mois."""
-        try:
-            self._sparkline.clear()
-            self.db.cursor.execute("""
-                SELECT
-                    CAST(strftime('%m', sale_date) AS INTEGER) AS m,
-                    CAST(strftime('%Y', sale_date) AS INTEGER) AS y,
-                    AVG(total) AS avg_cart
-                FROM sales
-                WHERE sale_date >= date('now', '-6 months')
-                GROUP BY y, m
-                ORDER BY y, m
-            """)
-            rows = self.db.cursor.fetchall()
-            if not rows:
-                return
-
-            MOIS   = ["Jan","Fév","Mar","Avr","Mai","Juin",
-                      "Juil","Aoû","Sep","Oct","Nov","Déc"]
-            labels, values = [], []
-            for i, r in enumerate(rows):
-                try:
-                    m   = int(r['m'])   if hasattr(r, 'keys') else int(r[0])
-                    avg = float(r['avg_cart']) if hasattr(r, 'keys') else float(r[2])
-                except (IndexError, TypeError, ValueError):
-                    continue
-                labels.append((i, MOIS[m - 1]))
-                values.append(avg)
-
-            if len(values) < 2:
-                return
-
-            xs = list(range(len(values)))
-            self._sparkline.plot(
-                xs, values,
-                pen=pg.mkPen(color=C_CYAN, width=2),
-                fillLevel=0,
-                brush=pg.mkBrush(color=(0, 229, 255, 30)),
-                symbol='o', symbolSize=5,
-                symbolBrush=C_CYAN,
-                symbolPen=pg.mkPen(color=BG_DEEP, width=1.5)
-            )
-            self._sparkline.getAxis("bottom").setTicks([labels])
-
-            # Delta M-1 → M0
-            delta     = values[-1] - values[-2]
-            delta_pct = delta / values[-2] * 100 if values[-2] != 0 else 0
-            arrow     = "▲" if delta >= 0 else "▼"
-            col       = C_GREEN if delta >= 0 else C_RED
-            self._spark_delta_lbl.setText(f"{arrow} {abs(delta_pct):.1f}%")
-            self._spark_delta_lbl.setStyleSheet(f"color: {col};")
-
-        except Exception as e:
-            print(f"Erreur sparkline panier: {e}")
-
-
     def _load_profitable_products(self):
-        """Affiche le Top 5 produits par marge brute avec barres de rentabilité visuelles."""
+        """Charge le tableau des produits les plus rentables"""
         try:
-            # Vider les lignes précédentes
-            while self._profit_rows_layout.count():
-                item = self._profit_rows_layout.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
-
-            products = self.db.get_most_profitable_products(limit=5, year=self._get_year())
-            if not products:
-                empty = QLabel("Aucune donnée disponible")
-                empty.setStyleSheet(f"color: {TXT_SEC}; font-size: 11px;")
-                empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                self._profit_rows_layout.addWidget(empty)
-                return
-
-            max_margin   = max(float(p.get('gross_margin', 0)) for p in products) or 1
-            RANK_COLORS  = [C_AMBER, C_BLUE, C_CYAN, C_GREEN, C_VIOLET]
-
-            for rank, product in enumerate(products):
-                gross_margin = float(product.get('gross_margin', 0))
-                unit_margin  = float(product.get('selling_price', 0)) - float(product.get('purchase_price', 0))
-                qty_sold     = int(product.get('quantity_sold', 0))
-                name         = product.get('name', 'Produit inconnu')
-                color        = RANK_COLORS[rank % len(RANK_COLORS)]
-                bar_pct      = gross_margin / max_margin
-
-                row_w = QFrame()
-                row_w.setStyleSheet(f"""
-                    QFrame {{
-                        background: {BG_DEEP};
-                        border-radius: 8px;
-                        border: 1px solid {color}22;
-                    }}
-                """)
-                row_lay = QVBoxLayout(row_w)
-                row_lay.setContentsMargins(10, 8, 10, 6)
-                row_lay.setSpacing(4)
-
-                # Ligne haut : badge rang + nom + détails + marge totale
-                top = QHBoxLayout()
-
-                rank_lbl = QLabel(f"#{rank+1}")
-                rank_lbl.setFixedWidth(26)
-                rank_lbl.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-                rank_lbl.setStyleSheet(f"""
-                    color: {BG_DEEP}; background: {color};
-                    border-radius: 4px; padding: 1px 3px; border: none;
-                """)
-                rank_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                top.addWidget(rank_lbl)
-
-                name_lbl = QLabel(name[:28] + ("…" if len(name) > 28 else ""))
-                name_lbl.setFont(QFont("Segoe UI", 10))
-                name_lbl.setStyleSheet(f"color: {TXT_PRI}; border: none;")
-                name_lbl.setToolTip(name)
-                top.addWidget(name_lbl, 1)
-
-                detail_lbl = QLabel(f"{qty_sold} u · {fmt_da(unit_margin, 0)}/u")
-                detail_lbl.setFont(QFont("Segoe UI", 8))
-                detail_lbl.setStyleSheet(f"color: {TXT_SEC}; border: none;")
-                top.addWidget(detail_lbl)
-
-                margin_lbl = QLabel(fmt_da(gross_margin, 0))
-                margin_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-                margin_lbl.setStyleSheet(f"color: {color}; border: none;")
-                margin_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-                top.addWidget(margin_lbl)
-
-                row_lay.addLayout(top)
-
-                # Barre de rentabilité proportionnelle
-                bar = QProgressBar()
-                bar.setRange(0, 1000)
-                bar.setValue(int(bar_pct * 1000))
-                bar.setTextVisible(False)
-                bar.setFixedHeight(4)
-                bar.setStyleSheet(f"""
-                    QProgressBar {{
-                        background: {color}22; border-radius: 2px; border: none;
-                    }}
-                    QProgressBar::chunk {{
-                        background: qlineargradient(
-                            x1:0, y1:0, x2:1, y2:0,
-                            stop:0 {color}66, stop:1 {color}
-                        );
-                        border-radius: 2px;
-                    }}
-                """)
-                row_lay.addWidget(bar)
-                self._profit_rows_layout.addWidget(row_w)
-
+            products = self.db.get_most_profitable_products(limit=5,  year=self._get_year())
+            self.profit_products_table.setRowCount(len(products))
+            
+            for row, product in enumerate(products):
+                # Nom du produit
+                name_item = QTableWidgetItem(product['name'][:30])
+                name_item.setToolTip(product['name'])
+                self.profit_products_table.setItem(row, 0, name_item)
+                
+                # Quantité vendue
+                qty_item = QTableWidgetItem(str(product['quantity_sold']))
+                qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.profit_products_table.setItem(row, 1, qty_item)
+                
+                # Marge unitaire
+                unit_margin = product['selling_price'] - product['purchase_price']
+                margin_item = QTableWidgetItem(f"{fmt_da(unit_margin, 0)}")
+                margin_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+                margin_item.setForeground(QColor(C_GREEN))
+                self.profit_products_table.setItem(row, 2, margin_item)
+                
+                # Marge totale
+                total_margin_item = QTableWidgetItem(f"{fmt_da(product['gross_margin'], 0)}")
+                total_margin_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+                total_margin_item.setForeground(QColor(C_GREEN))
+                total_margin_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+                self.profit_products_table.setItem(row, 3, total_margin_item)
+                
         except Exception as e:
             print(f"Erreur chargement produits rentables: {e}")
 
@@ -1132,6 +951,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _export_csv(self):
+        """Exporte les statistiques en fichier CSV."""
         from datetime import datetime as dt
 
         path, _ = QFileDialog.getSaveFileName(
@@ -1293,6 +1113,7 @@ class StatisticsPage(QWidget):
     # ======================================================================
 
     def _export_excel_pro_plus(self):
+        """Exporte un rapport Excel complet avec graphiques."""
         import tempfile, os
         import xlsxwriter
         import pyqtgraph.exporters as exporters
@@ -1567,6 +1388,7 @@ class StatisticsPage(QWidget):
     # ======================================================================
 
     def _export_pdf_pro(self):
+        """Génère un rapport PDF professionnel."""
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.pagesizes import A4
