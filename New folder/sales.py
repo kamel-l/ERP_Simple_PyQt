@@ -1,3 +1,12 @@
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 
 from PyQt6.QtWidgets import (
@@ -372,6 +381,14 @@ class AddProductDialog(QDialog):
 
 
 class SalesPage(QWidget):
+    """Page de création et enregistrement des ventes.
+
+    Gère le panier, le calcul TVA dynamique, le choix du client
+    et du mode de paiement. Émet sale_saved après chaque vente.
+
+    Signals:
+        sale_saved: Émis après chaque vente enregistrée avec succès.
+    """
     # Émis après chaque vente enregistrée
     sale_saved = pyqtSignal()
 
@@ -939,4 +956,3 @@ class SalesPage(QWidget):
             if detail_text:
                 return f"\n📋 Détails du paiement:\n{detail_text}"
             return ""
-from currency import fmt_da, fmt, currency_manager

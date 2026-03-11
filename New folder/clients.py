@@ -3,8 +3,8 @@ from PyQt6.QtWidgets import (
     QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout, QFrame, QMessageBox
 )
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, pyqtSignal
-from auth import session
+from PyQt6.QtCore import Qt
+from auth import session, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 

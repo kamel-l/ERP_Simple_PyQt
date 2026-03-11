@@ -21,6 +21,15 @@ from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 # ─────────────────────────────────────────────────────────────
 #  Constantes de style
 # ─────────────────────────────────────────────────────────────
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 
 
@@ -29,6 +38,11 @@ from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 # ─────────────────────────────────────────────────────────────
 
 class KpiAnimator(QObject):
+    """Animateur de valeurs numériques pour les cartes KPI.
+
+    Attributes:
+        _val (float): Valeur courante pendant l'animation.
+    """
     def __init__(self, label, suffix=""):
         super().__init__()
         self._value = 0
@@ -79,6 +93,12 @@ def divider():
 # ─────────────────────────────────────────────────────────────
 
 class DashboardPage(QWidget):
+    """Page principale du tableau de bord.
+
+    Affiche KPIs, activité récente, informations rapides
+    et les 10 dernières factures. Se rafraîchit via showEvent
+    et les signaux sale_saved / product_changed / purchase_saved.
+    """
     def __init__(self):
         super().__init__()
         self.db = get_database()
@@ -112,6 +132,8 @@ class DashboardPage(QWidget):
 
     # ── En-tête ──────────────────────────────────────────────
     def _build_header(self):
+        """Construit l'en-tête avec titre et date.
+        """
         row = QHBoxLayout()
         row.setSpacing(16)
 
@@ -156,13 +178,15 @@ class DashboardPage(QWidget):
 
     # ── Rangée KPI ───────────────────────────────────────────
     def _build_kpi_row(self):
+        """Construit la rangée des 4 cartes KPI.
+        """
         row = QHBoxLayout()
         row.setSpacing(16)
 
         kpis = [
-            ("Ventes Totales",  "0",  "#6366F1", "💳", " " + currency_manager.primary.symbol + ""),
-            ("Achats",          "0",  "#F59E0B", "🛒", " " + currency_manager.primary.symbol + ""),
-            ("Bénéfice Net",    "0",  "#A855F7", "📈", " " + currency_manager.primary.symbol + ""),
+            ("Ventes Totales",  "0",  "#6366F1", "💳", " DA"),
+            ("Achats",          "0",  "#F59E0B", "🛒", " DA"),
+            ("Bénéfice Net",    "0",  "#A855F7", "📈", " DA"),
             ("Clients",         "0",  "#06B6D4", "👥", ""),
         ]
         self._kpi_cards = []
@@ -237,6 +261,8 @@ class DashboardPage(QWidget):
 
     # ── Rangée du milieu : activités + infos rapides ─────────
     def _build_middle_row(self):
+        """Construit la rangée activité + informations rapides.
+        """
         row = QHBoxLayout()
         row.setSpacing(16)
 
@@ -271,7 +297,7 @@ class DashboardPage(QWidget):
         info_col.setSpacing(16)
 
         infos = [
-            ("Ventes Aujourd'hui", f"0 {currency_manager.primary.symbol}",       "#6366F1", "📅"),
+            ("Ventes Aujourd'hui", "0 DA",       "#6366F1", "📅"),
             ("Top Client",         "—",           "#A855F7", "🏆"),
             ("Stock Faible",       "0 produits",  "#F59E0B", "⚠️"),
         ]
@@ -328,6 +354,8 @@ class DashboardPage(QWidget):
 
     # ── Tableau des factures ─────────────────────────────────
     def _build_invoice_table(self):
+        """Construit le tableau des 10 dernières factures.
+        """
         card = QFrame()
         card.setObjectName("inv")
         card.setStyleSheet(f"QFrame#inv {{ background:{COLORS['BG_CARD']}; border-radius:16px; border:1px solid {COLORS['BORDER']}; }}")
@@ -410,7 +438,7 @@ class DashboardPage(QWidget):
         clients   = int(stats.get("total_clients", 0))
 
         values = [sales, purchases, profit, float(clients)]
-        suffixes = [" " + currency_manager.primary.symbol + "", " " + currency_manager.primary.symbol + "", " " + currency_manager.primary.symbol + "", ""]
+        suffixes = [" DA", " DA", " DA", ""]
 
         for card, val, suf in zip(self._kpi_cards, values, suffixes):
             animate_value(card.value_label, val, suf)
@@ -541,4 +569,3 @@ class DashboardPage(QWidget):
 
         for r in range(self.invoice_table.rowCount()):
             self.invoice_table.setRowHeight(r, 44)
-from currency import fmt_da, fmt, currency_manager

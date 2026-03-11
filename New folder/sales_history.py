@@ -1,3 +1,12 @@
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
@@ -461,6 +470,10 @@ class InvoiceDetailsDialog(QDialog):
 
     # ── Export CSV (inchangé) ─────────────────────────────────
     def export_csv(self):
+        """Exporte l'historique des ventes dans un fichier CSV.
+
+        Le fichier est nommé automatiquement avec la date du jour.
+        """
         try:
             import csv
             default_name = f"facture_{self.sale['invoice_number']}.csv"
@@ -491,6 +504,11 @@ class InvoiceDetailsDialog(QDialog):
 
     # ── Export PDF (inchangé) ─────────────────────────────────
     def export_pdf(self):
+        """Génère un rapport PDF de l'historique des ventes sélectionné.
+
+        Returns:
+            str | None: Chemin du fichier généré, ou None en cas d'erreur.
+        """
         try:
             from invoice_pdf import create_invoice_pdf
         except ImportError:
@@ -574,6 +592,12 @@ class InvoiceDetailsDialog(QDialog):
 
 
 class SalesHistoryPage(QWidget):
+    """Page d'historique des ventes avec génération de factures PDF.
+
+    Affiche toutes les ventes paginées, permet la recherche,
+    la visualisation des détails et l'export en PDF ou CSV.
+    Se rafraîchit via showEvent et le signal sale_saved.
+    """
     def __init__(self):
         super().__init__()
         
@@ -810,6 +834,7 @@ class SalesHistoryPage(QWidget):
         ))
 
     def load_sales(self):
+        """Charge toutes les ventes depuis la base et remplit le tableau."""
         """Charge toutes les ventes"""
         self.table.setRowCount(0)
         sales = self.db.get_all_sales()
@@ -1082,4 +1107,3 @@ class SalesHistoryPage(QWidget):
                 "✅ Import réussi",
                 f"{imported} facture(s) importée(s) avec succès depuis les fichiers .dat !"
             )
-from currency import fmt_da, fmt, currency_manager

@@ -8,13 +8,22 @@ from PyQt6.QtWidgets import (
     QLineEdit, QFormLayout, QHBoxLayout, QFrame, QFileDialog, QMessageBox,
     QSpinBox, QDoubleSpinBox, QComboBox
 )
-from currency import fmt_da, fmt, currency_manager
-from auth import session
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
+from auth import session
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 import csv
+
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 
 class ProductDialog(QDialog):
@@ -481,7 +490,8 @@ class ProductsPage(QWidget):
     def add_product(self):
         """Ajoute un nouveau produit"""
         if not session.can('add_product'):
-            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'ajouter des produits.")
+            QMessageBox.warning(self, "Accès refusé",
+                "Votre rôle ne permet pas d'ajouter des produits.")
             return
         dialog = ProductDialog()
         if dialog.exec():
@@ -516,7 +526,8 @@ class ProductsPage(QWidget):
     def edit_product(self):
         """Modifie un produit"""
         if not session.can('edit_product'):
-            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas de modifier des produits.")
+            QMessageBox.warning(self, "Accès refusé",
+                "Votre rôle ne permet pas de modifier des produits.")
             return
         selected = self.table.currentRow()
         if selected < 0:
@@ -561,7 +572,8 @@ class ProductsPage(QWidget):
     def delete_product(self):
         """Supprime un produit"""
         if not session.can('delete_product'):
-            QMessageBox.warning(self, "Accès refusé", "Seul un administrateur peut supprimer des produits.")
+            QMessageBox.warning(self, "Accès refusé",
+                "Seul un administrateur peut supprimer des produits.")
             return
         selected = self.table.currentRow()
         if selected < 0:
@@ -588,6 +600,10 @@ class ProductsPage(QWidget):
 
     def delete_all_products(self):
         """Supprime tous les produits après double confirmation"""
+        if not session.can('delete_all_products'):
+            QMessageBox.warning(self, "Accès refusé",
+                "Seul un administrateur peut effectuer cette opération.")
+            return
         count = self.table.rowCount()
         if count == 0:
             QMessageBox.information(self, "Info", "Aucun produit à supprimer.")

@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QDialog, QTextEdit, QMessageBox, QLineEdit, QScrollArea,
     QSpinBox, QDoubleSpinBox, QComboBox, QFormLayout
 )
-from currency import fmt_da, fmt, currency_manager
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, pyqtSignal
 from db_manager import get_database
@@ -52,7 +51,7 @@ class ReturnDialog(QDialog):
 
         info = QLabel(
             f"Client : {sale.get('client_name','Anonyme')}  ·  "
-            f"Total : {fmt_da(float(sale.get('total',0)), 0)}"
+            f"Total : {float(sale.get('total',0)):,.0f} DA"
         )
         info.setFont(QFont("Segoe UI", 10))
         info.setStyleSheet(f"color: {COLORS['text_tertiary']};")
@@ -334,6 +333,17 @@ class ReturnsPage(QWidget):
         self.load_returns()
 
     def _make_stat_card(self, icon, label, value, color):
+        """Crée une mini-carte de statistique pour le tableau de bord des retours.
+
+        Args:
+            icon (str): Emoji représentatif.
+            label (str): Libellé de la statistique.
+            value (str): Valeur à afficher.
+            color (str): Couleur CSS d'accentuation.
+
+        Returns:
+            QFrame: Le widget de la carte.
+        """
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
@@ -372,7 +382,7 @@ class ReturnsPage(QWidget):
             "📦", "Total Avoirs", str(len(returns)), COLORS['primary']))
         self._stats_row.addWidget(self._make_stat_card(
             "💰", "Montant Total Remboursé",
-            fmt_da(total_montant, 0), "#EF4444"))
+            f"{total_montant:,.0f} DA", "#EF4444"))
         self._stats_row.addStretch()
 
         # Remplir le tableau

@@ -29,7 +29,6 @@ from PyQt6.QtGui import QAction
 from db_manager import get_database
 from auth import session
 from login_dialog import LoginDialog, UsersPage, UserBadge
-from currency import currency_manager
 try:
     from advanced_analytics_view import AdvancedAnalyticsPage
 except ImportError:
@@ -43,7 +42,6 @@ class MainWindow(QMainWindow):
         super().__init__()
         
         self.db = get_database()
-        currency_manager.load(self.db)   # Charger devises depuis BDD
         self.setWindowTitle("🏢 Système de Gestion ERP - Version Professionnelle")
         self.setMinimumSize(1400, 800)
         

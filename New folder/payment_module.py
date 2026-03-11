@@ -1,3 +1,14 @@
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
+
+
 """
 Module de gestion des paiements
 Gère les différents modes de paiement et le suivi des encaissements
@@ -9,7 +20,6 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox, QMessageBox, QTableWidget, QTableWidgetItem,
     QHeaderView, QScrollArea, QWidget
 )
-from currency import fmt_da, fmt, currency_manager
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, pyqtSignal
 from datetime import datetime
@@ -185,11 +195,11 @@ class PaymentDialog(QDialog):
                 return it
             tbl.setItem(r, 0, mk(item.get('product_name', '—')))
             tbl.setItem(r, 1, mk(str(item.get('quantity', 0)), Qt.AlignmentFlag.AlignCenter))
-            tbl.setItem(r, 2, mk(f"{item.get('unit_price', 0):,.2f} DA", Qt.AlignmentFlag.AlignRight))
+            tbl.setItem(r, 2, mk(f"{fmt_da(item.get('unit_price', 0))}", Qt.AlignmentFlag.AlignRight))
             d = item.get('discount', 0)
             tbl.setItem(r, 3, mk(f"{d:.1f}%" if d else "—", Qt.AlignmentFlag.AlignCenter,
                                  COLORS.get('danger') if d else None))
-            tbl.setItem(r, 4, mk(f"{item.get('total', 0):,.2f} DA",
+            tbl.setItem(r, 4, mk(f"{fmt_da(item.get('total', 0))}",
                                  Qt.AlignmentFlag.AlignRight, COLORS.get('success')))
 
         lay.addWidget(tbl)
@@ -230,9 +240,9 @@ class PaymentDialog(QDialog):
             h.addWidget(vl)
             tv.addLayout(h)
 
-        tline("Sous-total HT :", fmt_da(subtotal), COLORS['text_primary'])
-        tline(f"TVA ({self.vat_percent:.0f}%) :",     fmt_da(tax),      COLORS.get('warning', '#F59E0B'))
-        tline("TOTAL TTC :",     fmt_da(total),    COLORS['success'], bold=True)
+        tline("Sous-total HT :", f"{fmt_da(subtotal)}", COLORS['text_primary'])
+        tline(f"TVA ({self.vat_percent:.0f}%) :",     f"{fmt_da(tax)}",      COLORS.get('warning', '#F59E0B'))
+        tline("TOTAL TTC :",     f"{fmt_da(total)}",    COLORS['success'], bold=True)
 
         totals_row.addWidget(tf)
         lay.addLayout(totals_row)
@@ -415,7 +425,7 @@ class PaymentDialog(QDialog):
         self.cash_received.setMaximum(999_999_999)
         self.cash_received.setDecimals(2)
         self.cash_received.setValue(self.total_amount)
-        self.cash_received.setSuffix(f" {currency_manager.primary.symbol}")
+        self.cash_received.setSuffix(" DA")
         self.cash_received.setMinimumHeight(38)
         self.cash_received.setStyleSheet(INPUT_STYLE)
         self.cash_received.valueChanged.connect(self._calc_change)
@@ -434,10 +444,10 @@ class PaymentDialog(QDialog):
             try:
                 diff = self.cash_received.value() - self.total_amount
                 if diff >= 0:
-                    self.change_label.setText(f"💸 Monnaie à rendre : {diff:,.2f} DA")
+                    self.change_label.setText(f"💸 Monnaie à rendre : {fmt_da(diff)}")
                     self.change_label.setStyleSheet(f"color: {COLORS['success']}; border: none; font-size: 13px; font-weight: bold;")
                 else:
-                    self.change_label.setText(f"⚠️ Insuffisant : {abs(diff):,.2f} DA manquants")
+                    self.change_label.setText(f"⚠️ Insuffisant : {fmt_da(abs(diff))} manquants")
                     self.change_label.setStyleSheet(f"color: {COLORS['danger']}; border: none; font-size: 13px; font-weight: bold;")
             except RuntimeError:
                 pass
@@ -523,7 +533,7 @@ class PaymentDialog(QDialog):
 
         self.payment_completed.emit(data)
         QMessageBox.information(self, "Paiement enregistré",
-            f"✅ Paiement de {self.total_amount:,.2f} DA enregistré avec succès !")
+            f"✅ Paiement de {fmt_da(self.total_amount)} enregistré avec succès !")
         self.accept()
 
 

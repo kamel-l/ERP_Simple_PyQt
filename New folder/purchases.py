@@ -7,25 +7,34 @@ from PyQt6.QtWidgets import (
     QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, 
     QMessageBox, QDialog, QLineEdit, QFormLayout, QInputDialog
 )
-from currency import fmt_da, fmt, currency_manager
-from auth import session
 from PyQt6.QtGui import QFont, QDoubleValidator, QIntValidator
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
+from auth import session, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
 
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
+
 def clean_num(text):
     """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
     try:
-        return float(str(text or "0").replace(f" {currency_manager.primary.symbol}", "").replace(",", "").strip() or "0")
+        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
     except (ValueError, TypeError):
         return 0.0
 
 def clean_num(text):
     """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
     try:
-        return float(str(text or "0").replace(f" {currency_manager.primary.symbol}", "").replace(",", "").strip() or "0")
+        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
     except (ValueError, TypeError):
         return 0.0
 
