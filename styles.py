@@ -6,7 +6,6 @@ Fond anthracite #1E1E2E
 
 # ==================== COULEURS ====================
 COLORS = {
-<<<<<<< HEAD
     # Couleurs principales vives
     'primary':        '#00B4FF',        # Bleu électrique vif
     'primary_dark':   '#0090DD',        # Bleu électrique foncé
@@ -46,7 +45,7 @@ COLORS = {
     'TXT_PRI':        '#F0F4FF',
     'TXT_SEC':        'rgba(160,170,204,0.85)',
     'TXT_MUTED':      'rgba(160,170,204,0.40)',
-=======
+
     'primary': '#3B82F6',        # Bleu royal
     'primary_dark': '#2563EB',
     'secondary': '#A855F7',      # Violet pourpre
@@ -66,7 +65,7 @@ COLORS = {
     'accent_dark':  "#1E5FA8",   # bleu foncé pressé,
     'accent':       "#4DA6FF",   # bleu néon vif
     'accent_light': "#99CCFF",   # bleu clair survol
->>>>>>> 7339e72 (add logo)
+
 }
 
 
