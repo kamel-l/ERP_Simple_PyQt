@@ -1,12 +1,3 @@
-def fmt_da(value, decimals=2):
-    """Format monétaire algérien : 1,200.00 DA"""
-    try:
-        v = float(value)
-    except (TypeError, ValueError):
-        v = 0.0
-    if decimals == 0:
-        return f"{v:,.0f} DA"
-    return f"{v:,.2f} DA"
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
@@ -486,7 +477,7 @@ class InvoiceDetailsDialog(QDialog):
                 w.writerow(["Qté", "Référence", "Description", "Prix Unit.", "TVA %", "Total"])
                 for item in self.sale['items']:
                     w.writerow([
-                        item['quantity'], item.get('reference', ''),
+                        item['quantity'], item.get('product_name', ''),
                         item['product_name'], item['unit_price'],
                         self.sale.get('tax_rate', 0), item['total']
                     ])
@@ -848,8 +839,9 @@ class SalesHistoryPage(QWidget):
         client_item = QTableWidgetItem(sale.get('client_name', 'Anonyme'))
         self.table.setItem(row, 2, client_item)
         
-        # Nombre d'articles (inclus directement dans get_all_sales — pas de requête supplémentaire)
-        items_count = sale.get('items_count', 0)
+        # Nombre d'articles (nécessite une requête supplémentaire)
+        sale_details = self.db.get_sale_by_id(sale['id'])
+        items_count = len(sale_details['items']) if sale_details else 0
         items_item = QTableWidgetItem(f"{items_count} article(s)")
         items_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.table.setItem(row, 3, items_item)
@@ -1090,3 +1082,4 @@ class SalesHistoryPage(QWidget):
                 "✅ Import réussi",
                 f"{imported} facture(s) importée(s) avec succès depuis les fichiers .dat !"
             )
+from currency import fmt_da, fmt, currency_manager

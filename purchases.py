@@ -7,33 +7,25 @@ from PyQt6.QtWidgets import (
     QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, 
     QMessageBox, QDialog, QLineEdit, QFormLayout, QInputDialog
 )
+from currency import fmt_da, fmt, currency_manager
+from auth import session
 from PyQt6.QtGui import QFont, QDoubleValidator, QIntValidator
 from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
 
-def fmt_da(value, decimals=2):
-    """Format monétaire algérien : 1,200.00 DA"""
-    try:
-        v = float(value)
-    except (TypeError, ValueError):
-        v = 0.0
-    if decimals == 0:
-        return f"{v:,.0f} DA"
-    return f"{v:,.2f} DA"
-
 def clean_num(text):
     """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
     try:
-        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
+        return float(str(text or "0").replace(f" {currency_manager.primary.symbol}", "").replace(",", "").strip() or "0")
     except (ValueError, TypeError):
         return 0.0
 
 def clean_num(text):
     """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
     try:
-        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
+        return float(str(text or "0").replace(f" {currency_manager.primary.symbol}", "").replace(",", "").strip() or "0")
     except (ValueError, TypeError):
         return 0.0
 
@@ -805,17 +797,17 @@ class PurchasesPage(QWidget):
 
         # Connexion du signal pour mettre à jour les totaux
         self.table.itemChanged.connect(self.update_totals)
-
+        self.showEvent = self.refresh_page()
+        
     def showEvent(self, event):
-        """Met à jour le label Taxe et les fournisseurs à chaque affichage."""
         super().showEvent(event)
+        self.refresh_page()
+        
+    def refresh_page(self):
         self.load_suppliers()
-        try:
-            tax_rate_pct = float(self.db.get_setting('purchase_vat', '10') or '10')
-        except (ValueError, TypeError):
-            tax_rate_pct = 10.0
-        self.tax_title_label.setText(f"Taxe ({tax_rate_pct:.0f}%)")
-
+        self.table.setRowCount(0)
+        self.update_totals()
+        
     def load_suppliers(self):
         self.supplier_combo.clear()
         self.supplier_combo.addItem("Sélectionner un fournisseur", None)
@@ -825,6 +817,9 @@ class PurchasesPage(QWidget):
             self.supplier_combo.addItem(supplier['name'], supplier['id'])
 
     def add_supplier(self):
+        if not session.can('add_supplier'):
+            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'ajouter des fournisseurs.")
+            return
         dialog = SupplierDialog()
         if dialog.exec():
             name = dialog.name_edit.text().strip()
@@ -954,6 +949,9 @@ class PurchasesPage(QWidget):
         self.table.itemChanged.connect(self.update_totals)
 
     def save_purchase(self):
+        if not session.can('create_purchase'):
+            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'enregistrer des achats.")
+            return
         if self.supplier_combo.currentIndex() == 0:
             QMessageBox.warning(self, "Attention", "Sélectionnez un fournisseur!")
             return
