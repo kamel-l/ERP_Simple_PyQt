@@ -8,13 +8,22 @@ from PyQt6.QtWidgets import (
     QLineEdit, QFormLayout, QHBoxLayout, QFrame, QFileDialog, QMessageBox,
     QSpinBox, QDoubleSpinBox, QComboBox
 )
-from currency import fmt_da, fmt, currency_manager
-from auth import session
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt
+from auth import session
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 import csv
+
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 
 class ProductDialog(QDialog):
@@ -221,7 +230,7 @@ class ProductsPage(QWidget):
         super().__init__()
         
         self.db = get_database()
-       
+
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -265,6 +274,24 @@ class ProductsPage(QWidget):
         self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         search_layout.addWidget(self.add_btn)
 
+        self.refresh_btn = QPushButton("↻   Actualiser")
+        self.refresh_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.refresh_btn.setFixedHeight(45)
+        self.refresh_btn.setFixedWidth(130)
+        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.refresh_btn.setStyleSheet("""
+            QPushButton {
+                background: #3B82F6;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                padding: 0 18px;
+            }
+            QPushButton:hover  { background: #2563EB; }
+            QPushButton:pressed{ background: #1D4ED8; }
+        """)
+        self.refresh_btn.clicked.connect(self.refresh_page)
+        search_layout.addWidget(self.refresh_btn)
 
         # Table
         table_container = QFrame()
@@ -358,7 +385,6 @@ class ProductsPage(QWidget):
         actions_layout.addWidget(self.delete_all_btn)
 
         self.load_products()
-        self.showEvent = self.refresh_page()  # Rafraîchir à chaque affichage
 
     def build_stat_card(self, title, value, color):
         """Construit une carte de statistique"""
@@ -454,12 +480,7 @@ class ProductsPage(QWidget):
         value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.table.setItem(row, 6, value_item)
-    
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.refresh_page()
-        
-        
+
     def refresh_page(self):
         """Actualise la liste des produits et les statistiques"""
         self.search_input.clear()
@@ -469,7 +490,8 @@ class ProductsPage(QWidget):
     def add_product(self):
         """Ajoute un nouveau produit"""
         if not session.can('add_product'):
-            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'ajouter des produits.")
+            QMessageBox.warning(self, "Accès refusé",
+                "Votre rôle ne permet pas d'ajouter des produits.")
             return
         dialog = ProductDialog()
         if dialog.exec():
@@ -504,7 +526,8 @@ class ProductsPage(QWidget):
     def edit_product(self):
         """Modifie un produit"""
         if not session.can('edit_product'):
-            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas de modifier des produits.")
+            QMessageBox.warning(self, "Accès refusé",
+                "Votre rôle ne permet pas de modifier des produits.")
             return
         selected = self.table.currentRow()
         if selected < 0:
@@ -549,7 +572,8 @@ class ProductsPage(QWidget):
     def delete_product(self):
         """Supprime un produit"""
         if not session.can('delete_product'):
-            QMessageBox.warning(self, "Accès refusé", "Seul un administrateur peut supprimer des produits.")
+            QMessageBox.warning(self, "Accès refusé",
+                "Seul un administrateur peut supprimer des produits.")
             return
         selected = self.table.currentRow()
         if selected < 0:
@@ -576,6 +600,10 @@ class ProductsPage(QWidget):
 
     def delete_all_products(self):
         """Supprime tous les produits après double confirmation"""
+        if not session.can('delete_all_products'):
+            QMessageBox.warning(self, "Accès refusé",
+                "Seul un administrateur peut effectuer cette opération.")
+            return
         count = self.table.rowCount()
         if count == 0:
             QMessageBox.information(self, "Info", "Aucun produit à supprimer.")

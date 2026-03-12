@@ -7,30 +7,44 @@ from PyQt6.QtWidgets import (
     QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, 
     QMessageBox, QDialog, QLineEdit, QFormLayout, QInputDialog
 )
-from currency import fmt_da, fmt, currency_manager
-from auth import session
 from PyQt6.QtGui import QFont, QDoubleValidator, QIntValidator
 from PyQt6.QtCore import Qt, pyqtSignal
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
 
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
+
 def clean_num(text):
     """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
     try:
-        return float(str(text or "0").replace(f" {currency_manager.primary.symbol}", "").replace(",", "").strip() or "0")
+        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
     except (ValueError, TypeError):
         return 0.0
 
 def clean_num(text):
     """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
     try:
-        return float(str(text or "0").replace(f" {currency_manager.primary.symbol}", "").replace(",", "").strip() or "0")
+        return float(str(text or "0").replace(" DA", "").replace(",", "").strip() or "0")
     except (ValueError, TypeError):
         return 0.0
 
 # ------------------ DIALOG POUR CRÉER UN NOUVEAU PRODUIT ------------------
 class NewProductDialog(QDialog):
+    """Dialogue de création rapide d'un nouveau produit depuis le module Achats.
+
+    Permet d'ajouter un produit directement lors de la saisie d'un achat,
+    sans quitter la page.
+    """
+
     def __init__(self):
         super().__init__()
         
@@ -163,6 +177,13 @@ class NewProductDialog(QDialog):
 
 # ------------------ DIALOG POUR MODIFIER UN PRODUIT ET SAISIR LA QUANTITÉ ------------------
 class ProductEditDialog(QDialog):
+    """Dialogue de modification d'un produit existant depuis le module Achats.
+
+    Args:
+        product (dict): Données du produit à modifier.
+        parent: Widget parent Qt.
+    """
+
     def __init__(self, product, parent=None):
         super().__init__(parent)
         self.product = product
@@ -330,6 +351,12 @@ class ProductEditDialog(QDialog):
 
 # ------------------ DIALOG POUR SÉLECTIONNER UN PRODUIT ------------------
 class ProductSelectorDialog(QDialog):
+    """Dialogue de sélection d'un produit à ajouter à la commande d'achat.
+
+    Args:
+        products (list[dict]): Liste des produits disponibles.
+    """
+
     def __init__(self, products):
         super().__init__()
         
@@ -482,6 +509,9 @@ class ProductSelectorDialog(QDialog):
 
 # ------------------ DIALOG POUR AJOUTER UN FOURNISSEUR ------------------
 class SupplierDialog(QDialog):
+    """Dialogue de création d'un nouveau fournisseur.
+    """
+
     def __init__(self):
         super().__init__()
         
@@ -575,6 +605,15 @@ class SupplierDialog(QDialog):
 
 # ------------------ PAGE PRINCIPALE DES ACHATS ------------------
 class PurchasesPage(QWidget):
+    """Page de gestion des achats fournisseurs.
+
+    Permet de saisir des commandes d'achat, gérer les fournisseurs
+    et mettre à jour le stock automatiquement.
+
+    Signals:
+        purchase_saved: Émis après chaque achat enregistré avec succès.
+    """
+
     # Émis après chaque achat enregistré (met à jour stock + dashboard)
     purchase_saved = pyqtSignal()
 
@@ -797,18 +836,11 @@ class PurchasesPage(QWidget):
 
         # Connexion du signal pour mettre à jour les totaux
         self.table.itemChanged.connect(self.update_totals)
-        self.showEvent = self.refresh_page()
-        
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.refresh_page()
-        
-    def refresh_page(self):
-        self.load_suppliers()
-        self.table.setRowCount(0)
-        self.update_totals()
-        
+
     def load_suppliers(self):
+        """Charge la liste des fournisseurs dans le ComboBox.
+        """
+
         self.supplier_combo.clear()
         self.supplier_combo.addItem("Sélectionner un fournisseur", None)
         
@@ -817,9 +849,9 @@ class PurchasesPage(QWidget):
             self.supplier_combo.addItem(supplier['name'], supplier['id'])
 
     def add_supplier(self):
-        if not session.can('add_supplier'):
-            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'ajouter des fournisseurs.")
-            return
+        """Ouvre le dialogue de création d'un nouveau fournisseur.
+        """
+
         dialog = SupplierDialog()
         if dialog.exec():
             name = dialog.name_edit.text().strip()
@@ -838,6 +870,9 @@ class PurchasesPage(QWidget):
                     self.supplier_combo.setCurrentIndex(index)
 
     def add_item(self):
+        """Ouvre le sélecteur de produit et ajoute l'article sélectionné au tableau.
+        """
+
         products = self.db.get_all_products()
         
         if not products:
@@ -912,6 +947,11 @@ class PurchasesPage(QWidget):
         self.update_totals()
 
     def update_totals(self):
+        """Recalcule le sous-total, la taxe et le total depuis les lignes du tableau.
+
+        Le taux de taxe est lu dynamiquement depuis les paramètres (purchase_vat).
+        """
+
         try:
             self.table.itemChanged.disconnect(self.update_totals)
         except:
@@ -949,9 +989,11 @@ class PurchasesPage(QWidget):
         self.table.itemChanged.connect(self.update_totals)
 
     def save_purchase(self):
-        if not session.can('create_purchase'):
-            QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'enregistrer des achats.")
-            return
+        """Valide et enregistre l'achat en base de données.
+
+        Met à jour le stock des produits et émet le signal purchase_saved.
+        """
+
         if self.supplier_combo.currentIndex() == 0:
             QMessageBox.warning(self, "Attention", "Sélectionnez un fournisseur!")
             return

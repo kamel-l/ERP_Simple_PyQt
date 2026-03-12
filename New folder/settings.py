@@ -8,8 +8,6 @@ from PyQt6.QtCore import Qt, QSize
 # import qdarktheme
 from styles import COLORS, SETTINGS_CARD_STYLE, SETTINGS_INPUT_STYLE, SETTINGS_COMBO_STYLE
 from db_manager import get_database
-from currency import currency_manager, CURRENCIES, fmt
-from currency_widget import CurrencySettingsWidget
 from datetime import datetime
 from PyQt6.QtGui import QFont, QColor, QPainter  # Ajouter QPainter
 from PyQt6.QtCore import Qt, QSize, QFileInfo    # Ajouter QFileInfo
@@ -58,6 +56,14 @@ def make_btn(text, color="#6366F1", text_color="white", outlined=False):
 
 
 class SectionCard(QFrame):
+    """Carte de section avec icône et titre pour grouper les paramètres.
+
+    Args:
+        icon (str): Emoji ou icône de la section.
+        title (str): Titre affiché dans l'en-tête.
+        parent: Widget parent Qt.
+    """
+
     """Carte de section avec titre et icône."""
     def __init__(self, icon, title, parent=None):
         super().__init__(parent)
@@ -116,6 +122,13 @@ class FieldRow(QHBoxLayout):
 # ─────────────────────────────────────────────
 
 class TabBar(QFrame):
+    """Barre d'onglets personnalisée pour la page Paramètres.
+
+    Args:
+        tabs_data (list[dict]): Liste de dicts avec 'icon', 'label' et 'key'.
+        parent: Widget parent Qt.
+    """
+
     def __init__(self, tabs_data, parent=None):
         super().__init__(parent)
         self.setObjectName("tabbar")
@@ -143,6 +156,12 @@ class TabBar(QFrame):
         self._activate(0)
 
     def _activate(self, idx):
+        """Active l'onglet à l'index donné et met à jour l'affichage.
+
+        Args:
+            idx (int): Index de l'onglet à activer (0-based).
+        """
+
         for i, btn in enumerate(self._btns):
             if i == idx:
                 btn.setChecked(True)
@@ -178,6 +197,14 @@ class TabBar(QFrame):
 # ─────────────────────────────────────────────
 
 class SettingsPage(QWidget):
+    """Page des paramètres de l'application.
+
+    Permet de configurer l'entreprise, l'apparence, la TVA,
+    les sauvegardes et d'effectuer des opérations de maintenance.
+    Les paramètres métier sont persistés en base de données.
+    Les paramètres techniques sont dans config.ini.
+    """
+
     def __init__(self):
         super().__init__()
         self.db = get_database()
@@ -262,6 +289,12 @@ class SettingsPage(QWidget):
 
     # ── Onglet SYSTÈME ────────────────────────────────────
     def _build_system_tab(self):
+        """Construit l'onglet Système : informations entreprise et TVA.
+
+        Returns:
+            QWidget: Le widget de l'onglet.
+        """
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
@@ -363,6 +396,7 @@ class SettingsPage(QWidget):
         body2 = card_fin.body()
 
         fields_fin = [
+            ("Devise",            currency,      "currency"),
             ("TVA Ventes (%)",    vat,           "vat"),
             ("TVA Achats (%)",    purchase_vat,  "purchase_vat"),
             ("Numéro de TVA",     vat_number,    "vat_number"),
@@ -376,10 +410,6 @@ class SettingsPage(QWidget):
             body2.addLayout(row)
 
         layout.addWidget(card_fin)
-
-        # ── Carte Multi-Devises ──
-        self._currency_widget = CurrencySettingsWidget()
-        layout.addWidget(self._currency_widget)
         layout.addStretch()
 
         scroll.setWidget(container)
@@ -387,6 +417,12 @@ class SettingsPage(QWidget):
 
     # ── Onglet APPARENCE ─────────────────────────────────
     def _build_appearance_tab(self):
+        """Construit l'onglet Apparence : thème, couleurs et logo.
+
+        Returns:
+            QWidget: Le widget de l'onglet.
+        """
+
         container = QWidget()
         container.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(container)
@@ -423,6 +459,12 @@ class SettingsPage(QWidget):
 
     # ── Onglet BASE DE DONNÉES ───────────────────────────
     def _build_database_tab(self):
+        """Construit l'onglet Base de données : statistiques, sauvegarde et restauration.
+
+        Returns:
+            QWidget: Le widget de l'onglet.
+        """
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
@@ -553,6 +595,9 @@ class SettingsPage(QWidget):
         return item
 
     def load_statistics(self):
+        """Charge les statistiques de la base de données et met à jour l'affichage.
+        """
+
         while self.stats_grid.count():
             child = self.stats_grid.takeAt(0)
             if child.widget():
@@ -595,6 +640,9 @@ class SettingsPage(QWidget):
             """)
 
     def cleanup_database(self):
+        """Lance le nettoyage de la base de données après confirmation utilisateur.
+        """
+
         reply = QMessageBox.warning(
             self, "⚠️ Confirmation",
             "Vous allez supprimer DÉFINITIVEMENT toutes les données.\n\nCette action est irréversible. Continuer?",
@@ -631,6 +679,9 @@ class SettingsPage(QWidget):
             QMessageBox.critical(self, "Erreur", f"Erreur:\n{e}")
 
     def create_backup(self):
+        """Crée une sauvegarde horodatée du fichier de base de données.
+        """
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename, _ = QFileDialog.getSaveFileName(
             self, "Sauvegarder", f"erp_backup_{timestamp}.db",
@@ -647,6 +698,9 @@ class SettingsPage(QWidget):
                 QMessageBox.critical(self, "Erreur", f"Impossible de créer la sauvegarde :\n{e}")
 
     def restore_backup(self):
+        """Restaure la base de données depuis un fichier de sauvegarde sélectionné.
+        """
+
         reply = QMessageBox.warning(
             self, "⚠️ Restauration",
             "La restauration remplacera toutes les données actuelles. Continuer?",
@@ -668,9 +722,15 @@ class SettingsPage(QWidget):
                 QMessageBox.critical(self, "Erreur", f"Impossible de restaurer :\n{e}")
 
     def refresh_stats(self):
+        """Rafraîchit l'affichage des statistiques de la base de données.
+        """
+
         self.load_statistics()
 
     def generate_test_data(self):
+        """Génère des données de test pour le développement et la démonstration.
+        """
+
         reply = QMessageBox.question(
             self, "🧪 Données de Test",
             "Générer des clients, produits, catégories et fournisseurs exemples?",
@@ -685,21 +745,26 @@ class SettingsPage(QWidget):
                 QMessageBox.critical(self, "Erreur", f"Erreur:\n{e}")
 
     def save_settings(self):
+        """Sauvegarde tous les paramètres modifiés dans la base de données.
+        """
+
         try:
             self.db.set_setting('company_name',    self.company_name.text())
             self.db.set_setting('company_address', self.address.text())
             self.db.set_setting('company_phone',   self.company_phone.text())
             self.db.set_setting('company_email',   self.company_email.text())
+            self.db.set_setting('currency',        self.currency.text())
             self.db.set_setting('vat',             self.vat.text())
             self.db.set_setting('purchase_vat',    self.purchase_vat.text())
             self.db.set_setting('vat_number',      self.vat_number.text())
-            # Sauvegarder les préférences de devises
-            self._currency_widget.save(self.db)
             QMessageBox.information(self, "✅ Enregistré", "Paramètres enregistrés avec succès.")
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur lors de l'enregistrement:\n{e}")
 
     def reset_settings(self):
+        """Réinitialise tous les paramètres aux valeurs par défaut après confirmation.
+        """
+
         reply = QMessageBox.question(
             self, "Réinitialiser",
             "Réinitialiser tous les paramètres aux valeurs par défaut?",
@@ -710,6 +775,7 @@ class SettingsPage(QWidget):
             self.address.setText("123 Rue Example, Alger")
             self.company_phone.setText("0555123456")
             self.company_email.setText("contact@mycompany.dz")
+            self.currency.setText("DA (Dinar Algérien)")
             self.vat.setText("19")
             self.vat_number.setText("123456789012345")
 

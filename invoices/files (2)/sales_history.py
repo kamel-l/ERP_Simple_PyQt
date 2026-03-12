@@ -477,7 +477,7 @@ class InvoiceDetailsDialog(QDialog):
                 w.writerow(["Qté", "Référence", "Description", "Prix Unit.", "TVA %", "Total"])
                 for item in self.sale['items']:
                     w.writerow([
-                        item['quantity'], item.get('product_name', ''),
+                        item['quantity'], item.get('reference', ''),
                         item['product_name'], item['unit_price'],
                         self.sale.get('tax_rate', 0), item['total']
                     ])

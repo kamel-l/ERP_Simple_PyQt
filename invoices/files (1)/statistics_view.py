@@ -2,6 +2,15 @@
 #  statistics_view.py — Version PRO (Design + Export + Charts)
 #  AVEC TOUTES LES CORRECTIONS
 # ─────────────────────────────────────────────────────────────
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 
 from PyQt6.QtWidgets import (
@@ -28,6 +37,11 @@ from ui_components import (
 # ─────────────────────────────────────────────────────────────
 
 class StatisticsPage(QWidget):
+    """Page des statistiques et analyses de l'ERP.
+
+    Affiche KPIs annuels, graphiques des ventes et marges,
+    tops produits et clients. Supporte export CSV, Excel et PDF.
+    """
     def __init__(self):
         super().__init__()
 
@@ -71,6 +85,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _build_header(self):
+        """Construit l'en-tête avec titre, sélecteur d'année et boutons d'export."""
         row = QHBoxLayout()
         row.setSpacing(14)
 
@@ -174,12 +189,13 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _build_kpi_row(self):
+        """Construit la rangée des KPIs annuels."""
         row = QHBoxLayout()
         row.setSpacing(16)
 
         specs = [
-            ("Chiffre d'Affaires", C_BLUE,   "💳", f" {currency_manager.primary.symbol}"),
-            ("Profit Net",         C_GREEN,  "📈", f" {currency_manager.primary.symbol}"),
+            ("Chiffre d'Affaires", C_BLUE,   "💳", " DA"),
+            ("Profit Net",         C_GREEN,  "📈", " DA"),
             ("Commandes",          C_AMBER,  "🛒", ""),
             ("Clients Actifs",     C_VIOLET, "👥", ""),
         ]
@@ -226,6 +242,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _build_charts_row(self):
+        """Construit la rangée des graphiques mensuels."""
         row = QHBoxLayout()
         row.setSpacing(16)
 
@@ -586,6 +603,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def refresh(self):
+        """Rafraîchit toutes les statistiques pour l'année sélectionnée."""
         self._populate_years()   # Mettre à jour la liste des années à chaque refresh
         self._load_kpis()
         self._load_sales_chart()
@@ -601,6 +619,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_kpis(self):
+        """Charge les KPIs depuis la base et les affiche."""
         stats = self.db.get_statistics(year=self._get_year()) or {}
 
         sales_total = float(stats.get("sales_total", 0))
@@ -611,8 +630,8 @@ class StatisticsPage(QWidget):
         orders = int(stats.get("total_purchases", 0))
 
         values = [
-            (sales_total, f" {currency_manager.primary.symbol}"),
-            (profit, f" {currency_manager.primary.symbol}"),
+            (sales_total, " DA"),
+            (profit, " DA"),
             (orders, ""),
             (clients, "")
         ]
@@ -626,6 +645,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_sales_chart(self):
+        """Trace le graphique des ventes mensuelles."""
         self.sales_chart.clear()
         year = self._get_year()
         data = self.db.get_sales_by_month(year) or []
@@ -661,6 +681,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_profit_chart(self):
+        """Trace le graphique de la marge brute mensuelle."""
         self.profit_chart.clear()
         year = self._get_year()
         data = self.db.get_profit_by_month(year) or []
@@ -692,6 +713,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_top_products(self):
+        """Affiche le classement des 5 meilleurs produits."""
         self.products_chart.clear()
         data = self.db.get_top_products(limit=5,  year=self._get_year()) or []
 
@@ -720,6 +742,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _load_top_clients(self):
+        """Affiche le classement des 5 meilleurs clients."""
         self.clients_chart.clear()
         data = self.db.get_top_clients(limit=5,  year=self._get_year()) or []
 
@@ -928,6 +951,7 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _export_csv(self):
+        """Exporte les statistiques en fichier CSV."""
         from datetime import datetime as dt
 
         path, _ = QFileDialog.getSaveFileName(
@@ -962,9 +986,9 @@ class StatisticsPage(QWidget):
                 # ============== KPI GLOBAUX ==============
                 w.writerow(["=== KPI GLOBAUX ==="])
                 w.writerow(["Indicateur", "Valeur", "Unité"])
-                w.writerow(["Chiffre d'Affaires Total", f"{stats.get('sales_total', 0):,.0f}", f"{currency_manager.primary.symbol}"])
-                w.writerow(["Achats Totaux", f"{stats.get('purchases_total', 0):,.0f}", f"{currency_manager.primary.symbol}"])
-                w.writerow(["Profit Net", f"{stats.get('profit', 0):,.0f}", f"{currency_manager.primary.symbol}"])
+                w.writerow(["Chiffre d'Affaires Total", f"{stats.get('sales_total', 0):,.0f}", "DA"])
+                w.writerow(["Achats Totaux", f"{stats.get('purchases_total', 0):,.0f}", "DA"])
+                w.writerow(["Profit Net", f"{stats.get('profit', 0):,.0f}", "DA"])
                 
                 # Calcul marges
                 sales_total = float(stats.get("sales_total", 0))
@@ -976,7 +1000,7 @@ class StatisticsPage(QWidget):
                 w.writerow(["Nombre de Produits", stats.get("total_products", 0), "produits"])
                 w.writerow(["Nombre de Ventes", stats.get("total_sales", 0), "transactions"])
                 w.writerow(["Nombre d'Achats", stats.get("total_purchases", 0), "commandes"])
-                w.writerow(["Valeur du Stock", f"{stats.get('stock_value', 0):,.0f}", f"{currency_manager.primary.symbol}"])
+                w.writerow(["Valeur du Stock", f"{stats.get('stock_value', 0):,.0f}", "DA"])
                 w.writerow(["Produits en Stock Faible", stats.get("low_stock_count", 0), "produits"])
                 w.writerow([])
 
@@ -986,7 +1010,7 @@ class StatisticsPage(QWidget):
                 # Panier moyen
                 num_sales = int(stats.get("total_sales", 1)) or 1
                 avg_cart = sales_total / num_sales if num_sales > 0 else 0
-                w.writerow(["Panier Moyen", f"{avg_cart:,.0f}", f"{currency_manager.primary.symbol}"])
+                w.writerow(["Panier Moyen", f"{avg_cart:,.0f}", "DA"])
                 
                 # Meilleur jour
                 best_days = self.db.get_best_days()
@@ -1089,6 +1113,7 @@ class StatisticsPage(QWidget):
     # ======================================================================
 
     def _export_excel_pro_plus(self):
+        """Exporte un rapport Excel complet avec graphiques."""
         import tempfile, os
         import xlsxwriter
         import pyqtgraph.exporters as exporters
@@ -1167,19 +1192,19 @@ class StatisticsPage(QWidget):
         margin_pct = (profit / sales_total * 100) if sales_total > 0 else 0
 
         kpis = [
-            ("Chiffre d'Affaires", sales_total, f"{currency_manager.primary.symbol}"),
-            ("Achats Totaux", purchases_total, f"{currency_manager.primary.symbol}"),
-            ("Profit Net", profit, f"{currency_manager.primary.symbol}"),
+            ("Chiffre d'Affaires", sales_total, "DA"),
+            ("Achats Totaux", purchases_total, "DA"),
+            ("Profit Net", profit, "DA"),
             ("Taux de Marge", margin_pct, "%"),
             ("Nombre Clients", stats.get("total_clients", 0), "clients"),
             ("Nombre Produits", stats.get("total_products", 0), "produits"),
             ("Total Ventes", stats.get("total_sales", 0), "transactions"),
-            ("Valeur du Stock", stats.get("stock_value", 0), f"{currency_manager.primary.symbol}"),
+            ("Valeur du Stock", stats.get("stock_value", 0), "DA"),
         ]
 
         for kpi_name, value, unit in kpis:
             ws.write(row, 0, kpi_name, data_fmt)
-            if unit == f"{currency_manager.primary.symbol}":
+            if unit == "DA":
                 ws.write(row, 1, value, data_fmt)
             elif unit == "%":
                 ws.write(row, 1, value, number_fmt)
@@ -1363,6 +1388,7 @@ class StatisticsPage(QWidget):
     # ======================================================================
 
     def _export_pdf_pro(self):
+        """Génère un rapport PDF professionnel."""
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image, Table, TableStyle, PageBreak
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib.pagesizes import A4
@@ -1617,4 +1643,3 @@ class StatisticsPage(QWidget):
             f"✓ Analyses de Rentabilité\n"
             f"✓ Graphiques professionnels"
         )
-from currency import fmt_da, fmt, currency_manager

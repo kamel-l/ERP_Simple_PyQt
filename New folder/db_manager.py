@@ -393,22 +393,6 @@ class Database:
         """, (f"%{search_term}%", f"%{search_term}%"))
         return [dict(row) for row in self.cursor.fetchall()]
     
-    
-    def search_clients_by_first_letter(self, letter):
-        """
-        Recherche les clients dont le nom commence par une lettre spécifique
-        """
-        self.cursor.execute("""
-            SELECT * FROM clients 
-            WHERE name LIKE ? OR name LIKE ?
-            ORDER BY name
-        """, (
-            f"{letter}%",          # Lettre minuscule
-            f"{letter.upper()}%"    # Lettre majuscule (au cas où)
-        ))
-        return [dict(row) for row in self.cursor.fetchall()]
-    
-    
     def get_invoices_by_client(self, client_id):
         """Récupère toutes les factures d'un client"""
         self.cursor.execute("""

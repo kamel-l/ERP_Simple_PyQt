@@ -1,3 +1,12 @@
+def fmt_da(value, decimals=2):
+    """Format monétaire algérien : 1,200.00 DA"""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = 0.0
+    if decimals == 0:
+        return f"{v:,.0f} DA"
+    return f"{v:,.2f} DA"
 
 
 from PyQt6.QtWidgets import (
@@ -372,12 +381,20 @@ class AddProductDialog(QDialog):
 
 
 class SalesPage(QWidget):
+    """Page de création et enregistrement des ventes.
+
+    Gère le panier, le calcul TVA dynamique, le choix du client
+    et du mode de paiement. Émet sale_saved après chaque vente.
+
+    Signals:
+        sale_saved: Émis après chaque vente enregistrée avec succès.
+    """
     # Émis après chaque vente enregistrée
     sale_saved = pyqtSignal()
 
     def __init__(self):
         super().__init__()
-        # self.showEvent = self.refresh  # Rafraîchir à chaque affichage
+        
         self.db = get_database()
         self.cart_items = []  # Articles dans le panier
         self.vat_rate = self._get_vat_rate()  # Récupérer la TVA depuis les settings
@@ -658,21 +675,8 @@ class SalesPage(QWidget):
 
         # Initialiser l'affichage
         self.update_totals()
-        self.showEvent = self.refresh_page()  # Rafraîchir à chaque affichage
-    
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.refresh_page()
-        
-        
-    def refresh_page(self):
-        """Rafraîchit les données de la page (clients, produits, etc.)"""
-        self.load_clients()
-        self.cart_items = []
-        self.table.setRowCount(0)
-        self.update_totals()
-        
-           
+
+
     def load_clients(self):
         """Charge les clients (peut être appelée depuis l'extérieur pour rafraîchir)"""
         self.client_combo.clear()
@@ -952,4 +956,3 @@ class SalesPage(QWidget):
             if detail_text:
                 return f"\n📋 Détails du paiement:\n{detail_text}"
             return ""
-from currency import fmt_da, fmt, currency_manager

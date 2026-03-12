@@ -377,7 +377,7 @@ class SalesPage(QWidget):
 
     def __init__(self):
         super().__init__()
-        # self.showEvent = self.refresh  # Rafraîchir à chaque affichage
+        
         self.db = get_database()
         self.cart_items = []  # Articles dans le panier
         self.vat_rate = self._get_vat_rate()  # Récupérer la TVA depuis les settings
@@ -658,21 +658,8 @@ class SalesPage(QWidget):
 
         # Initialiser l'affichage
         self.update_totals()
-        self.showEvent = self.refresh_page()  # Rafraîchir à chaque affichage
-    
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.refresh_page()
-        
-        
-    def refresh_page(self):
-        """Rafraîchit les données de la page (clients, produits, etc.)"""
-        self.load_clients()
-        self.cart_items = []
-        self.table.setRowCount(0)
-        self.update_totals()
-        
-           
+
+
     def load_clients(self):
         """Charge les clients (peut être appelée depuis l'extérieur pour rafraîchir)"""
         self.client_combo.clear()
