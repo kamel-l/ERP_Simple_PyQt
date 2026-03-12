@@ -221,7 +221,7 @@ class ProductsPage(QWidget):
         super().__init__()
         
         self.db = get_database()
-
+       
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -265,24 +265,6 @@ class ProductsPage(QWidget):
         self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         search_layout.addWidget(self.add_btn)
 
-        self.refresh_btn = QPushButton("↻   Actualiser")
-        self.refresh_btn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        self.refresh_btn.setFixedHeight(45)
-        self.refresh_btn.setFixedWidth(130)
-        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.refresh_btn.setStyleSheet("""
-            QPushButton {
-                background: #3B82F6;
-                color: white;
-                border: none;
-                border-radius: 10px;
-                padding: 0 18px;
-            }
-            QPushButton:hover  { background: #2563EB; }
-            QPushButton:pressed{ background: #1D4ED8; }
-        """)
-        self.refresh_btn.clicked.connect(self.refresh_page)
-        search_layout.addWidget(self.refresh_btn)
 
         # Table
         table_container = QFrame()
@@ -376,6 +358,7 @@ class ProductsPage(QWidget):
         actions_layout.addWidget(self.delete_all_btn)
 
         self.load_products()
+        self.showEvent = self.refresh_page()  # Rafraîchir à chaque affichage
 
     def build_stat_card(self, title, value, color):
         """Construit une carte de statistique"""
@@ -471,7 +454,12 @@ class ProductsPage(QWidget):
         value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.table.setItem(row, 6, value_item)
-
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.refresh_page()
+        
+        
     def refresh_page(self):
         """Actualise la liste des produits et les statistiques"""
         self.search_input.clear()

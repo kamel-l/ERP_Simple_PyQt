@@ -797,7 +797,17 @@ class PurchasesPage(QWidget):
 
         # Connexion du signal pour mettre à jour les totaux
         self.table.itemChanged.connect(self.update_totals)
-
+        self.showEvent = self.refresh_page()
+        
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.refresh_page()
+        
+    def refresh_page(self):
+        self.load_suppliers()
+        self.table.setRowCount(0)
+        self.update_totals()
+        
     def load_suppliers(self):
         self.supplier_combo.clear()
         self.supplier_combo.addItem("Sélectionner un fournisseur", None)

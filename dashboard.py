@@ -4,7 +4,7 @@ dashboard.py — Tableau de Bord Personnalisable
 """
 
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
+    QProgressBar, QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
     QPushButton, QScrollArea, QHeaderView, QTableWidget,
     QTableWidgetItem, QSizePolicy, QDialog, QCheckBox,
     QGridLayout, QMessageBox, QListWidget, QListWidgetItem,
@@ -95,9 +95,9 @@ WIDGET_CATALOG = {
     "activities":    {"id": "activities",    "title": "Activités Récentes",    "icon": "🕒", "desc": "Dernières ventes et achats",             "default": True},
     "quick_info":    {"id": "quick_info",    "title": "Informations Rapides",  "icon": "⚡", "desc": "Ventes du jour, top client, stock",      "default": True},
     "invoice_table": {"id": "invoice_table", "title": "Dernières Factures",    "icon": "🧾", "desc": "Tableau des 10 dernières factures",      "default": True},
-    "low_stock":     {"id": "low_stock",     "title": "Alertes Stock Faible",  "icon": "⚠️", "desc": "Produits sous le seuil minimum",         "default": False},
-    "top_clients":   {"id": "top_clients",   "title": "Top Clients",           "icon": "🏆", "desc": "Classement par chiffre d'affaires",      "default": False},
-    "sales_chart":   {"id": "sales_chart",   "title": "Résumé des Ventes",     "icon": "📈", "desc": "Ventes des 7 derniers jours",            "default": False},
+    "low_stock":     {"id": "low_stock",     "title": "Alertes Stock Faible",  "icon": "⚠️", "desc": "Produits sous le seuil minimum",         "default": True},
+    "top_clients":   {"id": "top_clients",   "title": "Top Clients",           "icon": "🏆", "desc": "Classement par chiffre d'affaires",      "default": True},
+    "sales_chart":   {"id": "sales_chart",   "title": "Résumé des Ventes",     "icon": "📈", "desc": "Ventes des 7 derniers jours",            "default": True},
 }
 
 DEFAULT_ORDER = [
@@ -615,6 +615,7 @@ class DashboardPage(QWidget):
         self._reset_refs()
         self._build_page()
         self.refresh()
+        self.showEvent = self.refresh()  # Rafraîchir à chaque affichage
 
     def _reset_refs(self):
         self._kpi_cards          = []
@@ -634,11 +635,13 @@ class DashboardPage(QWidget):
         if old:
             while old.count():
                 item = old.takeAt(0)
-                if item.widget():
-                    item.widget().setParent(None)
-                    item.widget().deleteLater()
-            import sip
+                w = item.widget()   # appel unique — évite NoneType sur spacers
+                if w is not None:
+                    w.setParent(None)
+                    w.deleteLater()
+            # Détacher le layout sans crasher
             try:
+                import sip
                 sip.delete(old)
             except Exception:
                 QWidget().setLayout(old)
@@ -819,13 +822,21 @@ class DashboardPage(QWidget):
             animate_value(card.value_label, val, suf)
 
     def _load_activities(self) -> None:
+        """Charge les activités récentes (ventes + achats)."""
         if not self._activities_layout: return
         while self._activities_layout.count():
             item = self._activities_layout.takeAt(0)
-            if item.widget(): item.widget().deleteLater()
+            w = item.widget()
+            if w is not None: w.deleteLater()
 
-        sales = self.db.get_all_sales(limit=4)
-        purs  = self.db.get_all_purchases(limit=3)
+        try:
+            sales = self.db.get_all_sales(limit=4) or []
+        except Exception:
+            sales = []
+        try:
+            purs = self.db.get_all_purchases(limit=3) or []
+        except Exception:
+            purs = []
 
         if not sales and not purs:
             lbl = QLabel("Aucune activité récente")
@@ -835,30 +846,43 @@ class DashboardPage(QWidget):
             self._activities_layout.addWidget(lbl)
             return
 
-        def add_row(dot_color, text):
+        def add_row(dot_color, icon, text):
             rw = QWidget()
             rw.setStyleSheet("background:transparent;")
             rl = QHBoxLayout(rw)
-            rl.setContentsMargins(0, 0, 0, 0)
+            rl.setContentsMargins(4, 4, 4, 4)
             rl.setSpacing(10)
-            dot = QLabel()
-            dot.setFixedSize(8, 8)
-            dot.setStyleSheet(f"background:{dot_color}; border-radius:4px; border:none;")
+            dot = QLabel(icon)
+            dot.setFixedSize(22, 22)
+            dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            dot.setStyleSheet(f"""
+                background:{dot_color}22; color:{dot_color};
+                border-radius:11px; border:none; font-size:11px;
+            """)
             rl.addWidget(dot)
-            rl.setAlignment(dot, Qt.AlignmentFlag.AlignVCenter)
             lbl = QLabel(text)
-            lbl.setFont(QFont("Segoe UI", 11))
+            lbl.setFont(QFont("Segoe UI", 10))
             lbl.setStyleSheet(f"color:{COLORS['TXT_SEC']}; background:transparent; border:none;")
-            rl.addWidget(lbl)
-            rl.addStretch()
+            rl.addWidget(lbl, 1)
             self._activities_layout.addWidget(rw)
 
         for s in sales:
-            add_row("#6366F1",
-                    f"Vente  ·  Facture {s['invoice_number']}  —  {fmt_da(s['total'], 0)}")
+            inv  = s.get('invoice_number', '—')
+            tot  = float(s.get('total') or 0)
+            cli  = s.get('client_name', '')
+            txt  = f"Vente  {inv}"
+            if cli: txt += f"  ·  {cli[:20]}"
+            txt += f"  —  {fmt_da(tot, 0)}"
+            add_row("#6366F1", "🧾", txt)
+
         for p in purs:
             nom = p.get('product_name') or f"Produit #{p.get('product_id','?')}"
-            add_row("#F59E0B", f"Achat  ·  {nom}  —  {fmt_da(p['total'], 0)}")
+            tot = float(p.get('total') or 0)
+            sup = p.get('supplier_name', '')
+            txt = f"Achat  {nom[:22]}"
+            if sup: txt += f"  ·  {sup[:16]}"
+            txt += f"  —  {fmt_da(tot, 0)}"
+            add_row("#F59E0B", "📦", txt)
 
     def _load_quick_info(self) -> None:
         if not self._info_cards: return
@@ -872,19 +896,26 @@ class DashboardPage(QWidget):
             f"{len(low)} produit{'s' if len(low) != 1 else ''}")
 
     def _load_invoices(self) -> None:
+        """Charge les 10 dernières factures dans le tableau."""
         if not self.invoice_table: return
-        data = self.db.get_all_sales(limit=10)
+        try:
+            data = self.db.get_all_sales(limit=10) or []
+        except Exception:
+            data = []
         self.invoice_table.setRowCount(len(data))
         for r, sale in enumerate(data):
-            client = sale.get("client_name", sale.get("client", "—"))
-            date   = str(sale.get("sale_date", "—")).split(" ")[0]
-            pay    = sale.get("payment_method", sale.get("payment_mode", "—"))
+            client = sale.get("client_name") or sale.get("client") or "—"
+            date   = str(sale.get("sale_date") or "—").split(" ")[0]
+            pay    = sale.get("payment_method") or sale.get("payment_mode") or "—"
+            # Récupération robuste du total (plusieurs noms possibles)
+            total  = float(sale.get("total") or sale.get("grand_total") or
+                           sale.get("total_amount") or 0)
             cells  = [
-                (f"{sale['invoice_number']}", "#F1F7F4"),
-                (client,                      "#F1F7F4"),
-                (fmt_da(sale['total']),        "#10B981"),
-                (date,                         "#F1F7F4"),
-                (pay,                          "#F1F7F4"),
+                (f"{sale.get('invoice_number','—')}", "#F1F7F4"),
+                (client,                              "#F1F7F4"),
+                (fmt_da(total),                       "#10B981"),
+                (date,                                "#F1F7F4"),
+                (pay,                                 "#F1F7F4"),
             ]
             for col, (val, color) in enumerate(cells):
                 item = QTableWidgetItem(str(val))
@@ -909,10 +940,12 @@ class DashboardPage(QWidget):
             self.invoice_table.setRowHeight(r, 44)
 
     def _load_low_stock(self) -> None:
+        """Charge les alertes de stock faible."""
         if not self._low_stock_layout: return
         while self._low_stock_layout.count():
             item = self._low_stock_layout.takeAt(0)
-            if item.widget(): item.widget().deleteLater()
+            w = item.widget()
+            if w is not None: w.deleteLater()
         try:
             products = self.db.get_low_stock_products() or []
         except Exception:
@@ -938,10 +971,12 @@ class DashboardPage(QWidget):
             self._low_stock_layout.addWidget(rw)
 
     def _load_top_clients(self) -> None:
+        """Charge le classement des top clients."""
         if not self._top_clients_layout: return
         while self._top_clients_layout.count():
             item = self._top_clients_layout.takeAt(0)
-            if item.widget(): item.widget().deleteLater()
+            w = item.widget()
+            if w is not None: w.deleteLater()
         try:
             clients = self.db.get_top_clients(limit=5)
         except Exception:
@@ -982,10 +1017,12 @@ class DashboardPage(QWidget):
             self._top_clients_layout.addWidget(bar)
 
     def _load_sales_chart(self) -> None:
+        """Charge le graphique ventes 7 derniers jours."""
         if not self._sales_chart_layout: return
         while self._sales_chart_layout.count():
             item = self._sales_chart_layout.takeAt(0)
-            if item.widget(): item.widget().deleteLater()
+            w = item.widget()
+            if w is not None: w.deleteLater()
         try:
             self.db.cursor.execute("""
                 SELECT DATE(sale_date) as day,
@@ -1027,22 +1064,27 @@ class DashboardPage(QWidget):
 
             grid.addWidget(_lbl(dn, 9, color=COLORS['TXT_SEC']), i, 0)
 
-            bar_w = QFrame()
+            bar_w = QProgressBar()
+            bar_w.setRange(0, 1000)
+            bar_w.setValue(int((total / max_v) * 1000))
+            bar_w.setTextVisible(False)
             bar_w.setFixedHeight(20)
-            bar_w.setStyleSheet(f"background:{COLORS['BG_DEEP']}; border-radius:4px; border:none;")
-            inner = QFrame(bar_w)
-            inner.setStyleSheet(f"""
-                background:qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                    stop:0 {COLORS['primary']}88, stop:1 {COLORS['primary']});
-                border-radius:4px; border:none;
+            bar_w.setStyleSheet(f"""
+                QProgressBar {{
+                    background: {COLORS['BG_DEEP']};
+                    border-radius: 4px; border: none;
+                }}
+                QProgressBar::chunk {{
+                    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+                        stop:0 {COLORS['primary']}88, stop:1 {COLORS['primary']});
+                    border-radius: 4px;
+                }}
             """)
-            inner.setFixedHeight(20)
-            inner.setFixedWidth(max(4, int((total/max_v)*280)))
             grid.addWidget(bar_w, i, 1)
 
             vl = _lbl(f"{fmt_da(total,0)}  · {nb} vente{'s' if nb>1 else ''}",
                       9, color=COLORS['TXT_SEC'])
-            vl.setFixedWidth(185)
+            vl.setMinimumWidth(160)
             grid.addWidget(vl, i, 2)
 
         self._sales_chart_layout.addLayout(grid)
