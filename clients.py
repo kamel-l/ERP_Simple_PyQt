@@ -161,12 +161,12 @@ class ClientsPage(QWidget):
         table_layout.setSpacing(0)
         table_container.setLayout(table_layout)
         
-        self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["ID", "Nom", "Téléphone", "Email", "Adresse", ""])
+        self.table = QTableWidget(0, 3)
+        self.table.setHorizontalHeaderLabels(["Nom", "Téléphone",""])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(5, 110)
-        self.table.setColumnWidth(0, 50)
+        self.table.setColumnWidth(1, 150)
+        self.table.setColumnWidth(2, 120)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.verticalHeader().setVisible(False)
@@ -275,45 +275,34 @@ class ClientsPage(QWidget):
             row = self.table.rowCount()
             self.table.insertRow(row)
             
-            # ID
-            id_item = QTableWidgetItem(str(client["id"]))
-            id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            id_item.setData(Qt.ItemDataRole.UserRole, client["id"])  # Stocker l'ID
-            
-            # Nom
+             # ID
+            # Stocker l'ID dans la colonne Nom (UserRole invisible)
             name_item = QTableWidgetItem(client["name"])
+            name_item.setData(Qt.ItemDataRole.UserRole, client["id"])
+            name_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+
+            phone_item = QTableWidgetItem(client["phone"] or "—")
+
+            self.table.setItem(row, 0, name_item)
+            self.table.setItem(row, 1, phone_item)
             
-            # Téléphone
-            phone_item = QTableWidgetItem(client["phone"] or "")
             
-            # Email
-            email_item = QTableWidgetItem(client["email"] or "")
-            
-            # Adresse
-            address_item = QTableWidgetItem(client["address"] or "")
-            
-            self.table.setItem(row, 0, id_item)
-            self.table.setItem(row, 1, name_item)
-            self.table.setItem(row, 2, phone_item)
-            self.table.setItem(row, 3, email_item)
-            self.table.setItem(row, 4, address_item)
-            # Bouton fiche client
-            fiche_btn = QPushButton("📋 Fiche")
-            fiche_btn.setFixedHeight(30)
-            fiche_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            fiche_btn.setStyleSheet(f"""
-                QPushButton {{
+           # Bouton Fiche
+            btn = QPushButton("📋 Voir Fiche")
+            btn.setFixedHeight(32)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet("""
+                QPushButton {
                     background: rgba(0,180,255,0.15); color: #00B4FF;
                     border: 1px solid rgba(0,180,255,0.4);
-                    border-radius: 6px; font-size: 11px; font-weight: bold;
-                    padding: 0 8px;
-                }}
-                QPushButton:hover {{ background: rgba(0,180,255,0.3); color: white; }}
+                    border-radius: 6px; font-size: 11px; font-weight: bold; padding: 0 10px;
+                }
+                QPushButton:hover { background: rgba(0,180,255,0.3); color: white; }
             """)
             cid = client["id"]
-            fiche_btn.clicked.connect(lambda _, i=cid: self.open_fiche(i))
-            self.table.setCellWidget(row, 5, fiche_btn)
-            self.table.setRowHeight(row, 44)
+            btn.clicked.connect(lambda _, i=cid: self.open_fiche(i))
+            self.table.setCellWidget(row, 2, btn)
+            self.table.setRowHeight(row, 46)
 
     # ------------------ RECHERCHE ------------------
     def filter_clients(self, text):
@@ -323,7 +312,11 @@ class ClientsPage(QWidget):
             return
         
         self.table.setRowCount(0)
-        clients = self.db.search_clients(text)
+            # Si la recherche est une lettre unique (a-z, A-Z)
+        if len(text) == 1 and text.isalpha():
+            clients = self.db.search_clients_by_first_letter(text)
+        else:
+            clients = self.db.search_clients(text)
         
         for client in clients:
             row = self.table.rowCount()
@@ -333,26 +326,26 @@ class ClientsPage(QWidget):
             id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             id_item.setData(Qt.ItemDataRole.UserRole, client["id"])
             
-            self.table.setItem(row, 0, id_item)
-            self.table.setItem(row, 1, QTableWidgetItem(client["name"]))
-            self.table.setItem(row, 2, QTableWidgetItem(client["phone"] or ""))
-            self.table.setItem(row, 3, QTableWidgetItem(client["email"] or ""))
-            self.table.setItem(row, 4, QTableWidgetItem(client["address"] or ""))
-            fiche_btn = QPushButton("📋 Fiche")
-            fiche_btn.setFixedHeight(30)
-            fiche_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            fiche_btn.setStyleSheet("""
+            name_item2 = QTableWidgetItem(client["name"])
+            name_item2.setData(Qt.ItemDataRole.UserRole, client["id"])
+            self.table.setItem(row, 0, name_item2)
+            self.table.setItem(row, 1, QTableWidgetItem(client["phone"] or "—"))
+            # Bouton Fiche
+            btn2 = QPushButton("📋 Voir Fiche")
+            btn2.setFixedHeight(32)
+            btn2.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn2.setStyleSheet("""
                 QPushButton {
                     background: rgba(0,180,255,0.15); color: #00B4FF;
                     border: 1px solid rgba(0,180,255,0.4);
-                    border-radius: 6px; font-size: 11px; font-weight: bold; padding: 0 8px;
+                    border-radius: 6px; font-size: 11px; font-weight: bold; padding: 0 10px;
                 }
                 QPushButton:hover { background: rgba(0,180,255,0.3); color: white; }
             """)
-            cid = client["id"]
-            fiche_btn.clicked.connect(lambda _, i=cid: self.open_fiche(i))
-            self.table.setCellWidget(row, 5, fiche_btn)
-            self.table.setRowHeight(row, 44)
+            cid2 = client["id"]
+            btn2.clicked.connect(lambda _, i=cid2: self.open_fiche(i))
+            self.table.setCellWidget(row, 2, btn2)
+            self.table.setRowHeight(row, 46)
 
     # ------------------ FICHE CLIENT ------------------
     def open_fiche(self, client_id: int) -> None:
