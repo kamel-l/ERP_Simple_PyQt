@@ -301,7 +301,7 @@ class AddProductDialog(QDialog):
             self.product_table.setItem(row, 0, name_item)
             
             # Prix unitaire
-            price_item = QTableWidgetItem(f"{fmt_da(product['selling_price'], 0)}")
+            price_item = QTableWidgetItem(f"{fmt_da(product['selling_price'], 2)}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.product_table.setItem(row, 1, price_item)
             
@@ -329,7 +329,7 @@ class AddProductDialog(QDialog):
             if item:
                 product = item.data(Qt.ItemDataRole.UserRole)
                 self.selected_product = product
-                self.price_display.setText(f"{fmt_da(product['selling_price'], 0)}")
+                self.price_display.setText(f"{fmt_da(product['selling_price'], 2)}")
                 self.stock_display.setText(str(product['stock_quantity']))
                 self.quantity.setText("1")
                 self.discount.setText("0")
@@ -348,7 +348,7 @@ class AddProductDialog(QDialog):
                 discount = float(self.discount.text() or 0)
                 
                 total = qty * price * (1 - discount / 100)
-                self.total_display.setText(f"{fmt_da(total, 0)}")
+                self.total_display.setText(f"{fmt_da(total, 2)}")
             except ValueError:
                 self.total_display.setText("0 DA")
 
@@ -716,17 +716,17 @@ class SalesPage(QWidget):
             self.table.setItem(row, 1, qty_item)
             
             # Prix unitaire
-            price_item = QTableWidgetItem(f"{unit_price:,.0f}")
+            price_item = QTableWidgetItem(f"{unit_price:,}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             self.table.setItem(row, 2, price_item)
             
             # Remise
-            discount_item = QTableWidgetItem(f"{discount:.0f}%")
+            discount_item = QTableWidgetItem(f"{discount:,}%")
             discount_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 3, discount_item)
             
             # Total
-            total_item = QTableWidgetItem(f"{total:,.0f}")
+            total_item = QTableWidgetItem(f"{total:,}")
             total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
             self.table.setItem(row, 4, total_item)
@@ -787,7 +787,7 @@ class SalesPage(QWidget):
         self.vat_rate = self._get_vat_rate()
         self.vat_percent = self.vat_rate * 100  # Convertir en pourcentage pour l'affichage
         # Mettre à jour le label de TVA avec le nouveau pourcentage
-        self.tax_header_label.setText(f"TVA ({self.vat_percent:.0f}%) :")
+        self.tax_header_label.setText(f"TVA ({self.vat_percent:}%) :")
         tax = subtotal * self.vat_rate
         total = subtotal + tax
 
@@ -803,10 +803,10 @@ class SalesPage(QWidget):
 
         self.nb_articles_label.setText(f"{nb_articles} article(s)")
         self.qty_total_label.setText(f"{qty_total} unité(s)")
-        self.discount_total_label.setText(f"-{fmt_da(remise_total, 0)}")
-        self.subtotal_label.setText(f"{fmt_da(subtotal, 0)}")
-        self.tax_label.setText(f"{fmt_da(tax, 0)}")
-        self.total_label.setText(f"{fmt_da(total, 0)}")
+        self.discount_total_label.setText(f"-{fmt_da(remise_total, 2)}")
+        self.subtotal_label.setText(f"{fmt_da(subtotal, 2)}")
+        self.tax_label.setText(f"{fmt_da(tax, 2)}")
+        self.total_label.setText(f"{fmt_da(total, 2)}")
 
     def save_sale(self):
         """Enregistre la vente avec gestion du paiement"""
