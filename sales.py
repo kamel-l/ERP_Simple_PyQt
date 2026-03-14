@@ -415,14 +415,20 @@ class SalesPage(QWidget):
         client_card.setLayout(client_layout)
         client_layout.setSpacing(10)
 
-        client_label = QLabel("👤 Client:")
+        client_label = QLabel("👤 Client: *")
         client_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         client_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+
+        self.client_required_label = QLabel("⚠ Champ obligatoire")
+        self.client_required_label.setFont(QFont("Segoe UI", 10))
+        self.client_required_label.setStyleSheet(f"color: {COLORS['warning']}; border: none;")
+        self.client_required_label.setVisible(False)
 
         self.client_combo = QComboBox()
         self.client_combo.setStyleSheet(INPUT_STYLE)
         self.client_combo.setMinimumHeight(32)
         self.client_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.client_combo.currentIndexChanged.connect(self._on_client_changed)
         self.load_clients()
 
         # Bouton ajouter article
@@ -433,7 +439,13 @@ class SalesPage(QWidget):
         self.add_item_btn.clicked.connect(self.add_item)
         self.add_item_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        client_layout.addWidget(client_label)
+        # Layout vertical pour label + message d'erreur
+        client_info_layout = QVBoxLayout()
+        client_info_layout.setSpacing(2)
+        client_info_layout.addWidget(client_label)
+        client_info_layout.addWidget(self.client_required_label)
+
+        client_layout.addLayout(client_info_layout)
         client_layout.addWidget(self.client_combo)
         client_layout.addStretch()
         client_layout.addWidget(self.add_item_btn)
@@ -808,12 +820,37 @@ class SalesPage(QWidget):
         self.tax_label.setText(f"{fmt_da(tax)}")
         self.total_label.setText(f"{fmt_da(total)}")
 
+    def _on_client_changed(self, index):
+        """Réinitialise le style d'erreur dès que l'utilisateur sélectionne un vrai client."""
+        if index > 0:
+            self.client_combo.setStyleSheet(INPUT_STYLE)
+            self.client_required_label.setVisible(False)
+
     def save_sale(self):
         """Enregistre la vente avec gestion du paiement"""
         if not self.cart_items:
             QMessageBox.warning(self, "Attention", "Le panier est vide!")
             return
-        
+
+        # ✅ Vérification : le nom du client est obligatoire
+        if self.client_combo.currentIndex() == 0:
+            # Bordure rouge sur le combo
+            self.client_combo.setStyleSheet(INPUT_STYLE + f"""
+                QComboBox {{
+                    border: 2px solid {COLORS['danger']};
+                    background-color: rgba(248, 113, 113, 0.10);
+                }}
+            """)
+            self.client_required_label.setVisible(True)
+            self.client_combo.setFocus()
+            QMessageBox.warning(
+                self,
+                "Client obligatoire",
+                "⚠ Veuillez sélectionner un client avant d\'enregistrer la facture.\n\n"
+                "Si le client n\'existe pas encore, ajoutez-le depuis la page Clients."
+            )
+            return
+
         # Calculer le total TTC
         subtotal = sum(item['total'] for item in self.cart_items)
         self.vat_rate = self._get_vat_rate()
@@ -824,7 +861,7 @@ class SalesPage(QWidget):
         invoice_number = self.db.generate_invoice_number()
         
         # 1. Afficher le dialogue de paiement avec tous les détails
-        client_name = self.client_combo.currentText() or "Client Anonyme"
+        client_name = self.client_combo.currentText()
         payment_data = show_payment_dialog(
             total_amount=total_ttc,
             invoice_number=invoice_number,
