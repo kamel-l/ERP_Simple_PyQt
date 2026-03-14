@@ -582,7 +582,7 @@ class PurchasesPage(QWidget):
         super().__init__()
         
         self.db = get_database()
-
+        self.showEvent = self.refresh_page
         # Layout principal - comme dans products.py
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(15)
