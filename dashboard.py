@@ -699,23 +699,7 @@ class DashboardPage(QWidget):
         cb.clicked.connect(self._open_editor)
         row.addWidget(cb)
 
-        # Bouton Actualiser
-        rb = QPushButton("↻  Actualiser")
-        rb.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        rb.setFixedHeight(38)
-        rb.setFixedWidth(130)
-        rb.setCursor(Qt.CursorShape.PointingHandCursor)
-        rb.setStyleSheet(f"""
-            QPushButton {{
-                background:{COLORS['primary']};
-                color:white; border:none;
-                border-radius:10px; padding:0 16px;
-            }}
-            QPushButton:hover  {{ background:{COLORS['primary']}CC; }}
-            QPushButton:pressed {{ background:{COLORS['primary']}99; }}
-        """)
-        rb.clicked.connect(self.refresh)
-        row.addWidget(rb)
+        
 
         self._main.addLayout(row)
 
