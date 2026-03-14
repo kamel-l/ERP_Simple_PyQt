@@ -406,7 +406,7 @@ class ProductsPage(QWidget):
             self.build_stat_card("Total Produits", stats['total_products'], COLORS['primary'])
         )
         self.stats_layout.addWidget(
-            self.build_stat_card("Valeur Stock", f"{fmt_da(stats['stock_value'], 0)}", COLORS['success'])
+            self.build_stat_card("Valeur Stock", f"{fmt_da(stats['stock_value'])}", COLORS['success'])
         )
         self.stats_layout.addWidget(
             self.build_stat_card("Stock Faible", len(low_stock), COLORS['danger'])
@@ -441,7 +441,7 @@ class ProductsPage(QWidget):
             qty_item.setForeground(Qt.GlobalColor.red)
         self.table.setItem(row, 3, qty_item)
         
-        price_buy_item = QTableWidgetItem(fmt_da(product.get('purchase_price', 0)))
+        price_buy_item = QTableWidgetItem(fmt_da(product.get('purchase_price')))
         price_buy_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 4, price_buy_item)
         
@@ -450,7 +450,7 @@ class ProductsPage(QWidget):
         self.table.setItem(row, 5, price_item)
         
         total_value = product["stock_quantity"] * product["selling_price"]
-        value_item = QTableWidgetItem(fmt_da(total_value, 0))
+        value_item = QTableWidgetItem(fmt_da(total_value))
         value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         self.table.setItem(row, 6, value_item)

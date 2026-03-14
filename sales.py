@@ -803,10 +803,10 @@ class SalesPage(QWidget):
 
         self.nb_articles_label.setText(f"{nb_articles} article(s)")
         self.qty_total_label.setText(f"{qty_total} unité(s)")
-        self.discount_total_label.setText(f"-{fmt_da(remise_total, 2)}")
-        self.subtotal_label.setText(f"{fmt_da(subtotal, 2)}")
-        self.tax_label.setText(f"{fmt_da(tax, 2)}")
-        self.total_label.setText(f"{fmt_da(total, 2)}")
+        self.discount_total_label.setText(f"-{fmt_da(remise_total)}")
+        self.subtotal_label.setText(f"{fmt_da(subtotal)}")
+        self.tax_label.setText(f"{fmt_da(tax)}")
+        self.total_label.setText(f"{fmt_da(total)}")
 
     def save_sale(self):
         """Enregistre la vente avec gestion du paiement"""

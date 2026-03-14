@@ -1,4 +1,3 @@
-
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QHBoxLayout, QFrame, QComboBox, QLineEdit, 
@@ -15,6 +14,7 @@ except ImportError:
     _RETURNS_AVAILABLE = False
 from datetime import datetime, timedelta
 from PyQt6.QtWidgets import QFileDialog
+from currency import fmt_da, fmt, currency_manager  # IMPORT DE LA FONCTION DE FORMATAGE
 
 
 class InvoiceDetailsDialog(QDialog):
@@ -327,10 +327,12 @@ class InvoiceDetailsDialog(QDialog):
             table.setItem(r, 0, make_cell(qty))
             table.setItem(r, 1, make_cell(ref if ref else '—'))
             table.setItem(r, 2, make_cell(desc if desc else '—', Qt.AlignmentFlag.AlignLeft))
-            table.setItem(r, 3, make_cell(f"{fmt_da(price)}", Qt.AlignmentFlag.AlignRight))
+            # 🔴 UTILISATION DE fmt_da POUR LE PRIX UNITAIRE
+            table.setItem(r, 3, make_cell(fmt_da(price), Qt.AlignmentFlag.AlignRight))
             table.setItem(r, 4, make_cell(f"{tax_rate:.0f}%"))
+            # 🔴 UTILISATION DE fmt_da POUR LE TOTAL
             table.setItem(r, 5, make_cell(
-                f"{fmt_da(total)}",
+                fmt_da(total),
                 Qt.AlignmentFlag.AlignRight, bold=True, color=self.GREEN
             ))
             table.setRowHeight(r, 42)
@@ -381,8 +383,9 @@ class InvoiceDetailsDialog(QDialog):
         tax_amt  = float(self.sale.get('tax_amount', 0))
         total    = float(self.sale.get('total', 0))
 
-        lay.addWidget(total_line("Sous-total HT",   f"{fmt_da(subtotal)}"))
-        lay.addWidget(total_line(f"TVA ({self.sale.get('tax_rate', 0)}%)", f"{fmt_da(tax_amt)}", self.AMBER))
+        # 🔴 UTILISATION DE fmt_da POUR TOUS LES MONTANTS
+        lay.addWidget(total_line("Sous-total HT",   fmt_da(subtotal)))
+        lay.addWidget(total_line(f"TVA ({self.sale.get('tax_rate', 0)}%)", fmt_da(tax_amt), self.AMBER))
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
@@ -390,7 +393,7 @@ class InvoiceDetailsDialog(QDialog):
         sep.setStyleSheet(f"background:{self.BORDER}; border:none;")
         lay.addWidget(sep)
 
-        lay.addWidget(total_line("TOTAL TTC", f"{fmt_da(total)}", self.GREEN, big=True))
+        lay.addWidget(total_line("TOTAL TTC", fmt_da(total), self.GREEN, big=True))
         return frame
 
     # ── Note de bas de page ───────────────────────────────────
@@ -478,13 +481,15 @@ class InvoiceDetailsDialog(QDialog):
                 for item in self.sale['items']:
                     w.writerow([
                         item['quantity'], item.get('product_name', ''),
-                        item['product_name'], item['unit_price'],
-                        self.sale.get('tax_rate', 0), item['total']
+                        item['product_name'], 
+                        fmt_da(item['unit_price']),  # 🔴 FORMATAGE ICI
+                        self.sale.get('tax_rate', 0), 
+                        fmt_da(item['total'])  # 🔴 FORMATAGE ICI
                     ])
                 w.writerow([])
-                w.writerow(["Sous-total", self.sale['subtotal']])
-                w.writerow(["TVA", self.sale['tax_amount']])
-                w.writerow(["Total TTC", self.sale['total']])
+                w.writerow(["Sous-total", fmt_da(self.sale['subtotal'])])  # 🔴 FORMATAGE ICI
+                w.writerow(["TVA", fmt_da(self.sale['tax_amount'])])  # 🔴 FORMATAGE ICI
+                w.writerow(["Total TTC", fmt_da(self.sale['total'])])  # 🔴 FORMATAGE ICI
             QMessageBox.information(self, "Export Réussi", f"✅ Facture exportée !\n\n{file_path}")
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur CSV:\n{str(e)}")
@@ -798,15 +803,15 @@ class SalesHistoryPage(QWidget):
         week_sales = self.db.get_sales_by_date_range(week_start, week_end)
         week_total = sum(sale['total'] for sale in week_sales)
         
-        # Ajouter les cartes
+        # Ajouter les cartes - 🔴 UTILISATION DE fmt_da
         stats_layout.insertWidget(0, self.build_stat_card(
-            "Ventes Aujourd'hui", f"{fmt_da(today_total)}", COLORS['primary']
+            "Ventes Aujourd'hui", fmt_da(today_total), COLORS['primary']
         ))
         stats_layout.insertWidget(1, self.build_stat_card(
-            "Ventes Cette Semaine", f"{fmt_da(week_total)}", COLORS['success']
+            "Ventes Cette Semaine", fmt_da(week_total), COLORS['success']
         ))
         stats_layout.insertWidget(2, self.build_stat_card(
-            "Total Ventes", f"{fmt_da(stats['sales_total'])}", COLORS['secondary']
+            "Total Ventes", fmt_da(stats['sales_total']), COLORS['secondary']
         ))
 
     def load_sales(self):
@@ -846,18 +851,18 @@ class SalesHistoryPage(QWidget):
         items_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self.table.setItem(row, 3, items_item)
         
-        # Sous-total
-        subtotal_item = QTableWidgetItem(f"{fmt_da(sale['subtotal'])}")
+        # Sous-total - 🔴 UTILISATION DE fmt_da
+        subtotal_item = QTableWidgetItem(fmt_da(sale['subtotal']))
         subtotal_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 4, subtotal_item)
         
-        # TVA
-        tax_item = QTableWidgetItem(f"{fmt_da(sale['tax_amount'])}")
+        # TVA - 🔴 UTILISATION DE fmt_da
+        tax_item = QTableWidgetItem(fmt_da(sale['tax_amount']))
         tax_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         self.table.setItem(row, 5, tax_item)
         
-        # Total
-        total_item = QTableWidgetItem(f"{fmt_da(sale['total'])}")
+        # Total - 🔴 UTILISATION DE fmt_da
+        total_item = QTableWidgetItem(fmt_da(sale['total']))
         total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
         total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         total_item.setForeground(Qt.GlobalColor.green)
@@ -1013,8 +1018,14 @@ class SalesHistoryPage(QWidget):
 
                     try:
                         qty      = float(qty_raw or 1)
-                        price    = float(price_raw or 0)
-                        discount = float(disc_raw or 0)
+                        
+                        # 🔴 CONVERSION : Enlever les 2 derniers zéros (centimes → dinars)
+                        price    = float(price_raw or 0) / 100
+                        discount = float(disc_raw or 0) / 100
+                        
+                        # Afficher le prix formaté pour déboguer (optionnel)
+                        print(f"Article {i}: {desc} - Prix: {fmt_da(price)}")
+                        
                     except ValueError:
                         qty, price, discount = 1.0, 0.0, 0.0
 
@@ -1031,8 +1042,8 @@ class SalesHistoryPage(QWidget):
                     if not product_id:
                         product_id = self.db.add_product(
                             name           = desc or code or f'Article {i}',
-                            selling_price  = price,
-                            purchase_price = price,
+                            selling_price  = price,  # Déjà converti en dinars
+                            purchase_price = price,  # Déjà converti en dinars
                             stock_quantity = 0,
                             barcode        = code,
                         )
@@ -1042,7 +1053,7 @@ class SalesHistoryPage(QWidget):
                     items_for_db.append({
                         'product_id': product_id,
                         'quantity':   qty,
-                        'unit_price': price,
+                        'unit_price': price,  # Déjà converti en dinars
                         'discount':   discount,
                     })
 
@@ -1069,9 +1080,10 @@ class SalesHistoryPage(QWidget):
             except Exception as e:
                 errors.append(f"• {os.path.basename(file_path)}\n  → {str(e)}")
 
-        # ── Résultat ─────────────────────────────────────────
+        # ── Rafraîchir l'affichage ───────────────────────────
         self.load_sales()
 
+        # ── Résultat ─────────────────────────────────────────
         if errors:
             msg = f"✅ {imported} facture(s) importée(s) avec succès."
             msg += f"\n\n⚠️ Erreurs ({len(errors)}) :\n" + "\n".join(errors)
@@ -1082,4 +1094,3 @@ class SalesHistoryPage(QWidget):
                 "✅ Import réussi",
                 f"{imported} facture(s) importée(s) avec succès depuis les fichiers .dat !"
             )
-from currency import fmt_da, fmt, currency_manager

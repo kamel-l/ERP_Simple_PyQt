@@ -31,7 +31,7 @@ COLORS = {
     'text_tertiary':  '#00E5FF',        # Cyan (accents texte)
 
     # Bordures
-    'border':         '#2E3A5C',        # Bordure subtile
+    'border':         "#F3F4F8",        # Bordure subtile
     'border_light':   '#00B4FF',        # Bordure hover bleu
 
     # Inputs — fond anthracite neutre (PLUS DE ROSE !)

@@ -888,7 +888,7 @@ class DashboardPage(QWidget):
         if not self._info_cards: return
         stats = self.db.get_statistics() or {}
         self._info_cards[0].value_label.setText(
-            fmt_da(float(stats.get("sales_today", 0)), 0))
+            fmt_da(float(stats.get("sales_today"))))
         top = self.db.get_top_clients(limit=1)
         self._info_cards[1].value_label.setText(top[0]["name"] if top else "—")
         low = self.db.get_low_stock_products() or []

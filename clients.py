@@ -2,13 +2,14 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout,
     QFrame, QMessageBox, QTabWidget, QScrollArea, QGridLayout, QSizePolicy,
-    QSpacerItem
+    QSpacerItem, QProgressBar
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, pyqtSignal
 from auth import session
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
+from currency import fmt_da, fmt, currency_manager  # IMPORT DE LA FONCTION DE FORMATAGE
 
 # ------------------ DIALOG POUR AJOUTER / MODIFIER CLIENT ------------------
 class ClientDialog(QDialog):
@@ -146,14 +147,12 @@ class ClientsPage(QWidget):
         table_container = QFrame()
         table_container.setStyleSheet(
             f"""
-            QDialog {{
-                background-color: {COLORS['info']};
+            QFrame {{
+                background-color: {COLORS['bg_card']};
+                border-radius: 12px;
+                border: 1px solid {COLORS['border']};
+                padding: 0px;
             }}
-            QLabel {{
-                color: {COLORS['secondary']};
-                font-size: 13px;
-            }}
-            {INPUT_STYLE}
         """
         )
         table_layout = QVBoxLayout()
@@ -162,23 +161,22 @@ class ClientsPage(QWidget):
         table_container.setLayout(table_layout)
         
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Nom", "Téléphone",""])
+        self.table.setHorizontalHeaderLabels(["Nom", "Téléphone", ""])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(1, 150)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self.table.setColumnWidth(2, 120)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.verticalHeader().setVisible(False)
         self.table.setStyleSheet(TABLE_STYLE + f"""
             QHeaderView::section {{
-                background-color: {COLORS['success']};
+                background-color: {COLORS['bg_light']};
                 color: {COLORS['text_primary']};
                 font-size: 13px;
                 font-weight: bold;
                 padding: 10px 8px;
                 border: none;
-                border-right: 1px solid {COLORS['primary']};
+                border-right: 1px solid {COLORS['border']};
                 border-bottom: 2px solid {COLORS['primary']};
             }}
             QHeaderView::section:last {{
@@ -212,7 +210,6 @@ class ClientsPage(QWidget):
 
         # Charger les données
         self.load_clients()
-        client_added = pyqtSignal()
 
     def build_stat_card(self, title, value, color):
         """Construit une petite carte de statistique"""
@@ -220,10 +217,9 @@ class ClientsPage(QWidget):
         card.setStyleSheet(f"""
             QFrame {{
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['BG_CARD']}, stop:1 #242424);
+                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
                 border-radius: 10px;
                 border: 1px solid {COLORS['border']};
-               
             }}
         """)
         card.setFixedHeight(80)
@@ -275,7 +271,6 @@ class ClientsPage(QWidget):
             row = self.table.rowCount()
             self.table.insertRow(row)
             
-             # ID
             # Stocker l'ID dans la colonne Nom (UserRole invisible)
             name_item = QTableWidgetItem(client["name"])
             name_item.setData(Qt.ItemDataRole.UserRole, client["id"])
@@ -286,8 +281,7 @@ class ClientsPage(QWidget):
             self.table.setItem(row, 0, name_item)
             self.table.setItem(row, 1, phone_item)
             
-            
-           # Bouton Fiche
+            # Bouton Fiche
             btn = QPushButton("📋 Voir Fiche")
             btn.setFixedHeight(32)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -312,7 +306,7 @@ class ClientsPage(QWidget):
             return
         
         self.table.setRowCount(0)
-            # Si la recherche est une lettre unique (a-z, A-Z)
+        # Si la recherche est une lettre unique (a-z, A-Z)
         if len(text) == 1 and text.isalpha():
             clients = self.db.search_clients_by_first_letter(text)
         else:
@@ -322,19 +316,16 @@ class ClientsPage(QWidget):
             row = self.table.rowCount()
             self.table.insertRow(row)
             
-            id_item = QTableWidgetItem(str(client["id"]))
-            id_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            id_item.setData(Qt.ItemDataRole.UserRole, client["id"])
-            
-            name_item2 = QTableWidgetItem(client["name"])
-            name_item2.setData(Qt.ItemDataRole.UserRole, client["id"])
-            self.table.setItem(row, 0, name_item2)
+            name_item = QTableWidgetItem(client["name"])
+            name_item.setData(Qt.ItemDataRole.UserRole, client["id"])
+            self.table.setItem(row, 0, name_item)
             self.table.setItem(row, 1, QTableWidgetItem(client["phone"] or "—"))
+            
             # Bouton Fiche
-            btn2 = QPushButton("📋 Voir Fiche")
-            btn2.setFixedHeight(32)
-            btn2.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn2.setStyleSheet("""
+            btn = QPushButton("📋 Voir Fiche")
+            btn.setFixedHeight(32)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet("""
                 QPushButton {
                     background: rgba(0,180,255,0.15); color: #00B4FF;
                     border: 1px solid rgba(0,180,255,0.4);
@@ -342,9 +333,9 @@ class ClientsPage(QWidget):
                 }
                 QPushButton:hover { background: rgba(0,180,255,0.3); color: white; }
             """)
-            cid2 = client["id"]
-            btn2.clicked.connect(lambda _, i=cid2: self.open_fiche(i))
-            self.table.setCellWidget(row, 2, btn2)
+            cid = client["id"]
+            btn.clicked.connect(lambda _, i=cid: self.open_fiche(i))
+            self.table.setCellWidget(row, 2, btn)
             self.table.setRowHeight(row, 46)
 
     # ------------------ FICHE CLIENT ------------------
@@ -397,7 +388,6 @@ class ClientsPage(QWidget):
                     "Impossible d'ajouter le client!"
                 )
 
-        
     # ------------------ MODIFIER CLIENT ------------------
     def edit_client(self):
         """Modifie un client existant"""
@@ -483,7 +473,7 @@ class ClientsPage(QWidget):
         
         # Récupérer l'ID et le nom du client
         client_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
-        client_name = self.table.item(selected, 1).text()
+        client_name = self.table.item(selected, 0).text()
         
         # Confirmation
         reply = QMessageBox.question(
@@ -536,15 +526,15 @@ class ClientFicheDialog(QDialog):
         self.setMinimumSize(820, 620)
         self.setStyleSheet(f"""
             QDialog {{
-                background: {COLORS.get('BG_PAGE', '#1E1E2E')};
+                background: {COLORS.get('bg_page', '#1E1E2E')};
             }}
             QTabWidget::pane {{
                 border: 1px solid rgba(255,255,255,0.08);
                 border-radius: 10px;
-                background: {COLORS.get('BG_CARD', '#252535')};
+                background: {COLORS.get('bg_card', '#252535')};
             }}
             QTabBar::tab {{
-                background: {COLORS.get('BG_DEEP', '#16161F')};
+                background: {COLORS.get('bg_deep', '#16161F')};
                 color: {COLORS.get('text_secondary', '#A0AACC')};
                 padding: 10px 22px;
                 font-size: 12px;
@@ -563,7 +553,7 @@ class ClientFicheDialog(QDialog):
             }}
             QLabel {{ color: {COLORS.get('text_primary', '#F0F4FF')}; background: transparent; }}
             QTableWidget {{
-                background: {COLORS.get('BG_DEEP', '#16161F')};
+                background: {COLORS.get('bg_deep', '#16161F')};
                 color: {COLORS.get('text_primary', '#F0F4FF')};
                 border: none;
                 gridline-color: rgba(255,255,255,0.05);
@@ -683,7 +673,7 @@ class ClientFicheDialog(QDialog):
             row = QFrame()
             row.setStyleSheet(f"""
                 QFrame {{
-                    background: {COLORS.get('BG_DEEP','#16161F')};
+                    background: {COLORS.get('bg_deep','#16161F')};
                     border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);
                 }}
             """)
@@ -743,7 +733,7 @@ class ClientFicheDialog(QDialog):
         summary = QHBoxLayout()
         for txt, val, col in [
             ("Nombre de factures", str(len(rows)), "#00B4FF"),
-            ("Chiffre d'affaires total", f"{total_ca:,.0f} DA", "#10B981"),
+            ("Chiffre d'affaires total", fmt_da(total_ca), "#10B981"),  # 🔴 FORMATAGE ICI
         ]:
             card = QFrame()
             card.setStyleSheet(f"""
@@ -770,8 +760,6 @@ class ClientFicheDialog(QDialog):
         tbl.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         tbl.verticalHeader().setVisible(False)
         tbl.setAlternatingRowColors(True)
-        tbl.setAlternatingRowColors(True)
-        tbl.setStyleSheet(tbl.styleSheet())
 
         STATUS_COLOR = {
             'paid': ('#10B981', '✅ Payée'),
@@ -788,7 +776,7 @@ class ClientFicheDialog(QDialog):
             cells = [
                 (r.get('invoice_number','—'), '#F0F4FF'),
                 (date,                        '#A0AACC'),
-                (f"{total:,.2f} DA",          '#10B981'),
+                (fmt_da(total),                '#10B981'),  # 🔴 FORMATAGE ICI
                 (r.get('payment_method','—'), '#A0AACC'),
                 (lbl_s,                       col_s),
             ]
@@ -857,15 +845,18 @@ class ClientFicheDialog(QDialog):
             cl = QVBoxLayout(card)
             cl.setContentsMargins(16, 12, 16, 12)
             cl.setSpacing(4)
-            QLabel(f"{icon} {method.capitalize()}").setStyleSheet(f"color:{color};font-weight:bold;font-size:12px;border:none;")
+            
             lbl_m = QLabel(f"{icon} {method.capitalize()}")
             lbl_m.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
             lbl_m.setStyleSheet(f"color:{color};border:none;")
             cl.addWidget(lbl_m)
-            lbl_v = QLabel(f"{data['total']:,.0f} DA")
+            
+            # 🔴 UTILISATION DE fmt_da POUR LE MONTANT
+            lbl_v = QLabel(fmt_da(data['total']))
             lbl_v.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
             lbl_v.setStyleSheet(f"color:#F0F4FF;border:none;")
             cl.addWidget(lbl_v)
+            
             lbl_c = QLabel(f"{data['count']} transaction{'s' if data['count']>1 else ''}")
             lbl_c.setFont(QFont("Segoe UI", 9))
             lbl_c.setStyleSheet("color:rgba(160,170,204,0.8);border:none;")
@@ -899,7 +890,7 @@ class ClientFicheDialog(QDialog):
                 (r.get('invoice_number','—'), '#F0F4FF'),
                 (date,                        '#A0AACC'),
                 (f"{icon} {method}",          color),
-                (f"{total:,.2f} DA",          '#10B981'),
+                (fmt_da(total),                '#10B981'),  # 🔴 FORMATAGE ICI
             ]):
                 it = QTableWidgetItem(val)
                 it.setForeground(QColor(col))
@@ -982,9 +973,10 @@ class ClientFicheDialog(QDialog):
         last = str(st.get('derniere_vente','—')).split(' ')[0]
 
         grid.addWidget(stat_card("🧾", "Nb de ventes",        str(nb),                 '#00B4FF'), 0, 0)
-        grid.addWidget(stat_card("💰", "Chiffre d'affaires",  f"{ca:,.0f} DA",         '#10B981'), 0, 1)
-        grid.addWidget(stat_card("🛒", "Panier moyen",        f"{avg:,.0f} DA",        '#6366F1'), 0, 2)
-        grid.addWidget(stat_card("🏆", "Plus grosse facture", f"{big:,.0f} DA",        '#F59E0B'), 1, 0)
+        # 🔴 UTILISATION DE fmt_da POUR TOUS LES MONTANTS
+        grid.addWidget(stat_card("💰", "Chiffre d'affaires",  fmt_da(ca),              '#10B981'), 0, 1)
+        grid.addWidget(stat_card("🛒", "Panier moyen",        fmt_da(avg),             '#6366F1'), 0, 2)
+        grid.addWidget(stat_card("🏆", "Plus grosse facture", fmt_da(big),             '#F59E0B'), 1, 0)
         grid.addWidget(stat_card("📅", "Première visite",     prem,                    '#A0AACC'), 1, 1)
         grid.addWidget(stat_card("🕐", "Dernière visite",     last,                    '#A0AACC'), 1, 2)
         lay.addLayout(grid)
@@ -997,7 +989,6 @@ class ClientFicheDialog(QDialog):
             lay.addWidget(top_lbl)
 
             max_qty = max(int(r[1] if not hasattr(r,'keys') else r['qty']) for r in top_products) or 1
-            from PyQt6.QtWidgets import QProgressBar
             for r in top_products:
                 name = str(r[0] if not hasattr(r,'keys') else r['name']) or 'Produit supprimé'
                 qty  = int(r[1] if not hasattr(r,'keys') else r['qty'])
