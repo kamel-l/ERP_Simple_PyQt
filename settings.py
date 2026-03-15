@@ -616,8 +616,6 @@ class SettingsPage(QWidget):
         try:
             prog = QMessageBox(self)
             prog.setWindowTitle("Nettoyage…")
-            prog.setText("Suppression en cours, veuillez patienter.")
-            prog.setStandardButtons(QMessageBox.StandardButton.NoButton)
             prog.show()
             QApplication.processEvents()
             success = self.db.clear_all_data()
