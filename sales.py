@@ -905,34 +905,17 @@ class SalesPage(QWidget):
             discount=0
         )
         
-        if sale_id:
-            # Afficher les détails du paiement dans le message
-            payment_details = self.format_payment_details(payment_data)
+        
             
-            QMessageBox.information(
-                self,
-                "Succès",
-                f"✅ Vente enregistrée avec succès!\n\n"
-                f"📄 Facture N° {invoice_number}\n"
-                f"💰 Montant: {fmt_da(total_ttc, 0)}\n"
-                f"💳 Paiement: {self.get_payment_method_name(payment_method)}\n"
-                f"{payment_details}"
-            )
-            
-            # Notifier les autres pages (dashboard, historique, stats)
-            self.sale_saved.emit()
+        # Notifier les autres pages (dashboard, historique, stats)
+        self.sale_saved.emit()
 
-            # Réinitialiser
-            self.cart_items = []
-            self.table.setRowCount(0)
-            self.update_totals()
-            self.client_combo.setCurrentIndex(0)
-        else:
-            QMessageBox.critical(
-                self,
-                "Erreur",
-                "❌ Impossible d'enregistrer la vente!"
-            )        
+        # Réinitialiser
+        self.cart_items = []
+        self.table.setRowCount(0)
+        self.update_totals()
+        self.client_combo.setCurrentIndex(0)
+               
 
     def get_payment_method_name(self, method_code):
             """Convertit le code de paiement en nom affichable"""

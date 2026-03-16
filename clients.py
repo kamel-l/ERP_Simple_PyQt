@@ -186,6 +186,8 @@ class ClientsPage(QWidget):
         
         table_layout.addWidget(self.table)
         layout.addWidget(table_container)
+        
+        self.load_clients()  # Charger les clients à l'affichage de la page
 
         # ------------------- ACTIONS BUTTONS -------------------
         actions_layout = QHBoxLayout()
