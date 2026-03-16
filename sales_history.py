@@ -869,9 +869,9 @@ class SalesHistoryPage(QWidget):
         self.table.setItem(row, 6, total_item)
 
     def apply_filters(self):
-        """Applique les filtres"""
+        """Applique les filtres (recherche par début de mot)"""
         period = self.period_combo.currentText()
-        search_text = self.search_input.text().lower()
+        search_text = self.search_input.text().lower().strip()
         
         # Calculer les dates selon la période
         end_date = datetime.now().strftime("%Y-%m-%d")
@@ -892,9 +892,7 @@ class SalesHistoryPage(QWidget):
             sales = self.db.get_all_sales()
             
             for sale in sales:
-                if not search_text or \
-                   search_text in sale['invoice_number'].lower() or \
-                   search_text in (sale.get('client_name', 'anonyme')).lower():
+                if self._matches_search_starts_with(sale, search_text):
                     self.add_sale_to_table(sale)
             return
         
@@ -903,11 +901,24 @@ class SalesHistoryPage(QWidget):
         sales = self.db.get_sales_by_date_range(start_date, end_date)
         
         for sale in sales:
-            if not search_text or \
-               search_text in sale['invoice_number'].lower() or \
-               search_text in (sale.get('client_name', 'anonyme')).lower():
+            if self._matches_search_starts_with(sale, search_text):
                 self.add_sale_to_table(sale)
 
+    def _matches_search_starts_with(self, sale, search_text):
+        """Vérifie si une vente correspond à la recherche (début de mot)"""
+        if not search_text:
+            return True
+        
+        # Vérifie si le texte recherché est au début du numéro de facture
+        if sale['invoice_number'].lower().startswith(search_text):
+            return True
+        
+        # Vérifie si le texte recherché est au début du nom du client
+        client_name = sale.get('client_name', 'anonyme').lower()
+        if client_name.startswith(search_text):
+            return True
+        
+        return False
     def view_sale_details(self):
         """Affiche les détails d'une vente dans un dialogue moderne"""
         selected = self.table.currentRow()

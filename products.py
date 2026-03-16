@@ -619,13 +619,17 @@ class ProductsPage(QWidget):
             QMessageBox.warning(self, "Attention", f"{count - errors} supprimé(s), {errors} échec(s).")
 
     def filter_products(self, text):
-        """Filtre les produits"""
+        """Filtre les produits (ceux qui commencent par le texte saisi)"""
         if not text:
             self.load_products()
             return
         
+        search_text = text.strip()
         self.table.setRowCount(0)
-        products = self.db.search_products(text)
+        
+        # Utiliser starts_with=True pour la recherche par début
+        products = self.db.search_products(search_text, starts_with=True)
+        
         for product in products:
             self.add_product_to_table(product)
 

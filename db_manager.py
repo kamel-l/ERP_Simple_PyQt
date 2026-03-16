@@ -617,15 +617,34 @@ class Database:
             self.conn.rollback()
             return False
     
-    def search_products(self, search_term):
-        """Recherche des produits par nom"""
-        self.cursor.execute("""
-            SELECT p.*, c.name as category_name
-            FROM products p
-            LEFT JOIN categories c ON p.category_id = c.id
-            WHERE p.name LIKE ?
-            ORDER BY p.name
-        """, (f"%{search_term}%",))
+        # Dans db_manager.py - modifier la méthode search_products
+    def search_products(self, search_term, starts_with=False):
+        """
+        Recherche des produits par nom
+        
+        Args:
+            search_term: Terme de recherche
+            starts_with: Si True, recherche les noms qui commencent par le terme
+        """
+        if starts_with:
+            # Recherche les noms qui commencent par le terme
+            self.cursor.execute("""
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE p.name LIKE ?
+                ORDER BY p.name
+            """, (f"{search_term}%",))  # Note: pas de % au début
+        else:
+            # Recherche les noms qui contiennent le terme (comportement original)
+            self.cursor.execute("""
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE p.name LIKE ?
+                ORDER BY p.name
+            """, (f"%{search_term}%",))
+        
         return [dict(row) for row in self.cursor.fetchall()]
     
     def get_low_stock_products(self):

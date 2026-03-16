@@ -317,7 +317,7 @@ class AddProductDialog(QDialog):
         if not search_text:
             self.display_products(self.all_products)
         else:
-            filtered = [p for p in self.all_products if search_text in p['name'].lower()]
+            filtered = [p for p in self.all_products if p['name'].lower().startswith(search_text)]
             self.display_products(filtered)
 
     def on_product_selected_from_table(self):
