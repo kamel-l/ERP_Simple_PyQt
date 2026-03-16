@@ -600,7 +600,7 @@ class SalesPage(QWidget):
         self.vat_percent = float(self.db.get_setting('vat', '19'))
         tax_row = QHBoxLayout()
         tax_row.setSpacing(8)
-        self.tax_header_label = QLabel(f"TVA ({self.vat_percent:.0f}%) :")
+        self.tax_header_label = QLabel(f"TVA ({self.vat_percent:}%) :")
         self.tax_header_label.setFont(QFont("Segoe UI", 12))
         self.tax_header_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
         self.tax_label = QLabel("—")
@@ -792,14 +792,13 @@ class SalesPage(QWidget):
             return float(vat_str) / 100.0  # Convertir en décimal (ex: 19 -> 0.19)
         except:
             return 0.19  # Valeur par défaut
-
     def update_totals(self):
         """Met à jour les totaux"""
         subtotal = sum(item['total'] for item in self.cart_items)
         self.vat_rate = self._get_vat_rate()
         self.vat_percent = self.vat_rate * 100  # Convertir en pourcentage pour l'affichage
         # Mettre à jour le label de TVA avec le nouveau pourcentage
-        self.tax_header_label.setText(f"TVA ({self.vat_percent:}%) :")
+        self.tax_header_label.setText(f"TVA ({self.vat_percent:.0f}%) :")
         tax = subtotal * self.vat_rate
         total = subtotal + tax
 
