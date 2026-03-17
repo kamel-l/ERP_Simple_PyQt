@@ -959,7 +959,7 @@ class SalesHistoryPage(QWidget):
         dialog.return_created.connect(lambda _: self.load_sales())
         dialog.exec()
 
-    # ── Import fichier .DAT ───────────────────────────────────
+        # ── Import fichier .DAT ───────────────────────────────────
     def import_dat_file(self):
         """Importe une ou plusieurs factures depuis un fichier .dat (format URL-encodé)."""
         import os
@@ -1029,7 +1029,9 @@ class SalesHistoryPage(QWidget):
 
                     try:
                         qty      = float(qty_raw or 1)
-                        price    = float(price_raw or 0)
+                        # 🔴 CONVERSION CENTIMES → DINARS
+                        price_centimes = float(price_raw or 0)
+                        price = price_centimes / 100  # Conversion en dinars
                         discount = float(disc_raw or 0)
                     except ValueError:
                         qty, price, discount = 1.0, 0.0, 0.0
