@@ -25,6 +25,7 @@ from purchases import PurchasesPage
 from settings import SettingsPage
 from statistics_view import StatisticsPage
 from sales_history import SalesHistoryPage
+from returns import ReturnsPage
 from PyQt6.QtGui import QAction
 from db_manager import get_database
 from auth import session
@@ -89,6 +90,7 @@ class MainWindow(QMainWindow):
         self.add_page("sales",      self.sales_page,        "💰 Ventes")
         self.add_page("purchases",  PurchasesPage(),        "🛒 Achats")
         self.add_page("history",    SalesHistoryPage(),     "📊 Historique")
+        self.add_page("returns",    ReturnsPage(),          "📦 Retours & Avoirs")
         self.add_page("statistics", StatisticsPage(),       "📈 Statistiques")
         self.add_page("settings",   SettingsPage(),         "⚙️ Paramètres")
         self.add_page("users",      self.users_page,        "👥 Utilisateurs")
@@ -220,6 +222,7 @@ class MainWindow(QMainWindow):
 
         report_items = [
             ("history",    "📂", "Historique Ventes", COLORS['info']),
+            ("returns",    "📦", "Retours & Avoirs",  "#EF4444"),
             ("statistics", "📈", "Statistiques",      COLORS['info']),
         ]
         for key, icon, label, color in report_items:
