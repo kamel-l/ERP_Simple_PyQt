@@ -283,7 +283,7 @@ class ProductsPage(QWidget):
 
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Nom", "Catégorie", "Stock", 
+            "ID", "Nom", "Description", "Stock", 
             "Prix Achat", "Prix Vente", "Valeur Stock"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
@@ -432,7 +432,7 @@ class ProductsPage(QWidget):
         name_item = QTableWidgetItem(product["name"])
         self.table.setItem(row, 1, name_item)
         
-        cat_item = QTableWidgetItem(product.get("category_name", "-"))
+        cat_item = QTableWidgetItem(product.get("description", "-"))
         self.table.setItem(row, 2, cat_item)
         
         qty_item = QTableWidgetItem(str(product["stock_quantity"]))

@@ -244,10 +244,12 @@ class InvoiceDetailsDialog(QDialog):
     # ── Tableau des articles ──────────────────────────────────
     def _make_items_table(self):
         items = self.sale.get('items', [])
+        print(f"DEBUG: Création du tableau avec {len(items)} articles")
+        print(f"DEBUG: Données des articles: {items}")
 
         table = QTableWidget(len(items), 6)
         table.setHorizontalHeaderLabels(
-            ["Qté", "Référence", "Description", "Prix Unit.", "TVA %", "Total"])
+            ["Qté", "Name", "Description", "Prix Unit.", "TVA %", "Total"])
 
         # Largeurs des colonnes
         hdr = table.horizontalHeader()
@@ -311,8 +313,8 @@ class InvoiceDetailsDialog(QDialog):
             except (ValueError, TypeError):
                 qty = 0
 
-            ref  = str(item.get('product_reference') or item.get('reference') or '')
-            desc = str(item.get('product_name') or '')
+            ref  = str(item.get('product_name') or '')
+            desc = str(item.get('product_reference') or '')
 
             try:
                 price = float(item.get('unit_price', 0) or 0)
@@ -1020,8 +1022,10 @@ class SalesHistoryPage(QWidget):
                 item_count   = int(params.get('ItemCount', 1) or 1)
                 items_for_db = []
 
+                                # Extraire les articles avec nom et description séparés
                 for i in range(1, item_count + 1):
-                    desc      = params.get(f'Item{i}Description', f'Article {i}').strip()
+                    name      = params.get(f'Item{i}Code', '').strip()        # ← NOUVEAU : nom du produit
+                    desc      = params.get(f'Item{i}Name', '').strip()  # ← description
                     code      = params.get(f'Item{i}Code', '').strip()
                     qty_raw   = params.get(f'Item{i}Qty', '1')
                     price_raw = params.get(f'Item{i}UnitValue', '0')
@@ -1029,33 +1033,37 @@ class SalesHistoryPage(QWidget):
 
                     try:
                         qty      = float(qty_raw or 1)
-                        # 🔴 CONVERSION CENTIMES → DINARS
                         price_centimes = float(price_raw or 0)
-                        price = price_centimes / 100  # Conversion en dinars
+                        price = price_centimes / 100
                         discount = float(disc_raw or 0)
                     except ValueError:
                         qty, price, discount = 1.0, 0.0, 0.0
 
-                    # Chercher le produit, le créer si absent
+                    # Chercher le produit par code ou nom
                     product_id = None
                     if code:
                         results = self.db.search_products(code)
                         if results:
                             product_id = results[0]['id']
-                    if not product_id and desc:
-                        results = self.db.search_products(desc)
+                    
+                    if not product_id and name:
+                        results = self.db.search_products(name)
                         if results:
                             product_id = results[0]['id']
+                    
                     if not product_id:
+                        # Créer le produit avec le NOM (pas la description)
                         product_id = self.db.add_product(
-                            name           = desc or code or f'Article {i}',
+                            name           = name or desc or f'Article {i}',  # ← Priorité au nom
+                            description    = desc,                              # ← La description va dans le champ description
                             selling_price  = price,
                             purchase_price = price,
                             stock_quantity = 0,
                             barcode        = code,
                         )
+                    
                     if not product_id:
-                        raise ValueError(f"Impossible de créer le produit '{desc}'")
+                        raise ValueError(f"Impossible de créer le produit '{name or desc}'")
 
                     items_for_db.append({
                         'product_id': product_id,
@@ -1063,7 +1071,6 @@ class SalesHistoryPage(QWidget):
                         'unit_price': price,
                         'discount':   discount,
                     })
-
                 # ── Numéro de facture unique ──────────────────
                 base_name      = os.path.splitext(os.path.basename(file_path))[0]
                 invoice_number = f"IMP-{base_name}-{datetime.now().strftime('%H%M%S')}"
