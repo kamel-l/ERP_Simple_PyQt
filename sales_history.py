@@ -244,8 +244,7 @@ class InvoiceDetailsDialog(QDialog):
     # ── Tableau des articles ──────────────────────────────────
     def _make_items_table(self):
         items = self.sale.get('items', [])
-        print(f"DEBUG: Création du tableau avec {len(items)} articles")
-        print(f"DEBUG: Données des articles: {items}")
+       
 
         table = QTableWidget(len(items), 6)
         table.setHorizontalHeaderLabels(
