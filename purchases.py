@@ -1,8 +1,4 @@
 from PyQt6.QtWidgets import (
-
-
-
-
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, 
     QMessageBox, QDialog, QLineEdit, QFormLayout, QInputDialog
@@ -424,11 +420,17 @@ class ProductSelectorDialog(QDialog):
             self.table.setItem(row, 3, stock_item)
     
     def filter_products(self, text):
+        """Filtre les produits (ceux qui commencent par le texte saisi)"""
+        search_text = text.lower().strip()
+        
         for row in range(self.table.rowCount()):
-            item = self.table.item(row, 0)
-            show = item and text.lower() in item.text().lower()
-            self.table.setRowHidden(row, not show)
-    
+            item = self.table.item(row, 0)  # Colonne 0 = nom du produit
+            if item:
+                product_name = item.text().lower()
+                # Vérifie si le nom du produit COMMENCE par le texte recherché
+                show = product_name.startswith(search_text) if search_text else True
+                self.table.setRowHidden(row, not show)
+        
     def select_product(self):
         selected = self.table.currentRow()
         if selected >= 0:
@@ -582,7 +584,7 @@ class PurchasesPage(QWidget):
         super().__init__()
         
         self.db = get_database()
-
+        self.showEvent = self.refresh_page
         # Layout principal - comme dans products.py
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(15)

@@ -212,6 +212,38 @@ class Database:
             )
         """)
         
+            # Table des retours/avoirs
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS returns (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                return_number TEXT UNIQUE NOT NULL,
+                original_sale_id INTEGER NOT NULL,
+                return_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                client_id INTEGER,
+                client_name TEXT,
+                total REAL NOT NULL,
+                motif TEXT,
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (original_sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+                FOREIGN KEY (client_id) REFERENCES clients(id)
+            )
+        """)
+        
+        # Table des articles retournés
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS return_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                return_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                quantity INTEGER NOT NULL,
+                unit_price REAL NOT NULL,
+                total REAL NOT NULL,
+                FOREIGN KEY (return_id) REFERENCES returns(id) ON DELETE CASCADE,
+                FOREIGN KEY (product_id) REFERENCES products(id)
+            )
+        """)
+        
         self.conn.commit()
         print("✅ Tables créées avec succès")
 
@@ -617,15 +649,34 @@ class Database:
             self.conn.rollback()
             return False
     
-    def search_products(self, search_term):
-        """Recherche des produits par nom"""
-        self.cursor.execute("""
-            SELECT p.*, c.name as category_name
-            FROM products p
-            LEFT JOIN categories c ON p.category_id = c.id
-            WHERE p.name LIKE ?
-            ORDER BY p.name
-        """, (f"%{search_term}%",))
+        # Dans db_manager.py - modifier la méthode search_products
+    def search_products(self, search_term, starts_with=False):
+        """
+        Recherche des produits par nom
+        
+        Args:
+            search_term: Terme de recherche
+            starts_with: Si True, recherche les noms qui commencent par le terme
+        """
+        if starts_with:
+            # Recherche les noms qui commencent par le terme
+            self.cursor.execute("""
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE p.name LIKE ?
+                ORDER BY p.name
+            """, (f"{search_term}%",))  # Note: pas de % au début
+        else:
+            # Recherche les noms qui contiennent le terme (comportement original)
+            self.cursor.execute("""
+                SELECT p.*, c.name as category_name
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE p.name LIKE ?
+                ORDER BY p.name
+            """, (f"%{search_term}%",))
+        
         return [dict(row) for row in self.cursor.fetchall()]
     
     def get_low_stock_products(self):
@@ -783,13 +834,14 @@ class Database:
                 si.discount,
                 si.total,
                 COALESCE(p.name, 'Produit supprimé') AS product_name,
-                COALESCE(p.barcode, '')               AS product_reference
+                COALESCE(p.description, '')               AS product_reference
             FROM sale_items si
             LEFT JOIN products p ON si.product_id = p.id
             WHERE si.sale_id = ?
         """, (sale_id,))
         
         sale_dict['items'] = [dict(row) for row in self.cursor.fetchall()]
+    
         
         return sale_dict
     
@@ -1622,7 +1674,129 @@ class Database:
 
 
 
+    def create_return(self, original_sale_id, items, motif="", notes=""):
+        """
+        Crée un avoir/retour pour une vente
+        
+        Args:
+            original_sale_id: ID de la vente originale
+            items: Liste de dict avec 'product_id', 'quantity', 'unit_price', 'total'
+            motif: Motif du retour
+            notes: Notes complémentaires
+        
+        Returns:
+            dict: Données de l'avoir créé ou None si erreur
+        """
+        try:
+            # Récupérer les infos de la vente originale
+            sale = self.get_sale_by_id(original_sale_id)
+            if not sale:
+                raise ValueError(f"Vente {original_sale_id} introuvable")
+            
+            # Générer un numéro d'avoir
+            return_number = self.generate_return_number()
+            
+            # Calculer le total
+            total = sum(item['total'] for item in items)
+            
+            # Insérer l'avoir
+            self.cursor.execute("""
+                INSERT INTO returns 
+                (return_number, original_sale_id, client_id, client_name, total, motif, notes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                return_number,
+                original_sale_id,
+                sale.get('client_id'),
+                sale.get('client_name', 'Client Anonyme'),
+                total,
+                motif,
+                notes
+            ))
+            
+            return_id = self.cursor.lastrowid
+            
+            # Insérer les articles retournés et remettre en stock
+            for item in items:
+                self.cursor.execute("""
+                    INSERT INTO return_items
+                    (return_id, product_id, quantity, unit_price, total)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    return_id,
+                    item['product_id'],
+                    item['quantity'],
+                    item['unit_price'],
+                    item['total']
+                ))
+                
+                # Remettre en stock (quantité positive)
+                self.update_stock(
+                    item['product_id'],
+                    item['quantity'],  # Quantité positive pour retour en stock
+                    'return',
+                    f"Retour #{return_number}"
+                )
+            
+            self.conn.commit()
+            
+            return {
+                'return_id': return_id,
+                'return_number': return_number,
+                'total': total
+            }
+            
+        except Exception as e:
+            print(f"❌ Erreur lors de la création de l'avoir: {e}")
+            self.conn.rollback()
+            return None
 
+    def generate_return_number(self):
+        """Génère un numéro d'avoir séquentiel"""
+        try:
+            self.cursor.execute("""
+                SELECT return_number FROM returns 
+                WHERE return_number LIKE 'AVOIR-%'
+            """)
+            results = self.cursor.fetchall()
+            
+            next_number = 1000  # Valeur par défaut
+            
+            if results:
+                numbers = []
+                for row in results:
+                    try:
+                        num_part = row['return_number'].replace("AVOIR-", "").strip()
+                        if num_part.isdigit():
+                            num = int(num_part)
+                            if 1000 <= num <= 99999:
+                                numbers.append(num)
+                    except:
+                        continue
+                
+                if numbers:
+                    next_number = max(numbers) + 1
+            
+            return f"AVOIR-{next_number}"
+            
+        except Exception as e:
+            print(f"⚠️ Erreur génération numéro avoir: {e}")
+            from datetime import datetime
+            return f"AVOIR-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+    def get_all_returns(self):
+        """Récupère tous les avoirs"""
+        try:
+            self.cursor.execute("""
+                SELECT r.*, s.invoice_number
+                FROM returns r
+                LEFT JOIN sales s ON r.original_sale_id = s.id
+                ORDER BY r.return_date DESC
+            """)
+            return [dict(row) for row in self.cursor.fetchall()]
+        except Exception as e:
+            print(f"❌ Erreur get_all_returns: {e}")
+            return []
 
 
 # ==================== SINGLETON ====================

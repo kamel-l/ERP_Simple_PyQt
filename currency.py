@@ -371,17 +371,41 @@ def fmt(amount, decimals: int = -1, code: str = "") -> str:
     return currency_manager.format(amount, code=code, decimals=decimals)
 
 
-def fmt_da(value, decimals: int = 2) -> str:
-    """Alias rétrocompatible avec l'ancienne fonction fmt_da.
-
-    Args:
-        value: Montant numérique.
-        decimals (int): Nombre de décimales (0 ou 2).
-
-    Returns:
-        str: Montant formaté dans la devise principale.
+# currency.py - Version améliorée avec paramètres optionnels
+def fmt_da(montant, include_da=True, decimales=None):
     """
-    return currency_manager.format(value, decimals=decimals)
+    Formate un montant en Dinars Algériens
+    
+    Args:
+        montant: Le montant à formater
+        include_da: Inclure le suffixe "DA" (par défaut True)
+        decimales: Nombre de décimales (None = auto, 0 = entier, 2 = toujours 2 décimales)
+    """
+    try:
+        montant_float = float(montant)
+        
+        # Déterminer le nombre de décimales
+        if decimales is not None:
+            # Format fixe
+            partie_nombre = f"{montant_float:,.{decimales}f}"
+        else:
+            # Format intelligent
+            if montant_float.is_integer():
+                partie_nombre = f"{int(montant_float):,}"
+            else:
+                partie_nombre = f"{montant_float:,.2f}"
+        
+        # Remplacer les virgules par des espaces
+        partie_nombre = partie_nombre.replace(',', ' ')
+        
+        # Ajouter "DA" si demandé
+        if include_da:
+            return f"{partie_nombre} DA"
+        else:
+            return partie_nombre
+            
+    except (ValueError, TypeError):
+        return "0 DA" if include_da else "0"
 
 
 def convert(amount: float, from_: str = "", to: str = "") -> float:

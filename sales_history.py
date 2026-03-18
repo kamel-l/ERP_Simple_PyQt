@@ -244,10 +244,11 @@ class InvoiceDetailsDialog(QDialog):
     # ── Tableau des articles ──────────────────────────────────
     def _make_items_table(self):
         items = self.sale.get('items', [])
+       
 
         table = QTableWidget(len(items), 6)
         table.setHorizontalHeaderLabels(
-            ["Qté", "Référence", "Description", "Prix Unit.", "TVA %", "Total"])
+            ["Qté", "Name", "Description", "Prix Unit.", "TVA %", "Total"])
 
         # Largeurs des colonnes
         hdr = table.horizontalHeader()
@@ -311,8 +312,8 @@ class InvoiceDetailsDialog(QDialog):
             except (ValueError, TypeError):
                 qty = 0
 
-            ref  = str(item.get('product_reference') or item.get('reference') or '')
-            desc = str(item.get('product_name') or '')
+            ref  = str(item.get('product_name') or '')
+            desc = str(item.get('product_reference') or '')
 
             try:
                 price = float(item.get('unit_price', 0) or 0)
@@ -577,8 +578,9 @@ class SalesHistoryPage(QWidget):
     def __init__(self):
         super().__init__()
         
+        
         self.db = get_database()
-
+        
         layout = QVBoxLayout(self)
         layout.setSpacing(20)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -642,18 +644,13 @@ class SalesHistoryPage(QWidget):
         self.search_input.textChanged.connect(self.apply_filters)
         self.search_input.setMinimumHeight(45)
 
-        # Bouton rafraîchir
-        refresh_btn = QPushButton("🔄 Actualiser")
-        refresh_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        refresh_btn.setMinimumHeight(45)
-        refresh_btn.setFixedWidth(150)
-        refresh_btn.clicked.connect(self.load_sales)
-        refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        
+        
 
         filters_layout.addWidget(period_label)
         filters_layout.addWidget(self.period_combo)
         filters_layout.addWidget(self.search_input)
-        filters_layout.addWidget(refresh_btn)
+        
 
         layout.addWidget(filters_card)
 
@@ -701,6 +698,10 @@ class SalesHistoryPage(QWidget):
                 border-right: none;
             }}
         """)
+        
+        # Charger les ventes à l'ouverture de la page
+        self.showEvent = self.load_sales()
+        
         
         # Double-clic pour voir les détails
         self.table.doubleClicked.connect(self.view_sale_details)
@@ -808,7 +809,12 @@ class SalesHistoryPage(QWidget):
         stats_layout.insertWidget(2, self.build_stat_card(
             "Total Ventes", f"{fmt_da(stats['sales_total'])}", COLORS['secondary']
         ))
-
+    
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.load_sales()
+        
     def load_sales(self):
         """Charge toutes les ventes"""
         self.table.setRowCount(0)
@@ -864,9 +870,9 @@ class SalesHistoryPage(QWidget):
         self.table.setItem(row, 6, total_item)
 
     def apply_filters(self):
-        """Applique les filtres"""
+        """Applique les filtres (recherche par début de mot)"""
         period = self.period_combo.currentText()
-        search_text = self.search_input.text().lower()
+        search_text = self.search_input.text().lower().strip()
         
         # Calculer les dates selon la période
         end_date = datetime.now().strftime("%Y-%m-%d")
@@ -887,9 +893,7 @@ class SalesHistoryPage(QWidget):
             sales = self.db.get_all_sales()
             
             for sale in sales:
-                if not search_text or \
-                   search_text in sale['invoice_number'].lower() or \
-                   search_text in (sale.get('client_name', 'anonyme')).lower():
+                if self._matches_search_starts_with(sale, search_text):
                     self.add_sale_to_table(sale)
             return
         
@@ -898,11 +902,24 @@ class SalesHistoryPage(QWidget):
         sales = self.db.get_sales_by_date_range(start_date, end_date)
         
         for sale in sales:
-            if not search_text or \
-               search_text in sale['invoice_number'].lower() or \
-               search_text in (sale.get('client_name', 'anonyme')).lower():
+            if self._matches_search_starts_with(sale, search_text):
                 self.add_sale_to_table(sale)
 
+    def _matches_search_starts_with(self, sale, search_text):
+        """Vérifie si une vente correspond à la recherche (début de mot)"""
+        if not search_text:
+            return True
+        
+        # Vérifie si le texte recherché est au début du numéro de facture
+        if sale['invoice_number'].lower().startswith(search_text):
+            return True
+        
+        # Vérifie si le texte recherché est au début du nom du client
+        client_name = sale.get('client_name', 'anonyme').lower()
+        if client_name.startswith(search_text):
+            return True
+        
+        return False
     def view_sale_details(self):
         """Affiche les détails d'une vente dans un dialogue moderne"""
         selected = self.table.currentRow()
@@ -943,7 +960,7 @@ class SalesHistoryPage(QWidget):
         dialog.return_created.connect(lambda _: self.load_sales())
         dialog.exec()
 
-    # ── Import fichier .DAT ───────────────────────────────────
+        # ── Import fichier .DAT ───────────────────────────────────
     def import_dat_file(self):
         """Importe une ou plusieurs factures depuis un fichier .dat (format URL-encodé)."""
         import os
@@ -1004,8 +1021,10 @@ class SalesHistoryPage(QWidget):
                 item_count   = int(params.get('ItemCount', 1) or 1)
                 items_for_db = []
 
+                                # Extraire les articles avec nom et description séparés
                 for i in range(1, item_count + 1):
-                    desc      = params.get(f'Item{i}Description', f'Article {i}').strip()
+                    name      = params.get(f'Item{i}Code', '').strip()        # ← NOUVEAU : nom du produit
+                    desc      = params.get(f'Item{i}Name', '').strip()  # ← description
                     code      = params.get(f'Item{i}Code', '').strip()
                     qty_raw   = params.get(f'Item{i}Qty', '1')
                     price_raw = params.get(f'Item{i}UnitValue', '0')
@@ -1013,31 +1032,37 @@ class SalesHistoryPage(QWidget):
 
                     try:
                         qty      = float(qty_raw or 1)
-                        price    = float(price_raw or 0)
+                        price_centimes = float(price_raw or 0)
+                        price = price_centimes / 100
                         discount = float(disc_raw or 0)
                     except ValueError:
                         qty, price, discount = 1.0, 0.0, 0.0
 
-                    # Chercher le produit, le créer si absent
+                    # Chercher le produit par code ou nom
                     product_id = None
                     if code:
                         results = self.db.search_products(code)
                         if results:
                             product_id = results[0]['id']
-                    if not product_id and desc:
-                        results = self.db.search_products(desc)
+                    
+                    if not product_id and name:
+                        results = self.db.search_products(name)
                         if results:
                             product_id = results[0]['id']
+                    
                     if not product_id:
+                        # Créer le produit avec le NOM (pas la description)
                         product_id = self.db.add_product(
-                            name           = desc or code or f'Article {i}',
+                            name           = name or desc or f'Article {i}',  # ← Priorité au nom
+                            description    = desc,                              # ← La description va dans le champ description
                             selling_price  = price,
                             purchase_price = price,
                             stock_quantity = 0,
                             barcode        = code,
                         )
+                    
                     if not product_id:
-                        raise ValueError(f"Impossible de créer le produit '{desc}'")
+                        raise ValueError(f"Impossible de créer le produit '{name or desc}'")
 
                     items_for_db.append({
                         'product_id': product_id,
@@ -1045,7 +1070,6 @@ class SalesHistoryPage(QWidget):
                         'unit_price': price,
                         'discount':   discount,
                     })
-
                 # ── Numéro de facture unique ──────────────────
                 base_name      = os.path.splitext(os.path.basename(file_path))[0]
                 invoice_number = f"IMP-{base_name}-{datetime.now().strftime('%H%M%S')}"

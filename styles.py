@@ -31,7 +31,7 @@ COLORS = {
     'text_tertiary':  '#00E5FF',        # Cyan (accents texte)
 
     # Bordures
-    'border':         '#2E3A5C',        # Bordure subtile
+    'border':         "#F3F4F8",        # Bordure subtile
     'border_light':   '#00B4FF',        # Bordure hover bleu
 
     # Inputs — fond anthracite neutre (PLUS DE ROSE !)
@@ -488,4 +488,40 @@ GLOBAL_STYLE = f"""
     {SCROLLBAR_STYLE}
     {DIALOG_STYLE}
     {RADIO_STYLE}
+"""
+
+# ==================== STYLE CHAMP OBLIGATOIRE ====================
+REQUIRED_FIELD_STYLE = f"""
+    QLineEdit {{
+        background-color: {COLORS['bg_input']};
+        border: 2px solid {COLORS['warning']};
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: {COLORS['text_primary']};
+        font-size: 14px;
+        min-height: 36px;
+    }}
+    QLineEdit:focus {{
+        border: 2px solid {COLORS['primary']};
+        background-color: {COLORS['bg_light']};
+    }}
+    QLineEdit:hover {{
+        border: 2px solid {COLORS['border_light']};
+    }}
+"""
+
+REQUIRED_ERROR_STYLE = f"""
+    QLineEdit {{
+        background-color: rgba(248, 113, 113, 0.10);
+        border: 2px solid {COLORS['danger']};
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: {COLORS['text_primary']};
+        font-size: 14px;
+        min-height: 36px;
+    }}
+    QLineEdit:focus {{
+        border: 2px solid {COLORS['danger']};
+        background-color: rgba(248, 113, 113, 0.15);
+    }}
 """

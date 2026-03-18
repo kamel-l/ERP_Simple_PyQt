@@ -301,7 +301,7 @@ class AddProductDialog(QDialog):
             self.product_table.setItem(row, 0, name_item)
             
             # Prix unitaire
-            price_item = QTableWidgetItem(f"{fmt_da(product['selling_price'], 0)}")
+            price_item = QTableWidgetItem(f"{fmt_da(product['selling_price'], 2)}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.product_table.setItem(row, 1, price_item)
             
@@ -317,7 +317,7 @@ class AddProductDialog(QDialog):
         if not search_text:
             self.display_products(self.all_products)
         else:
-            filtered = [p for p in self.all_products if search_text in p['name'].lower()]
+            filtered = [p for p in self.all_products if p['name'].lower().startswith(search_text)]
             self.display_products(filtered)
 
     def on_product_selected_from_table(self):
@@ -329,7 +329,7 @@ class AddProductDialog(QDialog):
             if item:
                 product = item.data(Qt.ItemDataRole.UserRole)
                 self.selected_product = product
-                self.price_display.setText(f"{fmt_da(product['selling_price'], 0)}")
+                self.price_display.setText(f"{fmt_da(product['selling_price'], 2)}")
                 self.stock_display.setText(str(product['stock_quantity']))
                 self.quantity.setText("1")
                 self.discount.setText("0")
@@ -348,7 +348,7 @@ class AddProductDialog(QDialog):
                 discount = float(self.discount.text() or 0)
                 
                 total = qty * price * (1 - discount / 100)
-                self.total_display.setText(f"{fmt_da(total, 0)}")
+                self.total_display.setText(f"{fmt_da(total, 2)}")
             except ValueError:
                 self.total_display.setText("0 DA")
 
@@ -415,14 +415,20 @@ class SalesPage(QWidget):
         client_card.setLayout(client_layout)
         client_layout.setSpacing(10)
 
-        client_label = QLabel("👤 Client:")
+        client_label = QLabel("👤 Client: *")
         client_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
         client_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+
+        self.client_required_label = QLabel("⚠ Champ obligatoire")
+        self.client_required_label.setFont(QFont("Segoe UI", 10))
+        self.client_required_label.setStyleSheet(f"color: {COLORS['warning']}; border: none;")
+        self.client_required_label.setVisible(False)
 
         self.client_combo = QComboBox()
         self.client_combo.setStyleSheet(INPUT_STYLE)
         self.client_combo.setMinimumHeight(32)
         self.client_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.client_combo.currentIndexChanged.connect(self._on_client_changed)
         self.load_clients()
 
         # Bouton ajouter article
@@ -433,7 +439,13 @@ class SalesPage(QWidget):
         self.add_item_btn.clicked.connect(self.add_item)
         self.add_item_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        client_layout.addWidget(client_label)
+        # Layout vertical pour label + message d'erreur
+        client_info_layout = QVBoxLayout()
+        client_info_layout.setSpacing(2)
+        client_info_layout.addWidget(client_label)
+        client_info_layout.addWidget(self.client_required_label)
+
+        client_layout.addLayout(client_info_layout)
         client_layout.addWidget(self.client_combo)
         client_layout.addStretch()
         client_layout.addWidget(self.add_item_btn)
@@ -588,7 +600,7 @@ class SalesPage(QWidget):
         self.vat_percent = float(self.db.get_setting('vat', '19'))
         tax_row = QHBoxLayout()
         tax_row.setSpacing(8)
-        self.tax_header_label = QLabel(f"TVA ({self.vat_percent:.0f}%) :")
+        self.tax_header_label = QLabel(f"TVA ({self.vat_percent:}%) :")
         self.tax_header_label.setFont(QFont("Segoe UI", 12))
         self.tax_header_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
         self.tax_label = QLabel("—")
@@ -716,17 +728,17 @@ class SalesPage(QWidget):
             self.table.setItem(row, 1, qty_item)
             
             # Prix unitaire
-            price_item = QTableWidgetItem(f"{unit_price:,.0f}")
+            price_item = QTableWidgetItem(f"{unit_price:,}")
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             self.table.setItem(row, 2, price_item)
             
             # Remise
-            discount_item = QTableWidgetItem(f"{discount:.0f}%")
+            discount_item = QTableWidgetItem(f"{discount:,}%")
             discount_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 3, discount_item)
             
             # Total
-            total_item = QTableWidgetItem(f"{total:,.0f}")
+            total_item = QTableWidgetItem(f"{total:,}")
             total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
             total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
             self.table.setItem(row, 4, total_item)
@@ -780,7 +792,6 @@ class SalesPage(QWidget):
             return float(vat_str) / 100.0  # Convertir en décimal (ex: 19 -> 0.19)
         except:
             return 0.19  # Valeur par défaut
-
     def update_totals(self):
         """Met à jour les totaux"""
         subtotal = sum(item['total'] for item in self.cart_items)
@@ -803,17 +814,42 @@ class SalesPage(QWidget):
 
         self.nb_articles_label.setText(f"{nb_articles} article(s)")
         self.qty_total_label.setText(f"{qty_total} unité(s)")
-        self.discount_total_label.setText(f"-{fmt_da(remise_total, 0)}")
-        self.subtotal_label.setText(f"{fmt_da(subtotal, 0)}")
-        self.tax_label.setText(f"{fmt_da(tax, 0)}")
-        self.total_label.setText(f"{fmt_da(total, 0)}")
+        self.discount_total_label.setText(f"-{fmt_da(remise_total)}")
+        self.subtotal_label.setText(f"{fmt_da(subtotal)}")
+        self.tax_label.setText(f"{fmt_da(tax)}")
+        self.total_label.setText(f"{fmt_da(total)}")
+
+    def _on_client_changed(self, index):
+        """Réinitialise le style d'erreur dès que l'utilisateur sélectionne un vrai client."""
+        if index > 0:
+            self.client_combo.setStyleSheet(INPUT_STYLE)
+            self.client_required_label.setVisible(False)
 
     def save_sale(self):
         """Enregistre la vente avec gestion du paiement"""
         if not self.cart_items:
             QMessageBox.warning(self, "Attention", "Le panier est vide!")
             return
-        
+
+        # ✅ Vérification : le nom du client est obligatoire
+        if self.client_combo.currentIndex() == 0:
+            # Bordure rouge sur le combo
+            self.client_combo.setStyleSheet(INPUT_STYLE + f"""
+                QComboBox {{
+                    border: 2px solid {COLORS['danger']};
+                    background-color: rgba(248, 113, 113, 0.10);
+                }}
+            """)
+            self.client_required_label.setVisible(True)
+            self.client_combo.setFocus()
+            QMessageBox.warning(
+                self,
+                "Client obligatoire",
+                "⚠ Veuillez sélectionner un client avant d\'enregistrer la facture.\n\n"
+                "Si le client n\'existe pas encore, ajoutez-le depuis la page Clients."
+            )
+            return
+
         # Calculer le total TTC
         subtotal = sum(item['total'] for item in self.cart_items)
         self.vat_rate = self._get_vat_rate()
@@ -824,7 +860,7 @@ class SalesPage(QWidget):
         invoice_number = self.db.generate_invoice_number()
         
         # 1. Afficher le dialogue de paiement avec tous les détails
-        client_name = self.client_combo.currentText() or "Client Anonyme"
+        client_name = self.client_combo.currentText()
         payment_data = show_payment_dialog(
             total_amount=total_ttc,
             invoice_number=invoice_number,
@@ -868,34 +904,17 @@ class SalesPage(QWidget):
             discount=0
         )
         
-        if sale_id:
-            # Afficher les détails du paiement dans le message
-            payment_details = self.format_payment_details(payment_data)
+        
             
-            QMessageBox.information(
-                self,
-                "Succès",
-                f"✅ Vente enregistrée avec succès!\n\n"
-                f"📄 Facture N° {invoice_number}\n"
-                f"💰 Montant: {fmt_da(total_ttc, 0)}\n"
-                f"💳 Paiement: {self.get_payment_method_name(payment_method)}\n"
-                f"{payment_details}"
-            )
-            
-            # Notifier les autres pages (dashboard, historique, stats)
-            self.sale_saved.emit()
+        # Notifier les autres pages (dashboard, historique, stats)
+        self.sale_saved.emit()
 
-            # Réinitialiser
-            self.cart_items = []
-            self.table.setRowCount(0)
-            self.update_totals()
-            self.client_combo.setCurrentIndex(0)
-        else:
-            QMessageBox.critical(
-                self,
-                "Erreur",
-                "❌ Impossible d'enregistrer la vente!"
-            )        
+        # Réinitialiser
+        self.cart_items = []
+        self.table.setRowCount(0)
+        self.update_totals()
+        self.client_combo.setCurrentIndex(0)
+               
 
     def get_payment_method_name(self, method_code):
             """Convertit le code de paiement en nom affichable"""

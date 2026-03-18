@@ -83,9 +83,6 @@ class ReturnDialog(QDialog):
         self.items_table.setMinimumHeight(200)
         layout.addWidget(self.items_table)
 
-        self._spinboxes = []
-        self._populate_items()
-
         # ── Motif du retour ──────────────────────────────────────────
         form = QFormLayout()
         form.setSpacing(10)
@@ -146,6 +143,10 @@ class ReturnDialog(QDialog):
         btn_row.addWidget(confirm_btn)
         layout.addLayout(btn_row)
 
+        # ⚠️ IMPORTANT : Appeler _populate_items() APRÈS avoir créé tous les widgets
+        self._spinboxes = []
+        self._populate_items()
+
     def _populate_items(self):
         """Remplit le tableau avec les articles de la vente originale."""
         items = self.sale.get('items', [])
@@ -199,7 +200,6 @@ class ReturnDialog(QDialog):
             item = self.items_table.item(row, 4)
             if item:
                 item.setText(f"{spin.value() * price:,.2f} DA")
-
     def _create_return(self):
         """Valide et enregistre l'avoir en base de données."""
         return_items = []
@@ -316,12 +316,14 @@ class ReturnsPage(QWidget):
         tbl_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         card_layout.addWidget(tbl_title)
 
-        self.table = QTableWidget(0, 6)
+        self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels([
             "N° Avoir", "Facture d'origine", "Client",
-            "Motif", "Montant remboursé", "Date"
+            "Motif", "Montant remboursé", "Date", ""
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
+        self.table.setColumnWidth(6, 100)
         self.table.verticalHeader().setVisible(False)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -331,6 +333,11 @@ class ReturnsPage(QWidget):
         card_layout.addWidget(self.table)
         layout.addWidget(card)
 
+        self.load_returns()
+
+    def showEvent(self, event):
+        """Rafraîchit automatiquement à chaque affichage de la page."""
+        super().showEvent(event)
         self.load_returns()
 
     def _make_stat_card(self, icon, label, value, color):
@@ -361,8 +368,9 @@ class ReturnsPage(QWidget):
         # Nettoyer les cartes stats
         while self._stats_row.count():
             item = self._stats_row.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            w = item.widget()
+            if w is not None:
+                w.deleteLater()
 
         returns = self.db.get_all_returns() or []
 
@@ -384,17 +392,164 @@ class ReturnsPage(QWidget):
             except Exception:
                 date_str = str(ret.get('return_date', '—'))
 
+            MOTIF_COLOR = {
+                "Produit défectueux":   "#EF4444",
+                "Erreur de commande":   "#F59E0B",
+                "Produit non conforme": "#F59E0B",
+                "Client insatisfait":   "#6366F1",
+                "Autre":                "#A0AACC",
+            }
+            motif = ret.get("motif", "—")
+            motif_col = MOTIF_COLOR.get(motif, "#A0AACC")
+
             cells = [
-                (ret.get('return_number', '—'),   "#F1F5F9"),
-                (ret.get('invoice_number', '—'),   COLORS['text_secondary']),
-                (ret.get('client_name', 'Anonyme'), COLORS['text_secondary']),
-                (ret.get('motif', '—'),              COLORS['text_tertiary']),
+                (ret.get("return_number", "—"),    "#F1F5F9"),
+                (ret.get("invoice_number", "—"),    COLORS.get("text_secondary","#A0AACC")),
+                (ret.get("client_name", "Anonyme"), COLORS.get("text_secondary","#A0AACC")),
+                (motif,                             motif_col),
                 (f"{float(ret.get('total',0)):,.2f} DA", "#EF4444"),
-                (date_str,                           COLORS['text_tertiary']),
+                (date_str,                          COLORS.get("text_tertiary","#6B7280")),
             ]
             for col, (val, color) in enumerate(cells):
-                item = QTableWidgetItem(str(val))
-                item.setForeground(QColor(color))
-                item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                self.table.setItem(row, col, item)
-            self.table.setRowHeight(row, 40)
+                it = QTableWidgetItem(str(val))
+                it.setForeground(QColor(color))
+                it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                it.setFlags(it.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.table.setItem(row, col, it)
+
+            # Bouton Détails
+            det_btn = QPushButton("🔍 Détails")
+            det_btn.setFixedHeight(30)
+            det_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            det_btn.setStyleSheet("""
+                QPushButton {
+                    background: rgba(239,68,68,0.15); color: #EF4444;
+                    border: 1px solid rgba(239,68,68,0.35);
+                    border-radius: 6px; font-size: 10px; font-weight: bold; padding: 0 8px;
+                }
+                QPushButton:hover { background: rgba(239,68,68,0.3); color: white; }
+            """)
+            rid = ret.get("id")
+            det_btn.clicked.connect(lambda _, r=ret: self._show_detail(r))
+            self.table.setCellWidget(row, 6, det_btn)
+            self.table.setRowHeight(row, 44)
+    def _show_detail(self, ret: dict) -> None:
+        """Affiche le détail d'un avoir dans un dialogue."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"🔍 Détail Avoir — {ret.get('return_number','—')}")
+        dlg.setMinimumWidth(520)
+        dlg.setStyleSheet(f"""
+            QDialog {{ background: {COLORS.get('bg_dark','#0F1117')}; }}
+            QLabel  {{ color: {COLORS.get('text_primary','#F0F4FF')}; }}
+        """)
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(24, 24, 24, 24)
+        lay.setSpacing(12)
+
+        # En-tête
+        hdr_lbl = QLabel(f"📦 Avoir N° {ret.get('return_number','—')}")
+        hdr_lbl.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        hdr_lbl.setStyleSheet("color: #EF4444;")
+        lay.addWidget(hdr_lbl)
+
+        def info_row(label, value, color="#F0F4FF"):
+            row_w = QFrame()
+            row_w.setStyleSheet(f"""
+                QFrame {{ background: rgba(255,255,255,0.04);
+                          border-radius: 8px; border: 1px solid rgba(255,255,255,0.07); }}
+            """)
+            rl = QHBoxLayout(row_w)
+            rl.setContentsMargins(14, 8, 14, 8)
+            lbl = QLabel(label)
+            lbl.setFixedWidth(170)
+            lbl.setFont(QFont("Segoe UI", 10))
+            lbl.setStyleSheet("color: rgba(160,170,204,0.8); border:none;")
+            val = QLabel(str(value) if value else "—")
+            val.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            val.setStyleSheet(f"color: {color}; border:none;")
+            val.setWordWrap(True)
+            rl.addWidget(lbl)
+            rl.addWidget(val, 1)
+            return row_w
+
+        lay.addWidget(info_row("N° Avoir",          ret.get("return_number"), "#EF4444"))
+        lay.addWidget(info_row("Facture d'origine", ret.get("invoice_number")))
+        lay.addWidget(info_row("Client",            ret.get("client_name","Anonyme")))
+        lay.addWidget(info_row("Motif",             ret.get("motif")))
+        lay.addWidget(info_row("Montant remboursé", f"{float(ret.get('total',0)):,.2f} DA", "#EF4444"))
+        lay.addWidget(info_row("Date",              str(ret.get("return_date","—")).split(".")[0]))
+        if ret.get("notes"):
+            lay.addWidget(info_row("Notes", ret.get("notes"), "#A0AACC"))
+
+        # Articles retournés
+        try:
+            self.db.cursor.execute("""
+                SELECT ri.quantity, ri.unit_price, ri.total,
+                       COALESCE(p.name, 'Produit supprimé') as product_name
+                FROM return_items ri
+                LEFT JOIN products p ON ri.product_id = p.id
+                WHERE ri.return_id = ?
+            """, (ret.get("id"),))
+            items = self.db.cursor.fetchall()
+        except Exception:
+            items = []
+
+        if items:
+            art_lbl = QLabel("📋 Articles retournés")
+            art_lbl.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+            art_lbl.setStyleSheet("color: #F0F4FF; margin-top: 4px;")
+            lay.addWidget(art_lbl)
+
+            art_tbl = QTableWidget(len(items), 4)
+            art_tbl.setHorizontalHeaderLabels(["Produit","Qté","Prix Unit.","Total"])
+            art_tbl.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+            art_tbl.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+            art_tbl.setColumnWidth(1, 60)
+            art_tbl.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+            art_tbl.setColumnWidth(2, 110)
+            art_tbl.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+            art_tbl.setColumnWidth(3, 110)
+            art_tbl.verticalHeader().setVisible(False)
+            art_tbl.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            art_tbl.setFixedHeight(min(40 + len(items) * 36, 220))
+            art_tbl.setStyleSheet(f"""
+                QTableWidget {{ background: rgba(0,0,0,0.3); border: none;
+                                color: #F0F4FF; font-size: 11px; }}
+                QHeaderView::section {{ background: rgba(239,68,68,0.15);
+                    color: #EF4444; font-weight: bold; padding: 6px;
+                    border: none; border-bottom: 2px solid #EF4444; }}
+            """)
+            for i, item in enumerate(items):
+                name  = item[3] if not hasattr(item, "keys") else item["product_name"]
+                qty   = item[0] if not hasattr(item, "keys") else item["quantity"]
+                price = float(item[1] if not hasattr(item, "keys") else item["unit_price"])
+                total = float(item[2] if not hasattr(item, "keys") else item["total"])
+                for j, (v, col) in enumerate([
+                    (str(name),            "#F0F4FF"),
+                    (str(qty),             "#A0AACC"),
+                    (f"{price:,.2f} DA",   "#A0AACC"),
+                    (f"{total:,.2f} DA",   "#EF4444"),
+                ]):
+                    it = QTableWidgetItem(v)
+                    it.setForeground(QColor(col))
+                    it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                    art_tbl.setItem(i, j, it)
+                art_tbl.setRowHeight(i, 36)
+            lay.addWidget(art_tbl)
+
+        close_btn = QPushButton("✖  Fermer")
+        close_btn.setFixedHeight(38)
+        close_btn.setFixedWidth(120)
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.setStyleSheet("""
+            QPushButton { background: rgba(239,68,68,0.15); color: #EF4444;
+                border: 1px solid rgba(239,68,68,0.35);
+                border-radius: 8px; font-size: 12px; font-weight: bold; }
+            QPushButton:hover { background: rgba(239,68,68,0.3); color: white; }
+        """)
+        close_btn.clicked.connect(dlg.accept)
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_row.addWidget(close_btn)
+        lay.addLayout(btn_row)
+        dlg.exec()

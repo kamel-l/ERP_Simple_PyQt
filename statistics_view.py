@@ -63,13 +63,17 @@ class StatisticsPage(QWidget):
         root.addWidget(scroll)
 
         # Load Data
-        self.refresh()
+        self.showEvent = self.refresh()
 
 
     # ─────────────────────────────────────────────────────────
     #  Header
     # ─────────────────────────────────────────────────────────
-
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.refresh()
+        
     def _build_header(self):
         row = QHBoxLayout()
         row.setSpacing(14)
@@ -107,19 +111,7 @@ class StatisticsPage(QWidget):
         self.year_combo.currentTextChanged.connect(self.refresh)
         row.addWidget(self.year_combo)
 
-        # Refresh Button
-        btn = QPushButton("↻   Actualiser")
-        btn.setFixedHeight(36)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setStyleSheet(f"""
-            QPushButton {{
-                background:{C_BLUE}; color:white; border:none;
-                border-radius:8px; padding:0 18px;
-            }}
-            QPushButton:hover {{ background:#2563EB; }}
-        """)
-        btn.clicked.connect(self.refresh)
-        row.addWidget(btn)
+        
 
         # Export CSV
         csv_btn = QPushButton("📥 Export CSV")

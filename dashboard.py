@@ -699,23 +699,7 @@ class DashboardPage(QWidget):
         cb.clicked.connect(self._open_editor)
         row.addWidget(cb)
 
-        # Bouton Actualiser
-        rb = QPushButton("↻  Actualiser")
-        rb.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        rb.setFixedHeight(38)
-        rb.setFixedWidth(130)
-        rb.setCursor(Qt.CursorShape.PointingHandCursor)
-        rb.setStyleSheet(f"""
-            QPushButton {{
-                background:{COLORS['primary']};
-                color:white; border:none;
-                border-radius:10px; padding:0 16px;
-            }}
-            QPushButton:hover  {{ background:{COLORS['primary']}CC; }}
-            QPushButton:pressed {{ background:{COLORS['primary']}99; }}
-        """)
-        rb.clicked.connect(self.refresh)
-        row.addWidget(rb)
+        
 
         self._main.addLayout(row)
 
@@ -888,7 +872,7 @@ class DashboardPage(QWidget):
         if not self._info_cards: return
         stats = self.db.get_statistics() or {}
         self._info_cards[0].value_label.setText(
-            fmt_da(float(stats.get("sales_today", 0)), 0))
+            fmt_da(float(stats.get("sales_today"))))
         top = self.db.get_top_clients(limit=1)
         self._info_cards[1].value_label.setText(top[0]["name"] if top else "—")
         low = self.db.get_low_stock_products() or []
