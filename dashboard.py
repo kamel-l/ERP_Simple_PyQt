@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QScrollArea, QHeaderView, QTableWidget,
     QTableWidgetItem, QSizePolicy, QDialog, QCheckBox,
     QGridLayout, QMessageBox, QListWidget, QListWidgetItem,
-    QAbstractItemView
+    QAbstractItemView, QSpacerItem, QSizePolicy
 )
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import (
@@ -95,14 +95,14 @@ WIDGET_CATALOG = {
     "activities":    {"id": "activities",    "title": "Activités Récentes",    "icon": "🕒", "desc": "Dernières ventes et achats",             "default": True},
     "quick_info":    {"id": "quick_info",    "title": "Informations Rapides",  "icon": "⚡", "desc": "Ventes du jour, top client, stock",      "default": True},
     "invoice_table": {"id": "invoice_table", "title": "Dernières Factures",    "icon": "🧾", "desc": "Tableau des 10 dernières factures",      "default": True},
-    "low_stock":     {"id": "low_stock",     "title": "Alertes Stock Faible",  "icon": "⚠️", "desc": "Produits sous le seuil minimum",         "default": True},
-    "top_clients":   {"id": "top_clients",   "title": "Top Clients",           "icon": "🏆", "desc": "Classement par chiffre d'affaires",      "default": True},
-    "sales_chart":   {"id": "sales_chart",   "title": "Résumé des Ventes",     "icon": "📈", "desc": "Ventes des 7 derniers jours",            "default": True},
+    "low_stock":     {"id": "low_stock",     "title": "Alertes Stock Faible",  "icon": "⚠️", "desc": "Produits sous le seuil minimum",         "default": False},
+    "top_clients":   {"id": "top_clients",   "title": "Top Clients",           "icon": "🏆", "desc": "Classement par chiffre d'affaires",      "default": False},
+    "sales_chart":   {"id": "sales_chart",   "title": "Résumé des Ventes",     "icon": "📈", "desc": "Ventes des 7 derniers jours",            "default": False},
 }
 
 DEFAULT_ORDER = [
     "kpi_row", "activities", "quick_info",
-    "invoice_table", "low_stock", "top_clients", "sales_chart"
+    "invoice_table"
 ]
 
 
@@ -545,7 +545,7 @@ class WidgetBuilder:
             QTableWidget::item:selected {{ background:rgba(99,102,241,0.15); color:#A855F7; }}
         """)
         lay.addWidget(tbl)
-        self.page.invoice_table = tbl
+        self.page.invoice_table = tbl  # Stocker la référence
         return card
 
     # Stock faible
@@ -615,16 +615,17 @@ class DashboardPage(QWidget):
         self._reset_refs()
         self._build_page()
         self.refresh()
-        self.showEvent = self.refresh()  # Rafraîchir à chaque affichage
 
     def _reset_refs(self):
-        self._kpi_cards          = []
-        self._info_cards         = []
-        self._activities_layout  = None
-        self.invoice_table       = None
-        self._low_stock_layout   = None
+        """Réinitialise toutes les références aux widgets."""
+        self._kpi_cards = []
+        self._info_cards = []
+        self._activities_layout = None
+        self.invoice_table = None
+        self._low_stock_layout = None
         self._top_clients_layout = None
         self._sales_chart_layout = None
+        self._sub_lbl = None
 
     # ── Construction ─────────────────────────────────────────
 
@@ -635,16 +636,12 @@ class DashboardPage(QWidget):
         if old:
             while old.count():
                 item = old.takeAt(0)
-                w = item.widget()   # appel unique — évite NoneType sur spacers
+                w = item.widget()
                 if w is not None:
                     w.setParent(None)
                     w.deleteLater()
-            # Détacher le layout sans crasher
-            try:
-                import sip
-                sip.delete(old)
-            except Exception:
-                QWidget().setLayout(old)
+            # Détacher le layout
+            QWidget().setLayout(old)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -674,6 +671,8 @@ class DashboardPage(QWidget):
         col.setSpacing(3)
         col.addWidget(_lbl("📊 Tableau de Bord", 22, bold=True))
         n = len(self._cfg.get("enabled", []))
+        
+        # Créer le sous-titre et le stocker
         self._sub_lbl = _lbl(
             f"Vue d'ensemble de l'activité  ·  {n} widget(s) actif(s)",
             11, color=COLORS['TXT_SEC'])
@@ -699,8 +698,6 @@ class DashboardPage(QWidget):
         cb.clicked.connect(self._open_editor)
         row.addWidget(cb)
 
-        
-
         self._main.addLayout(row)
 
     def _build_widgets(self) -> None:
@@ -716,7 +713,8 @@ class DashboardPage(QWidget):
                 continue
 
             if wid == "kpi_row":
-                self._main.addLayout(builder.build_kpi_row())
+                kpi_layout = builder.build_kpi_row()
+                self._main.addLayout(kpi_layout)
 
             elif wid == "activities":
                 act = builder.build_activities()
@@ -740,7 +738,8 @@ class DashboardPage(QWidget):
                 self._main.addLayout(row)
 
             elif wid == "invoice_table":
-                self._main.addWidget(builder.build_invoice_table())
+                inv_table = builder.build_invoice_table()
+                self._main.addWidget(inv_table)
 
             elif wid == "low_stock":
                 ls = builder.build_low_stock()
@@ -756,10 +755,12 @@ class DashboardPage(QWidget):
                     self._main.addWidget(ls)
 
             elif wid == "top_clients":
-                self._main.addWidget(builder.build_top_clients())
+                tc = builder.build_top_clients()
+                self._main.addWidget(tc)
 
             elif wid == "sales_chart":
-                self._main.addWidget(builder.build_sales_chart())
+                sc = builder.build_sales_chart()
+                self._main.addWidget(sc)
 
     # ── Éditeur ──────────────────────────────────────────────
 
@@ -791,7 +792,7 @@ class DashboardPage(QWidget):
         if "sales_chart"   in enabled: self._load_sales_chart()
 
     def _load_kpis(self) -> None:
-        if not self._kpi_cards: return
+        
         stats = self.db.get_statistics() or {}
         sales = float(stats.get("sales_total", 0))
         pur   = float(stats.get("purchases_total", 0))
@@ -807,19 +808,29 @@ class DashboardPage(QWidget):
 
     def _load_activities(self) -> None:
         """Charge les activités récentes (ventes + achats)."""
-        if not self._activities_layout: return
+        print("Chargement des activités récentes...")
+
         while self._activities_layout.count():
             item = self._activities_layout.takeAt(0)
             w = item.widget()
             if w is not None: w.deleteLater()
-
+            
         try:
             sales = self.db.get_all_sales(limit=4) or []
-        except Exception:
+            print("ventes récupérées :", sales)
+        except Exception as e:
+            print(f"❌ ERREUR get_all_sales : {e}")
+            import traceback
+            traceback.print_exc()   # ← affiche la vraie erreur complète
             sales = []
+
         try:
-            purs = self.db.get_all_purchases(limit=3) or []
-        except Exception:
+            purs = self.db.get_all_purchases(limit=4) or []
+            print("achats récupérés :", purs)
+        except Exception as e:
+            print(f"❌ ERREUR get_all_purchases : {e}")
+            import traceback
+            traceback.print_exc()
             purs = []
 
         if not sales and not purs:
@@ -855,9 +866,11 @@ class DashboardPage(QWidget):
             tot  = float(s.get('total') or 0)
             cli  = s.get('client_name', '')
             txt  = f"Vente  {inv}"
+            print(txt)
             if cli: txt += f"  ·  {cli[:20]}"
             txt += f"  —  {fmt_da(tot, 0)}"
             add_row("#6366F1", "🧾", txt)
+            
 
         for p in purs:
             nom = p.get('product_name') or f"Produit #{p.get('product_id','?')}"
@@ -869,10 +882,10 @@ class DashboardPage(QWidget):
             add_row("#F59E0B", "📦", txt)
 
     def _load_quick_info(self) -> None:
-        if not self._info_cards: return
+        
         stats = self.db.get_statistics() or {}
         self._info_cards[0].value_label.setText(
-            fmt_da(float(stats.get("sales_today"))))
+            fmt_da(float(stats.get("sales_today", 0))))
         top = self.db.get_top_clients(limit=1)
         self._info_cards[1].value_label.setText(top[0]["name"] if top else "—")
         low = self.db.get_low_stock_products() or []
@@ -881,11 +894,16 @@ class DashboardPage(QWidget):
 
     def _load_invoices(self) -> None:
         """Charge les 10 dernières factures dans le tableau."""
-        if not self.invoice_table: return
+        if not self.invoice_table:
+            print("⚠️ invoice_table est None - widget peut-être désactivé")
+            return
+        
         try:
             data = self.db.get_all_sales(limit=10) or []
-        except Exception:
+        except Exception as e:
+            print(f"❌ Erreur chargement factures: {e}")
             data = []
+        
         self.invoice_table.setRowCount(len(data))
         for r, sale in enumerate(data):
             client = sale.get("client_name") or sale.get("client") or "—"
@@ -925,7 +943,7 @@ class DashboardPage(QWidget):
 
     def _load_low_stock(self) -> None:
         """Charge les alertes de stock faible."""
-        if not self._low_stock_layout: return
+        
         while self._low_stock_layout.count():
             item = self._low_stock_layout.takeAt(0)
             w = item.widget()
@@ -956,7 +974,7 @@ class DashboardPage(QWidget):
 
     def _load_top_clients(self) -> None:
         """Charge le classement des top clients."""
-        if not self._top_clients_layout: return
+        
         while self._top_clients_layout.count():
             item = self._top_clients_layout.takeAt(0)
             w = item.widget()
@@ -1002,7 +1020,7 @@ class DashboardPage(QWidget):
 
     def _load_sales_chart(self) -> None:
         """Charge le graphique ventes 7 derniers jours."""
-        if not self._sales_chart_layout: return
+    
         while self._sales_chart_layout.count():
             item = self._sales_chart_layout.takeAt(0)
             w = item.widget()
@@ -1081,3 +1099,5 @@ class DashboardPage(QWidget):
         sale = self.db.get_sale_by_id(sale_id)
         if sale:
             InvoiceDetailsDialog(sale, self).exec()
+
+

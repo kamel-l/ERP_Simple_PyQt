@@ -406,7 +406,7 @@ class ReturnsPage(QWidget):
                 (ret.get("return_number", "—"),    "#F1F5F9"),
                 (ret.get("invoice_number", "—"),    COLORS.get("text_secondary","#A0AACC")),
                 (ret.get("client_name", "Anonyme"), COLORS.get("text_secondary","#A0AACC")),
-                (motif,                             motif_col),
+                (motif,                             motif_col), 
                 (f"{float(ret.get('total',0)):,.2f} DA", "#EF4444"),
                 (date_str,                          COLORS.get("text_tertiary","#6B7280")),
             ]
@@ -520,6 +520,7 @@ class ReturnsPage(QWidget):
                     border: none; border-bottom: 2px solid #EF4444; }}
             """)
             for i, item in enumerate(items):
+                   
                 name  = item[3] if not hasattr(item, "keys") else item["product_name"]
                 qty   = item[0] if not hasattr(item, "keys") else item["quantity"]
                 price = float(item[1] if not hasattr(item, "keys") else item["unit_price"])
