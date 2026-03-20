@@ -621,6 +621,31 @@ class ReturnsPage(QWidget):
             no_items_lbl.setStyleSheet(f"color: {COLORS.get('warning', '#F59E0B')}; padding: 20px;")
             no_items_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lay.addWidget(no_items_lbl)
+            items = []  # Pour éviter l'erreur plus tard
+            
+            # ✅ Boutons (Fermer et Exporter)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(12)
+        
+        export_btn = QPushButton("📊 Exporter en Excel")
+        export_btn.setFixedHeight(38)
+        export_btn.setFixedWidth(150)
+        export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        export_btn.setStyleSheet("""
+            QPushButton { 
+                background: rgba(16,185,129,0.15); 
+                color: #10B981;
+                border: 1px solid rgba(16,185,129,0.35);
+                border-radius: 8px; 
+                font-size: 12px; 
+                font-weight: bold; 
+            }
+            QPushButton:hover { 
+                background: rgba(16,185,129,0.3); 
+                color: white; 
+            }
+        """)
+        export_btn.clicked.connect(lambda: self._export_return_to_excel(ret, items))
 
         close_btn = QPushButton("✖  Fermer")
         close_btn.setFixedHeight(38)
@@ -643,7 +668,158 @@ class ReturnsPage(QWidget):
         close_btn.clicked.connect(dlg.accept)
         btn_row = QHBoxLayout()
         btn_row.addStretch()
+        btn_row.addWidget(export_btn)
         btn_row.addWidget(close_btn)
         lay.addLayout(btn_row)
         
         dlg.exec()
+        
+        
+    import os
+    from datetime import datetime
+    from PyQt6.QtWidgets import QFileDialog
+
+    # Ajoutez cette méthode à la classe ReturnsPage
+    def _export_return_to_excel(self, ret: dict, items: list):
+        """Exporte les détails de l'avoir vers un fichier Excel"""
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            QMessageBox.warning(self, "Module manquant", 
+                "La bibliothèque 'openpyxl' n'est pas installée.\n"
+                "Installez-la avec: pip install openpyxl")
+            return
+        
+        try:
+            # Demander l'emplacement du fichier
+            default_name = f"avoir_{ret.get('return_number', 'export')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            file_path, _ = self.QFileDialog.getSaveFileName(
+                self,
+                "Exporter l'avoir en Excel",
+                default_name,
+                "Excel Files (*.xlsx);;All Files (*)"
+            )
+            
+            if not file_path:
+                return
+            
+            # Créer le classeur
+            wb = Workbook()
+            ws = wb.active
+            ws.title = f"Avoir {ret.get('return_number', '')}"
+            
+            # Styles
+            header_font = Font(name='Segoe UI', size=12, bold=True, color='FFFFFF')
+            header_fill = PatternFill(start_color='EF4444', end_color='EF4444', fill_type='solid')
+            header_alignment = Alignment(horizontal='center', vertical='center')
+            
+            title_font = Font(name='Segoe UI', size=14, bold=True, color='EF4444')
+            info_label_font = Font(name='Segoe UI', size=11, bold=True)
+            info_value_font = Font(name='Segoe UI', size=11)
+            
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            
+            # Ligne 1: Titre
+            ws.merge_cells('A1:F1')
+            title_cell = ws['A1']
+            title_cell.value = f"AVOIR N° {ret.get('return_number', '—')}"
+            title_cell.font = title_font
+            title_cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Ligne 2: Informations générales
+            row = 3
+            info_data = [
+                ("Facture d'origine", ret.get('invoice_number', '—')),
+                ("Client", ret.get('client_name', 'Anonyme')),
+                ("Motif", ret.get('motif', '—')),
+                ("Montant remboursé", f"{float(ret.get('total', 0)):,.2f} DA"),
+                ("Date", str(ret.get('return_date', '—')).split('.')[0]),
+            ]
+            
+            for label, value in info_data:
+                ws.cell(row=row, column=1, value=label).font = info_label_font
+                ws.cell(row=row, column=2, value=value).font = info_value_font
+                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=6)
+                row += 1
+            
+            if ret.get('notes'):
+                ws.cell(row=row, column=1, value="Notes").font = info_label_font
+                ws.cell(row=row, column=2, value=ret.get('notes')).font = info_value_font
+                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=6)
+                row += 1
+            
+            # Ligne vide
+            row += 1
+            
+            # En-tête du tableau des articles
+            headers = ["Produit", "Quantité", "Prix Unitaire", "Total"]
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=row, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = thin_border
+            
+            row += 1
+            
+            # ✅ Correction: Remplir le tableau avec accès par index
+            total_amount = 0
+            for item in items:
+                # Accès par index pour sqlite3.Row
+                # Ordre des colonnes: id, product_id, quantity, unit_price, total, product_name, product_reference
+                product_name = item[5] if len(item) > 5 else 'Produit inconnu'
+                quantity = item[2] if len(item) > 2 else 0
+                unit_price = float(item[3]) if len(item) > 3 else 0
+                total = float(item[4]) if len(item) > 4 else 0
+                
+                ws.cell(row=row, column=1, value=product_name).border = thin_border
+                ws.cell(row=row, column=2, value=quantity).border = thin_border
+                ws.cell(row=row, column=3, value=unit_price).border = thin_border
+                ws.cell(row=row, column=4, value=total).border = thin_border
+                
+                # Alignement
+                ws.cell(row=row, column=2).alignment = Alignment(horizontal='center')
+                ws.cell(row=row, column=3).alignment = Alignment(horizontal='right')
+                ws.cell(row=row, column=4).alignment = Alignment(horizontal='right')
+                
+                total_amount += total
+                row += 1
+            
+            # Ligne de total
+            ws.cell(row=row, column=3, value="TOTAL:").font = Font(bold=True)
+            ws.cell(row=row, column=3).alignment = Alignment(horizontal='right')
+            total_cell = ws.cell(row=row, column=4, value=total_amount)
+            total_cell.font = Font(bold=True, color='EF4444')
+            total_cell.alignment = Alignment(horizontal='right')
+            total_cell.border = thin_border
+            
+            # Ajuster les largeurs des colonnes
+            column_widths = [40, 10, 15, 15]
+            for i, width in enumerate(column_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+            
+            # Sauvegarder
+            wb.save(file_path)
+            
+            QMessageBox.information(
+                self,
+                "Export réussi",
+                f"L'avoir a été exporté avec succès vers :\n{file_path}"
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Erreur d'export",
+                f"Une erreur est survenue lors de l'export :\n{str(e)}"
+            )
+            print(f"❌ Erreur export Excel: {e}")
+            import traceback
+            traceback.print_exc()
