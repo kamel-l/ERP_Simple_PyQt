@@ -707,9 +707,16 @@ class DashboardPage(QWidget):
         order   = self._cfg.get("order", DEFAULT_ORDER)
         to_build = [w for w in order if w in enabled]
 
-        skip = set()
+        # Traitement spécial pour les widgets qui peuvent être combinés
+        has_activities = "activities" in to_build
+        has_quick_info = "quick_info" in to_build
+        has_low_stock = "low_stock" in to_build
+        has_top_clients = "top_clients" in to_build
+
+        processed = set()
+
         for wid in to_build:
-            if wid in skip:
+            if wid in processed:
                 continue
 
             if wid == "kpi_row":
@@ -718,24 +725,24 @@ class DashboardPage(QWidget):
 
             elif wid == "activities":
                 act = builder.build_activities()
-                if "quick_info" in to_build:
-                    qi  = builder.build_quick_info()
+                if has_quick_info:
+                    qi = builder.build_quick_info()
                     row = QHBoxLayout()
                     row.setSpacing(16)
                     row.addWidget(act, 3)
                     row.addLayout(qi, 2)
                     self._main.addLayout(row)
-                    skip.add("quick_info")
+                    processed.add("quick_info")
                 else:
                     self._main.addWidget(act)
 
             elif wid == "quick_info":
-                # Seul (activities pas dans la liste)
-                qi  = builder.build_quick_info()
-                row = QHBoxLayout()
-                row.setSpacing(16)
-                row.addLayout(qi)
-                self._main.addLayout(row)
+                if not has_activities:  # Seulement si activities n'est pas présent
+                    qi = builder.build_quick_info()
+                    row = QHBoxLayout()
+                    row.setSpacing(16)
+                    row.addLayout(qi)
+                    self._main.addLayout(row)
 
             elif wid == "invoice_table":
                 inv_table = builder.build_invoice_table()
@@ -743,20 +750,21 @@ class DashboardPage(QWidget):
 
             elif wid == "low_stock":
                 ls = builder.build_low_stock()
-                if "top_clients" in to_build:
-                    tc  = builder.build_top_clients()
+                if has_top_clients:
+                    tc = builder.build_top_clients()
                     row = QHBoxLayout()
                     row.setSpacing(16)
                     row.addWidget(ls, 1)
                     row.addWidget(tc, 1)
                     self._main.addLayout(row)
-                    skip.add("top_clients")
+                    processed.add("top_clients")
                 else:
                     self._main.addWidget(ls)
 
             elif wid == "top_clients":
-                tc = builder.build_top_clients()
-                self._main.addWidget(tc)
+                if not has_low_stock:  # Seulement si low_stock n'est pas présent
+                    tc = builder.build_top_clients()
+                    self._main.addWidget(tc)
 
             elif wid == "sales_chart":
                 sc = builder.build_sales_chart()
