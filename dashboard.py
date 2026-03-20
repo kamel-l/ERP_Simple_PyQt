@@ -1025,16 +1025,18 @@ class DashboardPage(QWidget):
 
     def _load_sales_chart(self) -> None:
         """Charge le graphique ventes 7 derniers jours."""
-    
+        
         while self._sales_chart_layout.count():
             item = self._sales_chart_layout.takeAt(0)
             w = item.widget()
-            if w is not None: w.deleteLater()
+            if w is not None:
+                w.deleteLater()
+        
         try:
             self.db.cursor.execute("""
                 SELECT DATE(sale_date) as day,
-                       SUM(total) as total,
-                       COUNT(*) as nb
+                    SUM(total) as total,
+                    COUNT(*) as nb
                 FROM sales
                 WHERE sale_date >= DATE('now', '-7 days')
                 GROUP BY day ORDER BY day
@@ -1046,55 +1048,68 @@ class DashboardPage(QWidget):
         if not rows:
             self._sales_chart_layout.addWidget(
                 _lbl("Aucune vente sur les 7 derniers jours", 11,
-                     color=COLORS['TXT_SEC']))
+                    color=COLORS['TXT_SEC']))
             return
 
-        JOURS  = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
-        max_v  = max((float(r[1] if not hasattr(r,'keys') else r['total'])
-                      for r in rows), default=1) or 1
-        grid   = QGridLayout()
-        grid.setSpacing(8)
-        grid.setColumnStretch(1, 1)
-
+        JOURS  = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
+        max_v  = max((float(r[1] if not hasattr(r, 'keys') else r['total'])
+                    for r in rows), default=1) or 1
+        
         for i, row in enumerate(rows):
             try:
-                day   = str(row['day']   if hasattr(row,'keys') else row[0])
-                total = float(row['total'] if hasattr(row,'keys') else row[1])
-                nb    = int(row['nb']    if hasattr(row,'keys') else row[2])
+                day   = str(row['day']   if hasattr(row, 'keys') else row[0])
+                total = float(row['total'] if hasattr(row, 'keys') else row[1])
+                nb    = int(row['nb']    if hasattr(row, 'keys') else row[2])
             except Exception:
                 continue
+            
             try:
                 import datetime
                 dn = JOURS[datetime.date.fromisoformat(day).weekday()]
             except Exception:
                 dn = day[-5:]
-
-            grid.addWidget(_lbl(dn, 9, color=COLORS['TXT_SEC']), i, 0)
-
+            
+            # ✅ Utiliser un layout horizontal simple
+            row_layout = QHBoxLayout()
+            row_layout.setSpacing(10)
+            
+            # Jour
+            day_label = _lbl(f"{dn}", 10, bold=True, color=COLORS['primary'])
+            day_label.setFixedWidth(40)
+            row_layout.addWidget(day_label)
+            
+            # Barre
             bar_w = QProgressBar()
             bar_w.setRange(0, 1000)
             bar_w.setValue(int((total / max_v) * 1000))
             bar_w.setTextVisible(False)
-            bar_w.setFixedHeight(20)
+            bar_w.setFixedHeight(24)
             bar_w.setStyleSheet(f"""
                 QProgressBar {{
                     background: {COLORS['BG_DEEP']};
-                    border-radius: 4px; border: none;
+                    border-radius: 4px;
+                    border: none;
                 }}
                 QProgressBar::chunk {{
-                    background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                        stop:0 {COLORS['primary']}88, stop:1 {COLORS['primary']});
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                        stop:0 {COLORS['primary']}, stop:1 {COLORS['secondary']});
                     border-radius: 4px;
                 }}
             """)
-            grid.addWidget(bar_w, i, 1)
-
-            vl = _lbl(f"{fmt_da(total,0)}  · {nb} vente{'s' if nb>1 else ''}",
-                      9, color=COLORS['TXT_SEC'])
-            vl.setMinimumWidth(160)
-            grid.addWidget(vl, i, 2)
-
-        self._sales_chart_layout.addLayout(grid)
+            row_layout.addWidget(bar_w, 1)  # Stretch pour prendre l'espace
+            
+            # Montant
+            amount_label = _lbl(fmt_da(total, 0), 10, bold=True, color=COLORS['success'])
+            amount_label.setMinimumWidth(90)
+            amount_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            row_layout.addWidget(amount_label)
+            
+            # Nombre de ventes
+            count_label = _lbl(f"({nb})", 9, color=COLORS['TXT_SEC'])
+            count_label.setFixedWidth(45)
+            row_layout.addWidget(count_label)
+            
+            self._sales_chart_layout.addLayout(row_layout)
 
     def _open_detail(self, sale_id: int) -> None:
         if not _DETAIL_AVAILABLE:

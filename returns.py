@@ -75,11 +75,33 @@ class ReturnDialog(QDialog):
         self.items_table.setHorizontalHeaderLabels(
             ["Article", "Prix Unit.", "Qté vendue", "Qté à retourner", "Remboursement"]
         )
-        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        
+        # Configuration des colonnes
+        header = self.items_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        
+        # Largeurs des colonnes
+        self.items_table.setColumnWidth(1, 100)   # Prix Unit.
+        self.items_table.setColumnWidth(2, 90)    # Qté vendue
+        self.items_table.setColumnWidth(3, 150)   # Qté à retourner
+        self.items_table.setColumnWidth(4, 120)   # Remboursement
+        
+        # ✅ Définir une hauteur de ligne uniforme
+        self.items_table.verticalHeader().setDefaultSectionSize(48)  # Hauteur de ligne fixe
+        
         self.items_table.verticalHeader().setVisible(False)
         self.items_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.items_table.setAlternatingRowColors(True)
-        self.items_table.setStyleSheet(TABLE_STYLE)
+        self.items_table.setStyleSheet(f"""
+            {TABLE_STYLE}
+            QTableWidget::item {{
+                padding: 8px 6px;
+            }}
+        """)
         self.items_table.setMinimumHeight(200)
         layout.addWidget(self.items_table)
 
@@ -172,6 +194,9 @@ class ReturnDialog(QDialog):
             spin.setMinimum(0)
             spin.setMaximum(qty)
             spin.setValue(qty)
+            # ✅ Désactiver les flèches
+            spin.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)  # Pas de flèches
+            # Alternative: spin.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows) pour les réactiver
             spin.setStyleSheet("""
                 QSpinBox {
                     background: #0F1117; color: #E2E8F0;
