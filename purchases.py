@@ -261,6 +261,7 @@ class ProductEditDialog(QDialog):
         self.qty_edit = QLineEdit("1")
         self.qty_edit.setMinimumHeight(40)
         self.qty_edit.setValidator(QIntValidator(1, 999999))
+        self.qty_edit.setPlaceholderText("Ex: 10")
         self.qty_edit.setStyleSheet(f"""
             QLineEdit {{
                 font-size: 16px;
@@ -268,6 +269,11 @@ class ProductEditDialog(QDialog):
                 color: {COLORS['primary']};
             }}
         """)
+        # Sélectionner tout au focus pour faciliter la saisie
+        self.qty_edit.focusInEvent = lambda e: (
+            super(type(self.qty_edit), self.qty_edit).focusInEvent(e),
+            self.qty_edit.selectAll()
+        )
         form_layout.addRow("Quantité à acheter: *", self.qty_edit)
 
         main_layout.addWidget(form_container)
@@ -313,14 +319,24 @@ class ProductEditDialog(QDialog):
         except ValueError:
             QMessageBox.warning(self, "Erreur", "Le prix de vente est invalide!")
             return
+        # Lire et nettoyer la valeur du champ quantité
+        qty_text = self.qty_edit.text().strip()
+        if not qty_text:
+            QMessageBox.warning(self, "Erreur", "Veuillez saisir une quantité!")
+            self.qty_edit.setFocus()
+            self.qty_edit.setText("1")
+            self.qty_edit.selectAll()
+            return
         try:
-            qty = int(self.qty_edit.text())
+            qty = int(qty_text)
             if qty < 1:
-                raise ValueError
-            self.quantity = qty
+                raise ValueError("Quantité < 1")
         except ValueError:
             QMessageBox.warning(self, "Erreur", "La quantité doit être un entier ≥ 1!")
+            self.qty_edit.setFocus()
+            self.qty_edit.selectAll()
             return
+        self.quantity = qty   # ← assigné seulement si tout est valide
         self.accept()
 
 

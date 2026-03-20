@@ -808,7 +808,6 @@ class DashboardPage(QWidget):
 
     def _load_activities(self) -> None:
         """Charge les activités récentes (ventes + achats)."""
-        print("Chargement des activités récentes...")
 
         while self._activities_layout.count():
             item = self._activities_layout.takeAt(0)
@@ -817,7 +816,6 @@ class DashboardPage(QWidget):
             
         try:
             sales = self.db.get_all_sales(limit=4) or []
-            print("ventes récupérées :", sales)
         except Exception as e:
             print(f"❌ ERREUR get_all_sales : {e}")
             import traceback
@@ -826,7 +824,6 @@ class DashboardPage(QWidget):
 
         try:
             purs = self.db.get_all_purchases(limit=4) or []
-            print("achats récupérés :", purs)
         except Exception as e:
             print(f"❌ ERREUR get_all_purchases : {e}")
             import traceback
@@ -866,7 +863,7 @@ class DashboardPage(QWidget):
             tot  = float(s.get('total') or 0)
             cli  = s.get('client_name', '')
             txt  = f"Vente  {inv}"
-            print(txt)
+            
             if cli: txt += f"  ·  {cli[:20]}"
             txt += f"  —  {fmt_da(tot, 0)}"
             add_row("#6366F1", "🧾", txt)
