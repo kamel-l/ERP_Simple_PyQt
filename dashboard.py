@@ -24,6 +24,7 @@ except ImportError:
     _DETAIL_AVAILABLE = False
 from styles import COLORS
 from currency import fmt_da, fmt, currency_manager
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QDateEdit, QLabel, QComboBox, QGroupBox, QRadioButton, QButtonGroup
 
 
 # ─────────────────────────────────────────────────────────────
@@ -571,10 +572,6 @@ class WidgetBuilder:
         lay  = QVBoxLayout(card)
         lay.setContentsMargins(20, 18, 20, 18)
         lay.setSpacing(10)
-        hdr = QHBoxLayout()
-        hdr.addWidget(_lbl("🏆  Top Clients", 13, bold=True))
-        hdr.addStretch()
-        lay.addLayout(hdr)
         lay.addWidget(divider())
         self.page._top_clients_layout = QVBoxLayout()
         self.page._top_clients_layout.setSpacing(6)
@@ -614,6 +611,7 @@ class DashboardPage(QWidget):
         self.setStyleSheet(f"background:{COLORS['BG_PAGE']};")
         self._reset_refs()
         self._build_page()
+        self._top_clients_period = "year"  # ✅ Période par défaut
         self.refresh()
 
     def _reset_refs(self):
@@ -796,7 +794,7 @@ class DashboardPage(QWidget):
         if "quick_info"    in enabled: self._load_quick_info()
         if "invoice_table" in enabled: self._load_invoices()
         if "low_stock"     in enabled: self._load_low_stock()
-        if "top_clients"   in enabled: self._load_top_clients()
+        if "top_clients"   in enabled: self._load_top_clients("year")  # ✅ Période par défaut
         if "sales_chart"   in enabled: self._load_sales_chart()
 
     def _load_kpis(self) -> None:
@@ -977,40 +975,177 @@ class DashboardPage(QWidget):
             rl.addWidget(sl)
             self._low_stock_layout.addWidget(rw)
 
-    def _load_top_clients(self) -> None:
-        """Charge le classement des top clients."""
+    def _load_top_clients(self, period="year") -> None:
+        """Charge le classement des top clients pour une période donnée.
         
+        Args:
+            period: "year", "month", "week", "all" ou un tuple (start_date, end_date)
+        """
+        
+        # ✅ Nettoyer complètement le layout avant de le reconstruire
         while self._top_clients_layout.count():
             item = self._top_clients_layout.takeAt(0)
-            w = item.widget()
-            if w is not None: w.deleteLater()
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                # Nettoyer les sous-layouts
+                while item.layout().count():
+                    sub_item = item.layout().takeAt(0)
+                    if sub_item.widget():
+                        sub_item.widget().deleteLater()
+                item.layout().deleteLater()
+        
+        # Récupérer les dates selon la période
+        from datetime import datetime, timedelta
+        
+        today = datetime.now()
+        start_date = None
+        end_date = None
+        
+        if period == "year":
+            start_date = today.replace(month=1, day=1).strftime('%Y-%m-%d')
+            end_date = today.strftime('%Y-%m-%d')
+            period_label = "Cette année"
+        elif period == "month":
+            start_date = today.replace(day=1).strftime('%Y-%m-%d')
+            end_date = today.strftime('%Y-%m-%d')
+            period_label = "Ce mois"
+        elif period == "week":
+            start_date = (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
+            end_date = today.strftime('%Y-%m-%d')
+            period_label = "Cette semaine"
+        elif period == "all":
+            start_date = None
+            end_date = None
+            period_label = "Toutes les périodes"
+        elif isinstance(period, tuple):
+            start_date, end_date = period
+            period_label = f"Du {start_date} au {end_date}"
+        else:
+            start_date = None
+            end_date = None
+            period_label = "Toutes les périodes"
+        
         try:
-            clients = self.db.get_top_clients(limit=5)
-        except Exception:
+            # Modifier la requête SQL pour filtrer par date
+            if start_date and end_date:
+                self.db.cursor.execute("""
+                    SELECT
+                        c.name,
+                        COUNT(s.id) as sale_count,
+                        SUM(s.total) as total_amount
+                    FROM sales s
+                    JOIN clients c ON s.client_id = c.id
+                    WHERE DATE(s.sale_date) BETWEEN ? AND ?
+                    GROUP BY s.client_id
+                    ORDER BY total_amount DESC
+                    LIMIT 5
+                """, (start_date, end_date))
+            else:
+                self.db.cursor.execute("""
+                    SELECT
+                        c.name,
+                        COUNT(s.id) as sale_count,
+                        SUM(s.total) as total_amount
+                    FROM sales s
+                    JOIN clients c ON s.client_id = c.id
+                    GROUP BY s.client_id
+                    ORDER BY total_amount DESC
+                    LIMIT 5
+                """)
+            
+            clients = [dict(row) for row in self.db.cursor.fetchall()]
+            print(f"📊 Top clients pour {period_label}: {clients}")
+            
+        except Exception as e:
+            print(f"❌ Erreur chargement top clients: {e}")
             clients = []
+        
+        # ✅ Créer le conteneur principal pour les en-têtes
+        header_container = QWidget()
+        header_container.setStyleSheet("background: transparent;")
+        header_layout = QHBoxLayout(header_container)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(8)
+        
+        # Titre
+        title_label = _lbl("🏆 Top Clients", 13, bold=True, color = "#ff5865")
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        
+        # Label période
+        period_label_widget = _lbl(period_label, 9, color=COLORS['TXT_SEC'])
+        header_layout.addWidget(period_label_widget)
+        
+        # Bouton pour changer la période
+        period_btn = QPushButton("📅 Période")
+        period_btn.setFixedHeight(28)
+        period_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        period_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: rgba(99,102,241,0.15);
+                color: {COLORS['primary']};
+                border: 1px solid rgba(99,102,241,0.3);
+                border-radius: 6px;
+                font-size: 10px;
+                font-weight: bold;
+                padding: 0 12px;
+            }}
+            QPushButton:hover {{
+                background: rgba(99,102,241,0.3);
+            }}
+        """)
+        period_btn.clicked.connect(lambda: self._open_period_selector())
+        header_layout.addWidget(period_btn)
+        
+        # ✅ Ajouter au layout principal
+        self._top_clients_layout.addWidget(header_container)
+        
+        # ✅ Ajouter le séparateur
+        self._top_clients_layout.addWidget(divider())
+        
         if not clients:
             self._top_clients_layout.addWidget(
-                _lbl("Aucune donnée disponible", 11, color=COLORS['TXT_SEC']))
+                _lbl(f"Aucune donnée disponible pour {period_label}", 11, color=COLORS['TXT_SEC']))
             return
+        
         MEDAL  = ["🥇","🥈","🥉","4️⃣","5️⃣"]
-        max_t  = max((float(c.get('total_spent',0)) for c in clients), default=1) or 1
+        max_t  = max((float(c.get('total_amount',0)) for c in clients), default=1) or 1
+        
         for rank, c in enumerate(clients):
             name  = c.get('name','—')[:24]
-            total = float(c.get('total_spent',0))
+            total = float(c.get('total_amount',0))
+            sale = int(c.get('sale_count', 0))
             pct   = total / max_t
 
-            rw = QWidget()
-            rw.setStyleSheet("background:transparent;")
-            rl = QHBoxLayout(rw)
-            rl.setContentsMargins(0, 4, 0, 0)
-            rl.setSpacing(8)
-            rl.addWidget(_lbl(MEDAL[rank], 14))
-            rl.addWidget(_lbl(name, 10, bold=True), 1)
-            vl = _lbl(fmt_da(total, 0), 10, color=COLORS['primary'])
-            vl.setAlignment(Qt.AlignmentFlag.AlignRight)
-            rl.addWidget(vl)
-            self._top_clients_layout.addWidget(rw)
+            # Conteneur pour chaque client
+            client_container = QWidget()
+            client_container.setStyleSheet("background:transparent;")
+            client_layout = QHBoxLayout(client_container)
+            client_layout.setContentsMargins(0, 4, 0, 0)
+            client_layout.setSpacing(8)
+            
+            # Médaille
+            medal_label = _lbl(MEDAL[rank], 14)
+            client_layout.addWidget(medal_label)
+            
+            # Nom du client
+            name_label = _lbl(name, 10, bold=True)
+            client_layout.addWidget(name_label, 1)
+            
+            # Montant
+            amount_label = _lbl(fmt_da(total, 0), 10, color=COLORS['primary'])
+            amount_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            client_layout.addWidget(amount_label)
+            
+            # Nombre de ventes
+            sales_label = _lbl(f"({sale} vente{'s' if sale != 1 else ''})", 9, color=COLORS['TXT_SEC'])
+            sales_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            client_layout.addWidget(sales_label)
+            
+            self._top_clients_layout.addWidget(client_container)
 
+            # Barre de progression
             bar = QFrame()
             bar.setFixedHeight(3)
             bar.setStyleSheet(f"""
@@ -1022,7 +1157,186 @@ class DashboardPage(QWidget):
                 border-radius:2px; border:none;
             """)
             self._top_clients_layout.addWidget(bar)
-
+        
+        # ✅ Stocker la période actuelle pour référence
+        self._top_clients_period = period
+        self._top_clients_period_label = period_label
+        
+    def _open_period_selector(self):
+            """Ouvre un dialogue pour choisir la période des top clients."""
+            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QDateEdit, QLabel, QGroupBox, QRadioButton, QButtonGroup
+            from PyQt6.QtCore import QDate
+            
+            dialog = QDialog(self)
+            dialog.setWindowTitle("Choisir la période - Top Clients")
+            dialog.setMinimumWidth(400)
+            dialog.setStyleSheet(f"""
+                QDialog {{
+                    background: {COLORS['BG_PAGE']};
+                }}
+                QLabel {{
+                    color: {COLORS['TXT_PRI']};
+                }}
+                QGroupBox {{
+                    color: {COLORS['primary']};
+                    border: 1px solid {COLORS['BORDER']};
+                    border-radius: 8px;
+                    margin-top: 10px;
+                    font-weight: bold;
+                    padding-top: 10px;
+                }}
+                QGroupBox::title {{
+                    subcontrol-origin: margin;
+                    left: 10px;
+                    padding: 0 5px 0 5px;
+                }}
+                QRadioButton {{
+                    color: {COLORS['TXT_PRI']};
+                    spacing: 8px;
+                }}
+                QDateEdit {{
+                    background: {COLORS['BG_DEEP']};
+                    color: {COLORS['TXT_PRI']};
+                    border: 1px solid {COLORS['BORDER']};
+                    border-radius: 6px;
+                    padding: 6px;
+                }}
+            """)
+            
+            layout = QVBoxLayout(dialog)
+            layout.setSpacing(15)
+            layout.setContentsMargins(20, 20, 20, 20)
+            
+            # Groupes de périodes prédéfinies
+            group1 = QGroupBox("Périodes prédéfinies")
+            group1_layout = QVBoxLayout(group1)
+            
+            self.period_radio = QButtonGroup(dialog)
+            
+            self.rb_year = QRadioButton("Cette année")
+            self.rb_month = QRadioButton("Ce mois")
+            self.rb_week = QRadioButton("Cette semaine")
+            self.rb_all = QRadioButton("Toutes les périodes")
+            
+            # Sélectionner la période actuelle
+            current_period = getattr(self, '_top_clients_period', 'year')
+            if current_period == "year":
+                self.rb_year.setChecked(True)
+            elif current_period == "month":
+                self.rb_month.setChecked(True)
+            elif current_period == "week":
+                self.rb_week.setChecked(True)
+            elif current_period == "all":
+                self.rb_all.setChecked(True)
+            else:
+                self.rb_year.setChecked(True)
+            
+            self.period_radio.addButton(self.rb_year, 0)
+            self.period_radio.addButton(self.rb_month, 1)
+            self.period_radio.addButton(self.rb_week, 2)
+            self.period_radio.addButton(self.rb_all, 3)
+            
+            group1_layout.addWidget(self.rb_year)
+            group1_layout.addWidget(self.rb_month)
+            group1_layout.addWidget(self.rb_week)
+            group1_layout.addWidget(self.rb_all)
+            
+            layout.addWidget(group1)
+            
+            # Groupe de période personnalisée
+            group2 = QGroupBox("Période personnalisée")
+            group2_layout = QVBoxLayout(group2)
+            
+            date_layout = QHBoxLayout()
+            date_layout.addWidget(QLabel("Du :"))
+            self.start_date = QDateEdit()
+            self.start_date.setCalendarPopup(True)
+            self.start_date.setDate(QDate.currentDate().addDays(-30))
+            date_layout.addWidget(self.start_date)
+            
+            date_layout.addWidget(QLabel("Au :"))
+            self.end_date = QDateEdit()
+            self.end_date.setCalendarPopup(True)
+            self.end_date.setDate(QDate.currentDate())
+            date_layout.addWidget(self.end_date)
+            
+            group2_layout.addLayout(date_layout)
+            
+            self.custom_radio = QRadioButton("Utiliser cette période")
+            group2_layout.addWidget(self.custom_radio)
+            self.period_radio.addButton(self.custom_radio, 4)
+            
+            layout.addWidget(group2)
+            
+            # Connecter le signal pour désactiver le custom quand une prédéfinie est choisie
+            def on_radio_changed():
+                if self.custom_radio.isChecked():
+                    self.start_date.setEnabled(True)
+                    self.end_date.setEnabled(True)
+                else:
+                    self.start_date.setEnabled(False)
+                    self.end_date.setEnabled(False)
+            
+            self.custom_radio.toggled.connect(on_radio_changed)
+            on_radio_changed()
+            
+            # Boutons
+            btn_layout = QHBoxLayout()
+            btn_layout.setSpacing(10)
+            
+            cancel_btn = QPushButton("Annuler")
+            cancel_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: transparent;
+                    color: {COLORS['TXT_SEC']};
+                    border: 1px solid {COLORS['BORDER']};
+                    border-radius: 6px;
+                    padding: 8px 16px;
+                }}
+                QPushButton:hover {{
+                    background: rgba(255,255,255,0.05);
+                }}
+            """)
+            cancel_btn.clicked.connect(dialog.reject)
+            
+            apply_btn = QPushButton("Appliquer")
+            apply_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background: {COLORS['primary']};
+                    color: white;
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px 20px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background: {COLORS['secondary']};
+                }}
+            """)
+            apply_btn.clicked.connect(dialog.accept)
+            
+            btn_layout.addStretch()
+            btn_layout.addWidget(cancel_btn)
+            btn_layout.addWidget(apply_btn)
+            layout.addLayout(btn_layout)
+            
+            if dialog.exec():
+                selected_id = self.period_radio.checkedId()
+                
+                if selected_id == 0:  # Cette année
+                    self._load_top_clients("year")
+                elif selected_id == 1:  # Ce mois
+                    self._load_top_clients("month")
+                elif selected_id == 2:  # Cette semaine
+                    self._load_top_clients("week")
+                elif selected_id == 3:  # Toutes les périodes
+                    self._load_top_clients("all")
+                elif selected_id == 4:  # Personnalisé
+                    start = self.start_date.date().toString("yyyy-MM-dd")
+                    end = self.end_date.date().toString("yyyy-MM-dd")
+                    self._load_top_clients((start, end))
+                
+            
     def _load_sales_chart(self) -> None:
         """Charge le graphique ventes 7 derniers jours."""
         
