@@ -1058,7 +1058,6 @@ class DashboardPage(QWidget):
             print(f"📊 Top clients pour {period_label}: {clients}")
             
         except Exception as e:
-            print(f"❌ Erreur chargement top clients: {e}")
             clients = []
         
         # ✅ Créer le conteneur principal pour les en-têtes
