@@ -16,6 +16,8 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from db_manager import get_database
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from datetime import datetime
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -693,9 +695,10 @@ class ReturnsPage(QWidget):
             return
         
         try:
-            # Demander l'emplacement du fichier
+            from PyQt6.QtWidgets import QFileDialog  # ✅ Ajouter cet import
+        
             default_name = f"avoir_{ret.get('return_number', 'export')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            file_path, _ = self.QFileDialog.getSaveFileName(
+            file_path, _ = QFileDialog.getSaveFileName(  # ✅ Enlever self.
                 self,
                 "Exporter l'avoir en Excel",
                 default_name,
