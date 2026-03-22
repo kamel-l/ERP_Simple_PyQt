@@ -510,43 +510,100 @@ class WidgetBuilder:
         lay.addStretch()
         card.value_label = vl
         return card
-
+    
+    
     # Tableau factures
     def build_invoice_table(self) -> QFrame:
-        card = _card_frame("inv")
-        lay  = QVBoxLayout(card)
-        lay.setContentsMargins(20, 18, 20, 18)
-        lay.setSpacing(14)
-        hdr = QHBoxLayout()
-        hdr.addWidget(_lbl("🧾  Dernières Factures", 13, bold=True))
-        hdr.addStretch()
-        hdr.addWidget(_lbl("10 dernières", 9, color=COLORS['TXT_SEC']))
-        lay.addLayout(hdr)
-        lay.addWidget(divider())
+        """Tableau des dernières factures — version harmonisée premium."""
 
-        tbl = QTableWidget(0, 6)
-        tbl.setHorizontalHeaderLabels(["Facture","Client","Total","Date","Paiement",""])
-        tbl.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        tbl.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-        tbl.setColumnWidth(5, 90)
-        tbl.verticalHeader().setVisible(False)
-        tbl.setAlternatingRowColors(True)
-        tbl.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        tbl.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        tbl.setShowGrid(False)
-        tbl.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        tbl.setMinimumHeight(260)
-        tbl.setStyleSheet(f"""
-            QTableWidget {{ background:transparent; alternate-background-color:rgba(255,255,255,0.03);
-                color:{COLORS['TXT_PRI']}; border:none; font-size:12px; }}
-            QHeaderView::section {{ background:{COLORS['BG_DEEP']}; color:{COLORS['TXT_SEC']};
-                font-size:11px; font-weight:bold; padding:10px 8px; border:none;
-                border-bottom:1px solid {COLORS['BORDER']}; }}
-            QTableWidget::item {{ padding:10px 8px; border-bottom:1px solid rgba(255,255,255,0.04); }}
-            QTableWidget::item:selected {{ background:rgba(99,102,241,0.15); color:#A855F7; }}
+        # ────────────────────────────────────────────────
+        # 1) CARD PRINCIPALE (utilise le helper standard)
+        # ────────────────────────────────────────────────
+        card = _card_frame("inv")
+        card.setMinimumWidth(580)
+        card.setMaximumWidth(800)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(12)
+
+        # ────────────────────────────────────────────────
+        # 2) EN-TÊTE IDENTIQUE AUX AUTRES WIDGETS
+        # ────────────────────────────────────────────────
+        header = QHBoxLayout()
+        header.setSpacing(6)
+
+        title = _lbl("🧾  Dernières Factures", 13, bold=True)
+        badge = _lbl("10 dernières", 9, color=COLORS['TXT_SEC'])
+
+        header.addWidget(title)
+        header.addStretch()
+        header.addWidget(badge)
+
+        layout.addLayout(header)
+        layout.addWidget(divider())
+
+        # ────────────────────────────────────────────────
+        # 3) TABLEAU ULTRA-MODERNE
+        # ────────────────────────────────────────────────
+        table = QTableWidget(0, 6)
+        table.setHorizontalHeaderLabels([
+            "Facture", "Client", "Total", "Date", "Paiement", ""
+        ])
+
+        # header
+        header_view = table.horizontalHeader()
+        header_view.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        header_view.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+
+        table.setColumnWidth(5, 70)
+        table.verticalHeader().setVisible(False)
+
+        # comportements
+        table.setAlternatingRowColors(True)
+        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        table.setShowGrid(False)
+        table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        table.setMinimumHeight(260)
+
+        # ────────────────────────────────────────────────
+        # 4) STYLE HARMONISÉ
+        # ────────────────────────────────────────────────
+        table.setStyleSheet(f"""
+            QTableWidget {{
+                background: transparent;
+                color: {COLORS['TXT_PRI']};
+                border: none;
+                font-size: 12px;
+                alternate-background-color: rgba(255,255,255,0.03);
+            }}
+
+            QHeaderView::section {{
+                background: {COLORS['BG_DEEP']};
+                color: {COLORS['TXT_SEC']};
+                font-size: 11px;
+                padding: 10px 8px;
+                font-weight: bold;
+                border: none;
+                border-bottom: 1px solid {COLORS['BORDER']};
+            }}
+
+            QTableWidget::item {{
+                padding: 8px 8px;
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+            }}
+
+            QTableWidget::item:selected {{
+                background: rgba(99,102,241,0.20);
+                color: #A855F7;
+            }}
         """)
-        lay.addWidget(tbl)
-        self.page.invoice_table = tbl  # Stocker la référence
+
+        layout.addWidget(table)
+
+        # stocker la référence globalement
+        self.page.invoice_table = table
         return card
 
     # Stock faible
@@ -705,12 +762,6 @@ class DashboardPage(QWidget):
         order   = self._cfg.get("order", DEFAULT_ORDER)
         to_build = [w for w in order if w in enabled]
 
-        # Traitement spécial pour les widgets qui peuvent être combinés
-        has_activities = "activities" in to_build
-        has_quick_info = "quick_info" in to_build
-        has_low_stock = "low_stock" in to_build
-        has_top_clients = "top_clients" in to_build
-
         processed = set()
 
         for wid in to_build:
@@ -721,34 +772,51 @@ class DashboardPage(QWidget):
                 kpi_layout = builder.build_kpi_row()
                 self._main.addLayout(kpi_layout)
 
+            # Paire 1: Activités + Infos Rapides
             elif wid == "activities":
                 act = builder.build_activities()
-                if has_quick_info:
+                if "quick_info" in to_build:
                     qi = builder.build_quick_info()
                     row = QHBoxLayout()
                     row.setSpacing(16)
-                    row.addWidget(act, 3)
-                    row.addLayout(qi, 2)
+                    row.addWidget(act, 1)
+                    row.addLayout(qi, 1)
                     self._main.addLayout(row)
                     processed.add("quick_info")
                 else:
                     self._main.addWidget(act)
 
             elif wid == "quick_info":
-                if not has_activities:  # Seulement si activities n'est pas présent
+                if "quick_info" not in processed and "activities" not in to_build:
                     qi = builder.build_quick_info()
                     row = QHBoxLayout()
                     row.setSpacing(16)
                     row.addLayout(qi)
                     self._main.addLayout(row)
 
+            # Paire 2: Factures + Graphique Ventes
             elif wid == "invoice_table":
                 inv_table = builder.build_invoice_table()
-                self._main.addWidget(inv_table)
+                if "sales_chart" in to_build:
+                    sc = builder.build_sales_chart()
+                    row = QHBoxLayout()
+                    row.setSpacing(16)
+                    row.addWidget(inv_table, 2)
+                    row.addWidget(sc, 1)
+                    self._main.addLayout(row)
+                    processed.add("sales_chart")
+                else:
+                    self._main.addWidget(inv_table)
 
+            elif wid == "sales_chart":
+                if "sales_chart" not in processed and "invoice_table" not in to_build:
+                    sc = builder.build_sales_chart()
+                    self._main.addWidget(sc)
+
+            # Paire 3: Stock Faible + Top Clients
             elif wid == "low_stock":
                 ls = builder.build_low_stock()
-                if has_top_clients:
+                if "top_clients" in to_build:
                     tc = builder.build_top_clients()
                     row = QHBoxLayout()
                     row.setSpacing(16)
@@ -760,13 +828,9 @@ class DashboardPage(QWidget):
                     self._main.addWidget(ls)
 
             elif wid == "top_clients":
-                if not has_low_stock:  # Seulement si low_stock n'est pas présent
+                if "top_clients" not in processed and "low_stock" not in to_build:
                     tc = builder.build_top_clients()
                     self._main.addWidget(tc)
-
-            elif wid == "sales_chart":
-                sc = builder.build_sales_chart()
-                self._main.addWidget(sc)
 
     # ── Éditeur ──────────────────────────────────────────────
 
@@ -1337,7 +1401,7 @@ class DashboardPage(QWidget):
                 
             
     def _load_sales_chart(self) -> None:
-        """Charge le graphique ventes 7 derniers jours."""
+        """Charge et affiche un graphique des ventes avec tous les 7 jours"""
         
         while self._sales_chart_layout.count():
             item = self._sales_chart_layout.takeAt(0)
@@ -1345,82 +1409,121 @@ class DashboardPage(QWidget):
             if w is not None:
                 w.deleteLater()
         
+        from datetime import datetime, timedelta
+        
+        today = datetime.now().date()
+        jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+        jours_court = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+        
+        # Récupérer les ventes des 7 derniers jours
         try:
             self.db.cursor.execute("""
-                SELECT DATE(sale_date) as day,
+                SELECT 
+                    DATE(sale_date) as day,
                     SUM(total) as total,
                     COUNT(*) as nb
                 FROM sales
                 WHERE sale_date >= DATE('now', '-7 days')
-                GROUP BY day ORDER BY day
+                GROUP BY DATE(sale_date)
             """)
             rows = self.db.cursor.fetchall()
-        except Exception:
-            rows = []
-
-        if not rows:
-            self._sales_chart_layout.addWidget(
-                _lbl("Aucune vente sur les 7 derniers jours", 11,
-                    color=COLORS['TXT_SEC']))
-            return
-
-        JOURS  = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"]
-        max_v  = max((float(r[1] if not hasattr(r, 'keys') else r['total'])
-                    for r in rows), default=1) or 1
+            
+            # Mettre dans un dictionnaire
+            sales_data = {}
+            for row in rows:
+                if hasattr(row, 'keys'):
+                    day = row['day']
+                    total = float(row['total'])
+                    nb = int(row['nb'])
+                else:
+                    day = row[0]
+                    total = float(row[1])
+                    nb = int(row[2])
+                sales_data[day] = {'total': total, 'nb': nb}
+                
+        except Exception as e:
+            print(f"❌ Erreur: {e}")
+            sales_data = {}
         
-        for i, row in enumerate(rows):
-            try:
-                day   = str(row['day']   if hasattr(row, 'keys') else row[0])
-                total = float(row['total'] if hasattr(row, 'keys') else row[1])
-                nb    = int(row['nb']    if hasattr(row, 'keys') else row[2])
-            except Exception:
-                continue
+        # Créer les 7 jours
+        all_days = []
+        for i in range(6, -1, -1):
+            day_date = today - timedelta(days=i)
+            all_days.append(day_date)
+        
+        # Calculer le maximum
+        totals = [sales_data.get(str(day), {}).get('total', 0) for day in all_days]
+        max_total = max(totals) if totals else 1
+        
+        # Afficher chaque jour
+        for day_date in all_days:
+            day_str = str(day_date)
+            total = sales_data.get(day_str, {}).get('total', 0)
+            nb = sales_data.get(day_str, {}).get('nb', 0)
             
-            try:
-                import datetime
-                dn = JOURS[datetime.date.fromisoformat(day).weekday()]
-            except Exception:
-                dn = day[-5:]
+            # Format du jour
+            day_name = jours_court[day_date.weekday()]
+            day_display = f"{day_name} {day_date.day:02d}/{day_date.month:02d}"
             
-            # ✅ Utiliser un layout horizontal simple
             row_layout = QHBoxLayout()
             row_layout.setSpacing(10)
             
             # Jour
-            day_label = _lbl(f"{dn}", 10, bold=True, color=COLORS['primary'])
-            day_label.setFixedWidth(40)
+            day_label = _lbl(day_display, 10, bold=True, color=COLORS['primary'])
+            day_label.setFixedWidth(75)
             row_layout.addWidget(day_label)
             
             # Barre
-            bar_w = QProgressBar()
-            bar_w.setRange(0, 1000)
-            bar_w.setValue(int((total / max_v) * 1000))
-            bar_w.setTextVisible(False)
-            bar_w.setFixedHeight(24)
-            bar_w.setStyleSheet(f"""
-                QProgressBar {{
-                    background: {COLORS['BG_DEEP']};
-                    border-radius: 4px;
-                    border: none;
-                }}
-                QProgressBar::chunk {{
-                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                        stop:0 {COLORS['primary']}, stop:1 {COLORS['secondary']});
-                    border-radius: 4px;
-                }}
-            """)
-            row_layout.addWidget(bar_w, 1)  # Stretch pour prendre l'espace
+            bar = QProgressBar()
+            bar.setRange(0, 1000)
+            bar.setValue(int((total / max_total) * 1000) if max_total > 0 else 0)
+            bar.setTextVisible(False)
+            bar.setFixedHeight(28)
+            
+            if total == 0:
+                bar.setStyleSheet(f"""
+                    QProgressBar {{
+                        background: {COLORS['BG_DEEP']};
+                        border-radius: 6px;
+                        border: none;
+                    }}
+                    QProgressBar::chunk {{
+                        background: #374151;
+                        border-radius: 6px;
+                    }}
+                """)
+            else:
+                bar.setStyleSheet(f"""
+                    QProgressBar {{
+                        background: {COLORS['BG_DEEP']};
+                        border-radius: 6px;
+                        border: none;
+                    }}
+                    QProgressBar::chunk {{
+                        background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+                            stop:0 #6366F1, stop:1 #A855F7);
+                        border-radius: 6px;
+                    }}
+                """)
+            row_layout.addWidget(bar, 1)
             
             # Montant
-            amount_label = _lbl(fmt_da(total, 0), 10, bold=True, color=COLORS['success'])
-            amount_label.setMinimumWidth(90)
-            amount_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-            row_layout.addWidget(amount_label)
+            amount_text = fmt_da(total, 0) if total > 0 else "0 DA"
+            amount_color = COLORS['success'] if total > 0 else COLORS['TXT_SEC']
+            amount = _lbl(amount_text, 10, bold=True, color=amount_color)
+            amount.setMinimumWidth(100)
+            amount.setAlignment(Qt.AlignmentFlag.AlignRight)
+            row_layout.addWidget(amount)
             
             # Nombre de ventes
-            count_label = _lbl(f"({nb})", 9, color=COLORS['TXT_SEC'])
-            count_label.setFixedWidth(45)
-            row_layout.addWidget(count_label)
+            if nb > 0:
+                count_text = f"({nb} vente{'s' if nb > 1 else ''})"
+                count = _lbl(count_text, 9, color=COLORS['TXT_SEC'])
+            else:
+                count = _lbl("(aucune)", 9, color=COLORS['TXT_SEC'])
+            count.setMinimumWidth(70)
+            count.setAlignment(Qt.AlignmentFlag.AlignRight)
+            row_layout.addWidget(count)
             
             self._sales_chart_layout.addLayout(row_layout)
 
