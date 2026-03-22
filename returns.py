@@ -75,11 +75,33 @@ class ReturnDialog(QDialog):
         self.items_table.setHorizontalHeaderLabels(
             ["Article", "Prix Unit.", "Qté vendue", "Qté à retourner", "Remboursement"]
         )
-        self.items_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        
+        # Configuration des colonnes
+        header = self.items_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        
+        # Largeurs des colonnes
+        self.items_table.setColumnWidth(1, 100)   # Prix Unit.
+        self.items_table.setColumnWidth(2, 90)    # Qté vendue
+        self.items_table.setColumnWidth(3, 150)   # Qté à retourner
+        self.items_table.setColumnWidth(4, 120)   # Remboursement
+        
+        # ✅ Définir une hauteur de ligne uniforme
+        self.items_table.verticalHeader().setDefaultSectionSize(48)  # Hauteur de ligne fixe
+        
         self.items_table.verticalHeader().setVisible(False)
         self.items_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.items_table.setAlternatingRowColors(True)
-        self.items_table.setStyleSheet(TABLE_STYLE)
+        self.items_table.setStyleSheet(f"""
+            {TABLE_STYLE}
+            QTableWidget::item {{
+                padding: 8px 6px;
+            }}
+        """)
         self.items_table.setMinimumHeight(200)
         layout.addWidget(self.items_table)
 
@@ -172,6 +194,9 @@ class ReturnDialog(QDialog):
             spin.setMinimum(0)
             spin.setMaximum(qty)
             spin.setValue(qty)
+            # ✅ Désactiver les flèches
+            spin.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)  # Pas de flèches
+            # Alternative: spin.setButtonSymbols(QSpinBox.ButtonSymbols.UpDownArrows) pour les réactiver
             spin.setStyleSheet("""
                 QSpinBox {
                     background: #0F1117; color: #E2E8F0;
@@ -406,7 +431,7 @@ class ReturnsPage(QWidget):
                 (ret.get("return_number", "—"),    "#F1F5F9"),
                 (ret.get("invoice_number", "—"),    COLORS.get("text_secondary","#A0AACC")),
                 (ret.get("client_name", "Anonyme"), COLORS.get("text_secondary","#A0AACC")),
-                (motif,                             motif_col),
+                (motif,                             motif_col), 
                 (f"{float(ret.get('total',0)):,.2f} DA", "#EF4444"),
                 (date_str,                          COLORS.get("text_tertiary","#6B7280")),
             ]
@@ -433,14 +458,17 @@ class ReturnsPage(QWidget):
             det_btn.clicked.connect(lambda _, r=ret: self._show_detail(r))
             self.table.setCellWidget(row, 6, det_btn)
             self.table.setRowHeight(row, 44)
+            
+            
     def _show_detail(self, ret: dict) -> None:
         """Affiche le détail d'un avoir dans un dialogue."""
         dlg = QDialog(self)
         dlg.setWindowTitle(f"🔍 Détail Avoir — {ret.get('return_number','—')}")
-        dlg.setMinimumWidth(520)
+        dlg.setMinimumWidth(620)
+        dlg.setMinimumHeight(500)
         dlg.setStyleSheet(f"""
-            QDialog {{ background: {COLORS.get('bg_dark','#0F1117')}; }}
-            QLabel  {{ color: {COLORS.get('text_primary','#F0F4FF')}; }}
+            QDialog {{ background: {COLORS.get('bg_dark', '#0F1117')}; }}
+            QLabel  {{ color: {COLORS.get('text_primary', '#F0F4FF')}; }}
         """)
         lay = QVBoxLayout(dlg)
         lay.setContentsMargins(24, 24, 24, 24)
@@ -456,7 +484,7 @@ class ReturnsPage(QWidget):
             row_w = QFrame()
             row_w.setStyleSheet(f"""
                 QFrame {{ background: rgba(255,255,255,0.04);
-                          border-radius: 8px; border: 1px solid rgba(255,255,255,0.07); }}
+                        border-radius: 8px; border: 1px solid rgba(255,255,255,0.07); }}
             """)
             rl = QHBoxLayout(row_w)
             rl.setContentsMargins(14, 8, 14, 8)
@@ -464,12 +492,12 @@ class ReturnsPage(QWidget):
             lbl.setFixedWidth(170)
             lbl.setFont(QFont("Segoe UI", 10))
             lbl.setStyleSheet("color: rgba(160,170,204,0.8); border:none;")
-            val = QLabel(str(value) if value else "—")
-            val.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-            val.setStyleSheet(f"color: {color}; border:none;")
-            val.setWordWrap(True)
+            val_lbl = QLabel(str(value) if value else "—")
+            val_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            val_lbl.setStyleSheet(f"color: {color}; border:none;")
+            val_lbl.setWordWrap(True)
             rl.addWidget(lbl)
-            rl.addWidget(val, 1)
+            rl.addWidget(val_lbl, 1)
             return row_w
 
         lay.addWidget(info_row("N° Avoir",          ret.get("return_number"), "#EF4444"))
@@ -481,75 +509,317 @@ class ReturnsPage(QWidget):
         if ret.get("notes"):
             lay.addWidget(info_row("Notes", ret.get("notes"), "#A0AACC"))
 
-        # Articles retournés
+        # ✅ Correction: accès correct aux données sqlite3.Row
         try:
             self.db.cursor.execute("""
-                SELECT ri.quantity, ri.unit_price, ri.total,
-                       COALESCE(p.name, 'Produit supprimé') as product_name
+                SELECT 
+                    ri.id,
+                    ri.product_id,
+                    ri.quantity,
+                    ri.unit_price,
+                    ri.total,
+                    COALESCE(p.name, 'Produit supprimé') as product_name,
+                    COALESCE(p.barcode, '') as product_reference
                 FROM return_items ri
                 LEFT JOIN products p ON ri.product_id = p.id
                 WHERE ri.return_id = ?
+                ORDER BY ri.id
             """, (ret.get("id"),))
             items = self.db.cursor.fetchall()
-        except Exception:
+            
+            for item in items:
+                # Accès par index (plus fiable avec sqlite3.Row)
+                product_name = item[5] if len(item) > 5 else 'Produit inconnu'
+                quantity = item[2] if len(item) > 2 else 0
+                unit_price = float(item[3]) if len(item) > 3 else 0
+                total = float(item[4]) if len(item) > 4 else 0
+                
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
             items = []
 
         if items:
             art_lbl = QLabel("📋 Articles retournés")
             art_lbl.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-            art_lbl.setStyleSheet("color: #F0F4FF; margin-top: 4px;")
+            art_lbl.setStyleSheet("color: #F0F4FF; margin-top: 8px;")
             lay.addWidget(art_lbl)
 
+            # Tableau des articles retournés
             art_tbl = QTableWidget(len(items), 4)
-            art_tbl.setHorizontalHeaderLabels(["Produit","Qté","Prix Unit.","Total"])
-            art_tbl.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-            art_tbl.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-            art_tbl.setColumnWidth(1, 60)
-            art_tbl.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-            art_tbl.setColumnWidth(2, 110)
-            art_tbl.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-            art_tbl.setColumnWidth(3, 110)
+            art_tbl.setHorizontalHeaderLabels(["Produit", "Qté", "Prix Unit.", "Total"])
+            
+            # Configuration des colonnes
+            header = art_tbl.horizontalHeader()
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)  # Produit
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)    # Qté
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)    # Prix Unit.
+            header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)    # Total
+            
+            art_tbl.setColumnWidth(1, 70)   # Qté
+            art_tbl.setColumnWidth(2, 110)  # Prix Unit.
+            art_tbl.setColumnWidth(3, 120)  # Total
+            
             art_tbl.verticalHeader().setVisible(False)
             art_tbl.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-            art_tbl.setFixedHeight(min(40 + len(items) * 36, 220))
+            art_tbl.setAlternatingRowColors(True)
+            art_tbl.setMinimumHeight(min(40 + len(items) * 40, 250))
             art_tbl.setStyleSheet(f"""
-                QTableWidget {{ background: rgba(0,0,0,0.3); border: none;
-                                color: #F0F4FF; font-size: 11px; }}
-                QHeaderView::section {{ background: rgba(239,68,68,0.15);
-                    color: #EF4444; font-weight: bold; padding: 6px;
-                    border: none; border-bottom: 2px solid #EF4444; }}
+                QTableWidget {{ 
+                    background: rgba(0,0,0,0.3); 
+                    border: none;
+                    color: #F0F4FF; 
+                    font-size: 11px; 
+                }}
+                QHeaderView::section {{ 
+                    background: rgba(239,68,68,0.15);
+                    color: #EF4444; 
+                    font-weight: bold; 
+                    padding: 8px;
+                    border: none; 
+                    border-bottom: 2px solid #EF4444;
+                }}
+                QTableWidget::item {{
+                    padding: 8px 6px;
+                }}
             """)
+            
             for i, item in enumerate(items):
-                name  = item[3] if not hasattr(item, "keys") else item["product_name"]
-                qty   = item[0] if not hasattr(item, "keys") else item["quantity"]
-                price = float(item[1] if not hasattr(item, "keys") else item["unit_price"])
-                total = float(item[2] if not hasattr(item, "keys") else item["total"])
-                for j, (v, col) in enumerate([
-                    (str(name),            "#F0F4FF"),
-                    (str(qty),             "#A0AACC"),
-                    (f"{price:,.2f} DA",   "#A0AACC"),
-                    (f"{total:,.2f} DA",   "#EF4444"),
-                ]):
-                    it = QTableWidgetItem(v)
-                    it.setForeground(QColor(col))
-                    it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                    art_tbl.setItem(i, j, it)
-                art_tbl.setRowHeight(i, 36)
+                # ✅ Accès par index pour sqlite3.Row
+                product_name = item[5] if len(item) > 5 else 'Produit inconnu'
+                quantity = item[2] if len(item) > 2 else 0
+                unit_price = float(item[3]) if len(item) > 3 else 0
+                total = float(item[4]) if len(item) > 4 else 0
+                
+                # Afficher chaque colonne
+                product_item = QTableWidgetItem(str(product_name))
+                product_item.setForeground(QColor("#F0F4FF"))
+                art_tbl.setItem(i, 0, product_item)
+                
+                qty_item = QTableWidgetItem(str(quantity))
+                qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                qty_item.setForeground(QColor("#A0AACC"))
+                art_tbl.setItem(i, 1, qty_item)
+                
+                price_item = QTableWidgetItem(f"{unit_price:,.2f} DA")
+                price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+                price_item.setForeground(QColor("#A0AACC"))
+                art_tbl.setItem(i, 2, price_item)
+                
+                total_item = QTableWidgetItem(f"{total:,.2f} DA")
+                total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+                total_item.setForeground(QColor("#EF4444"))
+                art_tbl.setItem(i, 3, total_item)
+                
+                art_tbl.setRowHeight(i, 40)
+            
             lay.addWidget(art_tbl)
+        else:
+            # Message si aucun article trouvé
+            no_items_lbl = QLabel("⚠️ Aucun article retourné trouvé pour cet avoir")
+            no_items_lbl.setFont(QFont("Segoe UI", 10))
+            no_items_lbl.setStyleSheet(f"color: {COLORS.get('warning', '#F59E0B')}; padding: 20px;")
+            no_items_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lay.addWidget(no_items_lbl)
+            items = []  # Pour éviter l'erreur plus tard
+            
+            # ✅ Boutons (Fermer et Exporter)
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(12)
+        
+        export_btn = QPushButton("📊 Exporter en Excel")
+        export_btn.setFixedHeight(38)
+        export_btn.setFixedWidth(150)
+        export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        export_btn.setStyleSheet("""
+            QPushButton { 
+                background: rgba(16,185,129,0.15); 
+                color: #10B981;
+                border: 1px solid rgba(16,185,129,0.35);
+                border-radius: 8px; 
+                font-size: 12px; 
+                font-weight: bold; 
+            }
+            QPushButton:hover { 
+                background: rgba(16,185,129,0.3); 
+                color: white; 
+            }
+        """)
+        export_btn.clicked.connect(lambda: self._export_return_to_excel(ret, items))
 
         close_btn = QPushButton("✖  Fermer")
         close_btn.setFixedHeight(38)
         close_btn.setFixedWidth(120)
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.setStyleSheet("""
-            QPushButton { background: rgba(239,68,68,0.15); color: #EF4444;
+            QPushButton { 
+                background: rgba(239,68,68,0.15); 
+                color: #EF4444;
                 border: 1px solid rgba(239,68,68,0.35);
-                border-radius: 8px; font-size: 12px; font-weight: bold; }
-            QPushButton:hover { background: rgba(239,68,68,0.3); color: white; }
+                border-radius: 8px; 
+                font-size: 12px; 
+                font-weight: bold; 
+            }
+            QPushButton:hover { 
+                background: rgba(239,68,68,0.3); 
+                color: white; 
+            }
         """)
         close_btn.clicked.connect(dlg.accept)
         btn_row = QHBoxLayout()
         btn_row.addStretch()
+        btn_row.addWidget(export_btn)
         btn_row.addWidget(close_btn)
         lay.addLayout(btn_row)
+        
         dlg.exec()
+        
+        
+    import os
+    from datetime import datetime
+    from PyQt6.QtWidgets import QFileDialog
+
+    # Ajoutez cette méthode à la classe ReturnsPage
+    def _export_return_to_excel(self, ret: dict, items: list):
+        """Exporte les détails de l'avoir vers un fichier Excel"""
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            QMessageBox.warning(self, "Module manquant", 
+                "La bibliothèque 'openpyxl' n'est pas installée.\n"
+                "Installez-la avec: pip install openpyxl")
+            return
+        
+        try:
+            # Demander l'emplacement du fichier
+            default_name = f"avoir_{ret.get('return_number', 'export')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            file_path, _ = self.QFileDialog.getSaveFileName(
+                self,
+                "Exporter l'avoir en Excel",
+                default_name,
+                "Excel Files (*.xlsx);;All Files (*)"
+            )
+            
+            if not file_path:
+                return
+            
+            # Créer le classeur
+            wb = Workbook()
+            ws = wb.active
+            ws.title = f"Avoir {ret.get('return_number', '')}"
+            
+            # Styles
+            header_font = Font(name='Segoe UI', size=12, bold=True, color='FFFFFF')
+            header_fill = PatternFill(start_color='EF4444', end_color='EF4444', fill_type='solid')
+            header_alignment = Alignment(horizontal='center', vertical='center')
+            
+            title_font = Font(name='Segoe UI', size=14, bold=True, color='EF4444')
+            info_label_font = Font(name='Segoe UI', size=11, bold=True)
+            info_value_font = Font(name='Segoe UI', size=11)
+            
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+            
+            # Ligne 1: Titre
+            ws.merge_cells('A1:F1')
+            title_cell = ws['A1']
+            title_cell.value = f"AVOIR N° {ret.get('return_number', '—')}"
+            title_cell.font = title_font
+            title_cell.alignment = Alignment(horizontal='center', vertical='center')
+            
+            # Ligne 2: Informations générales
+            row = 3
+            info_data = [
+                ("Facture d'origine", ret.get('invoice_number', '—')),
+                ("Client", ret.get('client_name', 'Anonyme')),
+                ("Motif", ret.get('motif', '—')),
+                ("Montant remboursé", f"{float(ret.get('total', 0)):,.2f} DA"),
+                ("Date", str(ret.get('return_date', '—')).split('.')[0]),
+            ]
+            
+            for label, value in info_data:
+                ws.cell(row=row, column=1, value=label).font = info_label_font
+                ws.cell(row=row, column=2, value=value).font = info_value_font
+                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=6)
+                row += 1
+            
+            if ret.get('notes'):
+                ws.cell(row=row, column=1, value="Notes").font = info_label_font
+                ws.cell(row=row, column=2, value=ret.get('notes')).font = info_value_font
+                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=6)
+                row += 1
+            
+            # Ligne vide
+            row += 1
+            
+            # En-tête du tableau des articles
+            headers = ["Produit", "Quantité", "Prix Unitaire", "Total"]
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=row, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = thin_border
+            
+            row += 1
+            
+            # ✅ Correction: Remplir le tableau avec accès par index
+            total_amount = 0
+            for item in items:
+                # Accès par index pour sqlite3.Row
+                # Ordre des colonnes: id, product_id, quantity, unit_price, total, product_name, product_reference
+                product_name = item[5] if len(item) > 5 else 'Produit inconnu'
+                quantity = item[2] if len(item) > 2 else 0
+                unit_price = float(item[3]) if len(item) > 3 else 0
+                total = float(item[4]) if len(item) > 4 else 0
+                
+                ws.cell(row=row, column=1, value=product_name).border = thin_border
+                ws.cell(row=row, column=2, value=quantity).border = thin_border
+                ws.cell(row=row, column=3, value=unit_price).border = thin_border
+                ws.cell(row=row, column=4, value=total).border = thin_border
+                
+                # Alignement
+                ws.cell(row=row, column=2).alignment = Alignment(horizontal='center')
+                ws.cell(row=row, column=3).alignment = Alignment(horizontal='right')
+                ws.cell(row=row, column=4).alignment = Alignment(horizontal='right')
+                
+                total_amount += total
+                row += 1
+            
+            # Ligne de total
+            ws.cell(row=row, column=3, value="TOTAL:").font = Font(bold=True)
+            ws.cell(row=row, column=3).alignment = Alignment(horizontal='right')
+            total_cell = ws.cell(row=row, column=4, value=total_amount)
+            total_cell.font = Font(bold=True, color='EF4444')
+            total_cell.alignment = Alignment(horizontal='right')
+            total_cell.border = thin_border
+            
+            # Ajuster les largeurs des colonnes
+            column_widths = [40, 10, 15, 15]
+            for i, width in enumerate(column_widths, 1):
+                ws.column_dimensions[get_column_letter(i)].width = width
+            
+            # Sauvegarder
+            wb.save(file_path)
+            
+            QMessageBox.information(
+                self,
+                "Export réussi",
+                f"L'avoir a été exporté avec succès vers :\n{file_path}"
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Erreur d'export",
+                f"Une erreur est survenue lors de l'export :\n{str(e)}"
+            )
+            print(f"❌ Erreur export Excel: {e}")
+            import traceback
+            traceback.print_exc()

@@ -261,6 +261,7 @@ class ProductEditDialog(QDialog):
         self.qty_edit = QLineEdit("1")
         self.qty_edit.setMinimumHeight(40)
         self.qty_edit.setValidator(QIntValidator(1, 999999))
+        self.qty_edit.setPlaceholderText("Ex: 10")
         self.qty_edit.setStyleSheet(f"""
             QLineEdit {{
                 font-size: 16px;
@@ -268,6 +269,11 @@ class ProductEditDialog(QDialog):
                 color: {COLORS['primary']};
             }}
         """)
+        # Sélectionner tout au focus pour faciliter la saisie
+        self.qty_edit.focusInEvent = lambda e: (
+            super(type(self.qty_edit), self.qty_edit).focusInEvent(e),
+            self.qty_edit.selectAll()
+        )
         form_layout.addRow("Quantité à acheter: *", self.qty_edit)
 
         main_layout.addWidget(form_container)
@@ -313,14 +319,25 @@ class ProductEditDialog(QDialog):
         except ValueError:
             QMessageBox.warning(self, "Erreur", "Le prix de vente est invalide!")
             return
+        # Lire et nettoyer la valeur du champ quantité
+        qty_text = self.qty_edit.text().strip()
+        if not qty_text:
+            QMessageBox.warning(self, "Erreur", "Veuillez saisir une quantité!")
+            self.qty_edit.setFocus()
+            self.qty_edit.setText("1")
+            self.qty_edit.selectAll()
+            return
         try:
-            qty = int(self.qty_edit.text())
+            qty = int(qty_text)
             if qty < 1:
-                raise ValueError
-            self.quantity = qty
+                raise ValueError("Quantité < 1")
         except ValueError:
             QMessageBox.warning(self, "Erreur", "La quantité doit être un entier ≥ 1!")
+            self.qty_edit.setFocus()
+            self.qty_edit.selectAll()
             return
+        self.quantity = qty   # ← assigné seulement si tout est valide
+        print(f"✅ Quantité saisie et stockée: {self.quantity}")  # Debug
         self.accept()
 
 
@@ -439,6 +456,7 @@ class ProductSelectorDialog(QDialog):
                 product = item.data(Qt.ItemDataRole.UserRole)
                 edit_dialog = ProductEditDialog(product, parent=self)
                 if edit_dialog.exec():
+                    print(f"📦 ProductSelectorDialog - Dialog accepté, quantité: {edit_dialog.quantity}")  # Debug
                     # Sauvegarder les modifications en base
                     self.db.update_product(
                         product['id'],
@@ -454,9 +472,11 @@ class ProductSelectorDialog(QDialog):
                     # Récupérer le produit mis à jour
                     updated = self.db.get_product_by_id(product['id'])
                     self.selected_product = updated if updated else product
-                    self.selected_product['_qty'] = edit_dialog.quantity
+                    # ✅ CORRECTION : Bien récupérer la quantité du dialog
+                    self.selected_product['_qty'] = edit_dialog.quantity  # Cette ligne existe déjà, elle devrait fonctionner
+                    print(f"📦 ProductSelectorDialog - Quantité stockée: {self.selected_product['_qty']}")  # Debug
                     self.accept()
-    
+        
     def create_new_product(self):
         dialog = NewProductDialog()
         if dialog.exec():
@@ -477,7 +497,9 @@ class ProductSelectorDialog(QDialog):
             if product_id:
                 QMessageBox.information(self, "Succès", f"Produit '{name}' créé!")
                 product = self.db.get_product_by_id(product_id)
+                qty = int(dialog.stock_edit.text())
                 if product:
+                    product['_qty'] = qty  # Assigner la quantité saisie dans le dialog
                     self.selected_product = product
                     self.accept()
 
@@ -849,9 +871,11 @@ class PurchasesPage(QWidget):
         dialog = ProductSelectorDialog(products)
         if dialog.exec() and dialog.selected_product:
             product = dialog.selected_product
-            quantity = product.pop('_qty', 1)  # Récupérer la quantité saisie dans ProductEditDialog
+            # ✅ Vérifier que _qty existe, sinon utiliser 1
+            quantity = product.get('_qty', 1)
+            print(f"✅ Quantité utilisée dans add_item: {quantity}")  # Debug
             
-            # Vérifier si le produit existe déjà
+            # Vérifier si le produit existe déjà dans le tableau
             for row in range(self.table.rowCount()):
                 item = self.table.item(row, 0)
                 if item and item.data(Qt.ItemDataRole.UserRole) == product['id']:
@@ -861,7 +885,7 @@ class PurchasesPage(QWidget):
                     self.update_totals()
                     return
             
-            # Nouveau produit
+            # Ajout du nouveau produit
             row = self.table.rowCount()
             self.table.insertRow(row)
 
@@ -871,7 +895,7 @@ class PurchasesPage(QWidget):
             product_item.setFlags(product_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 0, product_item)
 
-            # Quantité
+            # ✅ Quantité (utiliser la valeur saisie)
             qty_item = QTableWidgetItem(str(quantity))
             qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 1, qty_item)
