@@ -25,6 +25,8 @@ except ImportError:
 from styles import COLORS
 from currency import fmt_da, fmt, currency_manager
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QDateEdit, QLabel, QComboBox, QGroupBox, QRadioButton, QButtonGroup
+import logging
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -852,14 +854,24 @@ class DashboardPage(QWidget):
     # ── Chargement données ────────────────────────────────────
 
     def refresh(self) -> None:
+        
         enabled = self._cfg.get("enabled", [])
-        if "kpi_row"       in enabled: self._load_kpis()
-        if "activities"    in enabled: self._load_activities()
-        if "quick_info"    in enabled: self._load_quick_info()
-        if "invoice_table" in enabled: self._load_invoices()
-        if "low_stock"     in enabled: self._load_low_stock()
-        if "top_clients"   in enabled: self._load_top_clients("year")  # ✅ Période par défaut
-        if "sales_chart"   in enabled: self._load_sales_chart()
+        
+        # Vérifications avant chaque chargement
+        if "kpi_row" in enabled and self._kpi_cards:
+            self._load_kpis()
+        if "activities" in enabled and self._activities_layout:
+            self._load_activities()
+        if "quick_info" in enabled and self._info_cards:
+            self._load_quick_info()
+        if "invoice_table" in enabled and self.invoice_table:
+            self._load_invoices()
+        if "low_stock" in enabled and self._low_stock_layout:
+            self._load_low_stock()
+        if "top_clients" in enabled and self._top_clients_layout:
+            self._load_top_clients()
+        if "sales_chart" in enabled and self._sales_chart_layout:
+            self._load_sales_chart()
 
     def _load_kpis(self) -> None:
         
