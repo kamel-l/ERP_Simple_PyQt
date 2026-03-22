@@ -521,7 +521,7 @@ class WidgetBuilder:
         # ────────────────────────────────────────────────
         card = _card_frame("inv")
         card.setMinimumWidth(580)
-        card.setMaximumWidth(800)
+        card.setMaximumWidth(820)
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 18, 20, 18)
@@ -1119,7 +1119,6 @@ class DashboardPage(QWidget):
                 """)
             
             clients = [dict(row) for row in self.db.cursor.fetchall()]
-            print(f"📊 Top clients pour {period_label}: {clients}")
             
         except Exception as e:
             clients = []
