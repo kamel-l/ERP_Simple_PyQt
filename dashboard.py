@@ -1,67 +1,108 @@
 """
-dashboard.py — Tableau de Bord Personnalisable
-==============================================
+dashboard.py — Tableau de Bord DAR ELSSALEM
+============================================
+Structure 2×2 :
+  ┌─────────────────────────────────────────┐
+  │  KPI  KPI  KPI  KPI  (ligne complète)  │
+  ├──────────────────┬──────────────────────┤
+  │  Activités +     │  Top Clients         │
+  │  Infos Rapides   │  (noms + barres)     │
+  ├──────────────────┼──────────────────────┤
+  │  Dernières       │  Alertes Stock       │
+  │  Factures        │  Faible              │
+  ├──────────────────┴──────────────────────┤
+  │  Ventes — 7 derniers jours (pleine lrg) │
+  └─────────────────────────────────────────┘
 """
+
+import datetime
 
 from PyQt6.QtWidgets import (
     QProgressBar, QWidget, QVBoxLayout, QLabel, QHBoxLayout, QFrame,
-    QPushButton, QScrollArea, QHeaderView, QTableWidget,
-    QTableWidgetItem, QSizePolicy, QDialog, QCheckBox,
-    QGridLayout, QMessageBox, QListWidget, QListWidgetItem,
-    QAbstractItemView, QSpacerItem, QSizePolicy
+    QPushButton, QHeaderView, QTableWidget, QTableWidgetItem,
+    QSizePolicy, QMessageBox, QScrollArea, QGridLayout
 )
 from PyQt6.QtGui import QFont, QColor
-from PyQt6.QtCore import (
-    Qt, QObject, pyqtProperty, QPropertyAnimation, QEasingCurve,
-    pyqtSignal
-)
-import json
+from PyQt6.QtCore import Qt, QObject, pyqtProperty, QPropertyAnimation, QEasingCurve
+
 from db_manager import get_database
+from styles import COLORS
+from currency import fmt_da, currency_manager
+
 try:
     from sales_history import InvoiceDetailsDialog
     _DETAIL_AVAILABLE = True
 except ImportError:
     _DETAIL_AVAILABLE = False
-from styles import COLORS
-from currency import fmt_da, fmt, currency_manager
-from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QDateEdit, QLabel, QComboBox, QGroupBox, QRadioButton, QButtonGroup
-import logging
-logger = logging.getLogger(__name__)
 
 
-# ─────────────────────────────────────────────────────────────
-#  Helpers
-# ─────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  HELPERS
+# ══════════════════════════════════════════════════════════════════════════
 
-def divider():
+def _clear_layout(layout):
+    if layout is None:
+        return
+    while layout.count():
+        item = layout.takeAt(0)
+        w = item.widget()
+        if w is not None:
+            w.deleteLater()
+        elif item.layout() is not None:
+            _clear_layout(item.layout())
+
+
+def _sep():
+    """Séparateur horizontal."""
     f = QFrame()
     f.setFrameShape(QFrame.Shape.HLine)
-    f.setStyleSheet(f"background:{COLORS['BORDER']}; border:none; max-height:1px;")
+    f.setStyleSheet("background:rgba(255,255,255,0.10); border:none; max-height:1px;")
     return f
+
 
 def _lbl(text, size=11, bold=False, color=""):
     l = QLabel(text)
     l.setFont(QFont("Segoe UI", size,
                     QFont.Weight.Bold if bold else QFont.Weight.Normal))
-    l.setStyleSheet(f"color:{color or COLORS['TXT_PRI']}; background:transparent; border:none;")
+    c = color or COLORS.get("TXT_PRI", "#F0F4FF")
+    l.setStyleSheet(f"color:{c}; background:transparent; border:none; padding:0;")
     return l
 
-def _card_frame(obj_name="card"):
+
+def _card(name="card", border_color=""):
+    """Carte avec fond sombre et bordure optionnelle."""
     f = QFrame()
-    f.setObjectName(obj_name)
+    f.setObjectName(name)
+    bdr = border_color or "rgba(255,255,255,0.08)"
     f.setStyleSheet(f"""
-        QFrame#{obj_name} {{
-            background: {COLORS['BG_CARD']};
-            border-radius: 16px;
-            border: 1px solid {COLORS['BORDER']};
+        QFrame#{name} {{
+            background:{COLORS.get('BG_CARD','#252535')};
+            border-radius:14px;
+            border:1px solid {bdr};
         }}
     """)
     return f
 
 
-# ─────────────────────────────────────────────────────────────
-#  Animateur de compteur
-# ─────────────────────────────────────────────────────────────
+def _icon_box(icon, color, size=32, icon_size=14):
+    """Icône dans un QFrame carré arrondi (évite l'aspect radio-button)."""
+    frame = QFrame()
+    frame.setFixedSize(size, size)
+    frame.setStyleSheet(
+        f"background:{color}28; border-radius:{size//4}px; border:none;")
+    lay = QVBoxLayout(frame)
+    lay.setContentsMargins(0, 0, 0, 0)
+    lbl = QLabel(icon)
+    lbl.setFont(QFont("Segoe UI", icon_size))
+    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    lbl.setStyleSheet("background:transparent; border:none;")
+    lay.addWidget(lbl)
+    return frame
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  ANIMATEUR KPI
+# ══════════════════════════════════════════════════════════════════════════
 
 class KpiAnimator(QObject):
     def __init__(self, label, suffix=""):
@@ -70,18 +111,20 @@ class KpiAnimator(QObject):
         self.label  = label
         self.suffix = suffix
 
-    def get_value(self): return self._value
+    def get_value(self):  return self._value
+
     def set_value(self, v):
         self._value = v
         self.label.setText(f"{v:,.0f}{self.suffix}")
 
     value = pyqtProperty(float, get_value, set_value)
 
+
 def animate_value(label, target, suffix=""):
     anim = KpiAnimator(label, suffix)
-    a = QPropertyAnimation(anim, b"value")
-    a.setDuration(900)
-    a.setStartValue(0)
+    a    = QPropertyAnimation(anim, b"value")
+    a.setDuration(800)
+    a.setStartValue(0.0)
     a.setEndValue(float(target))
     a.setEasingCurve(QEasingCurve.Type.OutCubic)
     label._anim_ref = a
@@ -89,1462 +132,878 @@ def animate_value(label, target, suffix=""):
     a.start()
 
 
-# ─────────────────────────────────────────────────────────────
-#  Catalogue des widgets disponibles
-# ─────────────────────────────────────────────────────────────
-
-WIDGET_CATALOG = {
-    "kpi_row":       {"id": "kpi_row",       "title": "Indicateurs KPI",       "icon": "📊", "desc": "Ventes, Achats, Bénéfice, Clients",    "default": True},
-    "activities":    {"id": "activities",    "title": "Activités Récentes",    "icon": "🕒", "desc": "Dernières ventes et achats",             "default": True},
-    "quick_info":    {"id": "quick_info",    "title": "Informations Rapides",  "icon": "⚡", "desc": "Ventes du jour, top client, stock",      "default": True},
-    "invoice_table": {"id": "invoice_table", "title": "Dernières Factures",    "icon": "🧾", "desc": "Tableau des 10 dernières factures",      "default": True},
-    "low_stock":     {"id": "low_stock",     "title": "Alertes Stock Faible",  "icon": "⚠️", "desc": "Produits sous le seuil minimum",         "default": False},
-    "top_clients":   {"id": "top_clients",   "title": "Top Clients",           "icon": "🏆", "desc": "Classement par chiffre d'affaires",      "default": False},
-    "sales_chart":   {"id": "sales_chart",   "title": "Résumé des Ventes",     "icon": "📈", "desc": "Ventes des 7 derniers jours",            "default": False},
-}
-
-DEFAULT_ORDER = [
-    "kpi_row", "activities", "quick_info",
-    "invoice_table"
-]
-
-
-# ─────────────────────────────────────────────────────────────
-#  Persistance de la configuration
-# ─────────────────────────────────────────────────────────────
-
-class DashboardConfig:
-    """Lit/écrit la configuration du dashboard dans la table settings."""
-
-    _KEY = "dashboard_config"
-
-    def __init__(self, db=None):
-        self._db = db or get_database()
-
-    def load(self) -> dict:
-        """Charge la configuration (ou retourne les valeurs par défaut)."""
-        try:
-            raw = self._db.get_setting(self._KEY, None)
-            if raw:
-                cfg = json.loads(raw)
-                for wid in DEFAULT_ORDER:
-                    if wid not in cfg.get("order", []):
-                        cfg.setdefault("order", []).append(wid)
-                return cfg
-        except Exception:
-            pass
-        return {
-            "enabled": [w for w, m in WIDGET_CATALOG.items() if m["default"]],
-            "order":   list(DEFAULT_ORDER),
-        }
-
-    def save(self, cfg: dict) -> None:
-        """Persiste la configuration."""
-        try:
-            self._db.set_setting(self._KEY, json.dumps(cfg))
-        except Exception as e:
-            print(f"DashboardConfig.save: {e}")
-
-
-# ─────────────────────────────────────────────────────────────
-#  Dialogue de personnalisation
-# ─────────────────────────────────────────────────────────────
-
-class DashboardEditor(QDialog):
-    """Dialogue de personnalisation : activer/réordonner les widgets."""
-
-    config_changed = pyqtSignal(dict)
-
-    def __init__(self, current_cfg: dict, parent=None):
-        super().__init__(parent)
-        self._cfg = {
-            "enabled": list(current_cfg.get("enabled", [])),
-            "order":   list(current_cfg.get("order", DEFAULT_ORDER)),
-        }
-        self.setWindowTitle("Personnaliser le Tableau de Bord")
-        self.setMinimumSize(740, 580)
-        self.setStyleSheet(f"background: {COLORS['BG_PAGE']};")
-        self._build_ui()
-
-    def _build_ui(self) -> None:
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(28, 24, 28, 24)
-        lay.setSpacing(20)
-
-        # En-tête
-        hdr = QHBoxLayout()
-        hdr.addWidget(_lbl("✨  Personnaliser le Tableau de Bord", 16, bold=True))
-        hdr.addStretch()
-        hdr.addWidget(_lbl("Cochez les widgets à afficher · Glissez pour réordonner",
-                           10, color=COLORS['TXT_SEC']))
-        lay.addLayout(hdr)
-        lay.addWidget(divider())
-
-        # Corps
-        body = QHBoxLayout()
-        body.setSpacing(20)
-
-        # --- Gauche : catalogue ---
-        left = _card_frame("left_c")
-        ll   = QVBoxLayout(left)
-        ll.setContentsMargins(16, 14, 16, 14)
-        ll.setSpacing(10)
-        ll.addWidget(_lbl("Widgets disponibles", 12, bold=True,
-                          color=COLORS['primary']))
-        ll.addWidget(divider())
-
-        self._checks = {}
-        for wid in self._cfg["order"]:
-            meta = WIDGET_CATALOG.get(wid)
-            if not meta:
-                continue
-
-            row = QHBoxLayout()
-            row.setSpacing(12)
-
-            # Icône
-            icon_l = QLabel(meta["icon"])
-            icon_l.setFont(QFont("Segoe UI", 16))
-            icon_l.setFixedSize(38, 38)
-            icon_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            icon_l.setStyleSheet(f"""
-                background:{COLORS['primary']}22;
-                border-radius:9px; border:none;
-            """)
-            row.addWidget(icon_l)
-
-            # Texte
-            tc = QVBoxLayout()
-            tc.setSpacing(1)
-            tc.addWidget(_lbl(meta["title"], 11, bold=True))
-            tc.addWidget(_lbl(meta["desc"],   9, color=COLORS['TXT_SEC']))
-            row.addLayout(tc)
-            row.addStretch()
-
-            # Checkbox
-            cb = QCheckBox()
-            cb.setChecked(wid in self._cfg["enabled"])
-            cb.setStyleSheet(f"""
-                QCheckBox::indicator {{
-                    width:22px; height:22px;
-                    border-radius:6px;
-                    border:2px solid {COLORS['BORDER']};
-                    background:{COLORS['BG_DEEP']};
-                }}
-                QCheckBox::indicator:checked {{
-                    background:{COLORS['primary']};
-                    border-color:{COLORS['primary']};
-                }}
-            """)
-            cb.toggled.connect(lambda checked, w=wid: self._on_toggle(w, checked))
-            self._checks[wid] = cb
-            row.addWidget(cb)
-
-            item_f = QFrame()
-            item_f.setStyleSheet(f"""
-                QFrame {{
-                    background:{COLORS['BG_DEEP']};
-                    border-radius:10px;
-                    border:1px solid {COLORS['BORDER']};
-                }}
-                QFrame:hover {{ border-color:{COLORS['primary']}66; }}
-            """)
-            item_f.setLayout(row)
-            item_f.layout().setContentsMargins(12, 10, 12, 10)
-            ll.addWidget(item_f)
-
-        ll.addStretch()
-        body.addWidget(left, 3)
-
-        # --- Droite : ordre ---
-        right = _card_frame("right_c")
-        rl    = QVBoxLayout(right)
-        rl.setContentsMargins(16, 14, 16, 14)
-        rl.setSpacing(10)
-        rl.addWidget(_lbl("Ordre d'affichage", 12, bold=True,
-                          color=COLORS['primary']))
-        rl.addWidget(_lbl("↕  Glissez pour réordonner", 9,
-                          color=COLORS['TXT_SEC']))
-        rl.addWidget(divider())
-
-        self._order_list = QListWidget()
-        self._order_list.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
-        self._order_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self._order_list.setSpacing(4)
-        self._order_list.setStyleSheet(f"""
-            QListWidget {{ background:transparent; border:none; outline:none; }}
-            QListWidget::item {{
-                background:{COLORS['BG_DEEP']};
-                border:1px solid {COLORS['BORDER']};
-                border-radius:8px;
-                padding:10px 14px;
-                color:{COLORS['TXT_PRI']};
-                font-size:12px;
-                font-family:'Segoe UI';
-                margin:2px 0;
-            }}
-            QListWidget::item:selected {{
-                background:{COLORS['primary']}33;
-                border-color:{COLORS['primary']};
-            }}
-            QListWidget::item:hover {{
-                border-color:{COLORS['primary']}55;
-            }}
-        """)
-        self._populate_order_list()
-        rl.addWidget(self._order_list)
-        body.addWidget(right, 2)
-        lay.addLayout(body)
-
-        # Boutons
-        btn_row = QHBoxLayout()
-
-        def styled_btn(text, color, bg="transparent"):
-            b = QPushButton(text)
-            b.setFixedHeight(42)
-            b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-            b.setStyleSheet(f"""
-                QPushButton {{
-                    background:{bg};
-                    color:{color};
-                    border:1.5px solid {color}66;
-                    border-radius:9px;
-                    padding:0 20px;
-                }}
-                QPushButton:hover {{ background:{color}22; }}
-            """)
-            return b
-
-        reset_btn  = styled_btn("↩️  Réinitialiser", COLORS['TXT_SEC'])
-        cancel_btn = styled_btn("Annuler",            COLORS['TXT_SEC'])
-        apply_btn  = styled_btn("✅  Appliquer",      "#FFFFFF", COLORS['primary'])
-        apply_btn.setStyleSheet(apply_btn.styleSheet().replace(
-            f"border:1.5px solid #FFFFFF66;", "border:none;"))
-
-        reset_btn.clicked.connect(self._reset)
-        cancel_btn.clicked.connect(self.reject)
-        apply_btn.clicked.connect(self._apply)
-
-        btn_row.addWidget(reset_btn)
-        btn_row.addStretch()
-        btn_row.addWidget(cancel_btn)
-        btn_row.addSpacing(8)
-        btn_row.addWidget(apply_btn)
-        lay.addLayout(btn_row)
-
-    def _populate_order_list(self) -> None:
-        self._order_list.clear()
-        for wid in self._cfg["order"]:
-            meta = WIDGET_CATALOG.get(wid)
-            if not meta:
-                continue
-            item = QListWidgetItem(f"  {meta['icon']}  {meta['title']}")
-            item.setData(Qt.ItemDataRole.UserRole, wid)
-            if wid not in self._cfg["enabled"]:
-                item.setForeground(QColor(COLORS['TXT_SEC']))
-            self._order_list.addItem(item)
-
-    def _on_toggle(self, wid: str, checked: bool) -> None:
-        if checked and wid not in self._cfg["enabled"]:
-            self._cfg["enabled"].append(wid)
-        elif not checked and wid in self._cfg["enabled"]:
-            self._cfg["enabled"].remove(wid)
-        self._populate_order_list()
-
-    def _reset(self) -> None:
-        self._cfg = {
-            "enabled": [w for w, m in WIDGET_CATALOG.items() if m["default"]],
-            "order":   list(DEFAULT_ORDER),
-        }
-        for wid, cb in self._checks.items():
-            cb.blockSignals(True)
-            cb.setChecked(wid in self._cfg["enabled"])
-            cb.blockSignals(False)
-        self._populate_order_list()
-
-    def _apply(self) -> None:
-        order = [self._order_list.item(i).data(Qt.ItemDataRole.UserRole)
-                 for i in range(self._order_list.count())]
-        self._cfg["order"] = [w for w in order if w]
-        self.config_changed.emit(dict(self._cfg))
-        self.accept()
-
-
-# ─────────────────────────────────────────────────────────────
-#  Constructeurs de widgets individuels
-# ─────────────────────────────────────────────────────────────
-
-class WidgetBuilder:
-    """Construit chaque widget du dashboard."""
-
-    def __init__(self, db, page):
-        self.db   = db
-        self.page = page
-
-    # KPI
-    def build_kpi_row(self) -> QHBoxLayout:
-        row = QHBoxLayout()
-        row.setSpacing(16)
-        sym = currency_manager.primary.symbol
-        kpis = [
-            ("Ventes Totales", "0", "#6366F1", "💳", f" {sym}"),
-            ("Achats",         "0", "#F59E0B", "🛒", f" {sym}"),
-            ("Bénéfice Net",   "0", "#A855F7", "📈", f" {sym}"),
-            ("Clients",        "0", "#06B6D4", "👥", ""),
-        ]
-        self.page._kpi_cards = []
-        for title, val, color, icon, suffix in kpis:
-            card = self._kpi_card(icon, title, val, color, suffix)
-            row.addWidget(card)
-            self.page._kpi_cards.append(card)
-        return row
-
-    def _kpi_card(self, icon, title, value, color, suffix):
-        card = QFrame()
-        card.setObjectName("kpi")
-        card.setStyleSheet(f"""
-            QFrame#kpi {{
-                background:{COLORS['BG_CARD']};
-                border-radius:16px;
-                border:1px solid {COLORS['BORDER']};
-            }}
-        """)
-        card.setMinimumHeight(130)
-        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        lay = QVBoxLayout(card)
-        lay.setContentsMargins(20, 18, 20, 18)
-        lay.setSpacing(8)
-
-        top = QHBoxLayout()
-        badge = QLabel(icon)
-        badge.setFont(QFont("Segoe UI", 14))
-        badge.setFixedSize(36, 36)
-        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge.setStyleSheet(f"background:{color}22; border-radius:10px; border:none;")
-        top.addWidget(badge)
-        top.addSpacing(8)
-        tl = QLabel(title)
-        tl.setFont(QFont("Segoe UI", 11))
-        tl.setStyleSheet(f"color:{COLORS['TXT_SEC']}; background:transparent; border:none;")
-        top.addWidget(tl)
-        top.addStretch()
-        lay.addLayout(top)
-
-        lv = QLabel(value)
-        lv.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        lv.setStyleSheet(f"color:{color}; background:transparent; border:none;")
-        lay.addWidget(lv)
-
-        bar = QFrame()
-        bar.setFixedHeight(3)
-        bar.setStyleSheet(f"""
-            background:qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                stop:0 {color}, stop:1 transparent);
-            border-radius:2px; border:none;
-        """)
-        lay.addWidget(bar)
-        card.value_label = lv
-        card._suffix     = suffix
-        return card
-
-    # Activités
-    def build_activities(self) -> QFrame:
-        card = _card_frame("act")
-        lay  = QVBoxLayout(card)
-        lay.setContentsMargins(20, 18, 20, 18)
-        lay.setSpacing(12)
-        hdr = QHBoxLayout()
-        hdr.addWidget(_lbl("🕒  Activités Récentes", 13, bold=True))
-        hdr.addStretch()
-        lay.addLayout(hdr)
-        lay.addWidget(divider())
-        self.page._activities_layout = QVBoxLayout()
-        self.page._activities_layout.setSpacing(6)
-        lay.addLayout(self.page._activities_layout)
-        lay.addStretch()
-        return card
-
-    # Infos rapides
-    def build_quick_info(self) -> QVBoxLayout:
-        col = QVBoxLayout()
-        col.setSpacing(16)
-        sym = currency_manager.primary.symbol
-        infos = [
-            ("Ventes Aujourd'hui", f"0 {sym}", "#6366F1", "📅"),
-            ("Top Client",         "—",          "#A855F7", "🏆"),
-            ("Stock Faible",       "0 produits", "#F59E0B", "⚠️"),
-        ]
-        self.page._info_cards = []
-        for title, val, color, icon in infos:
-            c = self._info_card(icon, title, val, color)
-            col.addWidget(c)
-            self.page._info_cards.append(c)
-        return col
-
-    def _info_card(self, icon, title, value, color):
-        card = QFrame()
-        card.setObjectName("info")
-        card.setStyleSheet(
-            f"QFrame#info {{ background:{COLORS['BG_CARD']}; "
-            f"border-radius:14px; border:1px solid {COLORS['BORDER']}; }}")
-        card.setFixedHeight(90)
-        lay = QHBoxLayout(card)
-        lay.setContentsMargins(16, 12, 16, 12)
-        lay.setSpacing(14)
-        badge = QLabel(icon)
-        badge.setFont(QFont("Segoe UI", 16))
-        badge.setFixedSize(40, 40)
-        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge.setStyleSheet(f"background:{color}22; border-radius:12px; border:none;")
-        lay.addWidget(badge)
-        txt = QVBoxLayout()
-        txt.setSpacing(2)
-        tl = QLabel(title)
-        tl.setFont(QFont("Segoe UI", 9))
-        tl.setStyleSheet(f"color:{COLORS['TXT_SEC']}; background:transparent; border:none;")
-        txt.addWidget(tl)
-        vl = QLabel(value)
-        vl.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        vl.setStyleSheet(f"color:{color}; background:transparent; border:none;")
-        txt.addWidget(vl)
-        lay.addLayout(txt)
-        lay.addStretch()
-        card.value_label = vl
-        return card
-    
-    
-    # Tableau factures
-    def build_invoice_table(self) -> QFrame:
-        """Tableau des dernières factures — version harmonisée premium."""
-
-        # ────────────────────────────────────────────────
-        # 1) CARD PRINCIPALE (utilise le helper standard)
-        # ────────────────────────────────────────────────
-        card = _card_frame("inv")
-        card.setMinimumWidth(580)
-        card.setMaximumWidth(820)
-
-        layout = QVBoxLayout(card)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(12)
-
-        # ────────────────────────────────────────────────
-        # 2) EN-TÊTE IDENTIQUE AUX AUTRES WIDGETS
-        # ────────────────────────────────────────────────
-        header = QHBoxLayout()
-        header.setSpacing(6)
-
-        title = _lbl("🧾  Dernières Factures", 13, bold=True)
-        badge = _lbl("10 dernières", 9, color=COLORS['TXT_SEC'])
-
-        header.addWidget(title)
-        header.addStretch()
-        header.addWidget(badge)
-
-        layout.addLayout(header)
-        layout.addWidget(divider())
-
-        # ────────────────────────────────────────────────
-        # 3) TABLEAU ULTRA-MODERNE
-        # ────────────────────────────────────────────────
-        table = QTableWidget(0, 6)
-        table.setHorizontalHeaderLabels([
-            "Facture", "Client", "Total", "Date", "Paiement", ""
-        ])
-
-        # header
-        header_view = table.horizontalHeader()
-        header_view.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        header_view.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-
-        table.setColumnWidth(5, 70)
-        table.verticalHeader().setVisible(False)
-
-        # comportements
-        table.setAlternatingRowColors(True)
-        table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        table.setShowGrid(False)
-        table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        table.setMinimumHeight(260)
-
-        # ────────────────────────────────────────────────
-        # 4) STYLE HARMONISÉ
-        # ────────────────────────────────────────────────
-        table.setStyleSheet(f"""
-            QTableWidget {{
-                background: transparent;
-                color: {COLORS['TXT_PRI']};
-                border: none;
-                font-size: 12px;
-                alternate-background-color: rgba(255,255,255,0.03);
-            }}
-
-            QHeaderView::section {{
-                background: {COLORS['BG_DEEP']};
-                color: {COLORS['TXT_SEC']};
-                font-size: 11px;
-                padding: 10px 8px;
-                font-weight: bold;
-                border: none;
-                border-bottom: 1px solid {COLORS['BORDER']};
-            }}
-
-            QTableWidget::item {{
-                padding: 8px 8px;
-                border-bottom: 1px solid rgba(255,255,255,0.04);
-            }}
-
-            QTableWidget::item:selected {{
-                background: rgba(99,102,241,0.20);
-                color: #A855F7;
-            }}
-        """)
-
-        layout.addWidget(table)
-
-        # stocker la référence globalement
-        self.page.invoice_table = table
-        return card
-
-    # Stock faible
-    def build_low_stock(self) -> QFrame:
-        card = _card_frame("low")
-        lay  = QVBoxLayout(card)
-        lay.setContentsMargins(20, 18, 20, 18)
-        lay.setSpacing(10)
-        hdr = QHBoxLayout()
-        hdr.addWidget(_lbl("⚠️  Alertes Stock Faible", 13, bold=True))
-        hdr.addStretch()
-        lay.addLayout(hdr)
-        lay.addWidget(divider())
-        self.page._low_stock_layout = QVBoxLayout()
-        self.page._low_stock_layout.setSpacing(6)
-        lay.addLayout(self.page._low_stock_layout)
-        lay.addStretch()
-        return card
-
-    # Top clients
-    def build_top_clients(self) -> QFrame:
-        card = _card_frame("topcli")
-        lay  = QVBoxLayout(card)
-        lay.setContentsMargins(20, 18, 20, 18)
-        lay.setSpacing(10)
-        lay.addWidget(divider())
-        self.page._top_clients_layout = QVBoxLayout()
-        self.page._top_clients_layout.setSpacing(6)
-        lay.addLayout(self.page._top_clients_layout)
-        lay.addStretch()
-        return card
-
-    # Résumé ventes
-    def build_sales_chart(self) -> QFrame:
-        card = _card_frame("schart")
-        lay  = QVBoxLayout(card)
-        lay.setContentsMargins(20, 18, 20, 18)
-        lay.setSpacing(10)
-        hdr = QHBoxLayout()
-        hdr.addWidget(_lbl("📈  Ventes — 7 derniers jours", 13, bold=True))
-        hdr.addStretch()
-        lay.addLayout(hdr)
-        lay.addWidget(divider())
-        self.page._sales_chart_layout = QVBoxLayout()
-        self.page._sales_chart_layout.setSpacing(4)
-        lay.addLayout(self.page._sales_chart_layout)
-        return card
-
-
-# ─────────────────────────────────────────────────────────────
-#  Page principale
-# ─────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+#  DASHBOARD PAGE
+# ══════════════════════════════════════════════════════════════════════════
 
 class DashboardPage(QWidget):
-    """Tableau de bord avec widgets personnalisables et persistés."""
 
     def __init__(self):
         super().__init__()
-        self.db      = get_database()
-        self._config = DashboardConfig(self.db)
-        self._cfg    = self._config.load()
-        self.setStyleSheet(f"background:{COLORS['BG_PAGE']};")
-        self._reset_refs()
-        self._build_page()
-        self._top_clients_period = "year"  # ✅ Période par défaut
+        self.db = get_database()
+        self.setStyleSheet(f"background:{COLORS.get('BG_PAGE','#1E1E2E')};")
+        self._build_ui()
         self.refresh()
 
-    def _reset_refs(self):
-        """Réinitialise toutes les références aux widgets."""
-        self._kpi_cards = []
-        self._info_cards = []
-        self._activities_layout = None
-        self.invoice_table = None
-        self._low_stock_layout = None
-        self._top_clients_layout = None
-        self._sales_chart_layout = None
-        self._sub_lbl = None
+    # ─────────────────────────────────────────────────────────────
+    #  Construction de l'interface
+    # ─────────────────────────────────────────────────────────────
 
-    # ── Construction ─────────────────────────────────────────
-
-    def _build_page(self) -> None:
-        """Construit (ou reconstruit) toute la page."""
-        # Effacer l'ancien layout
-        old = self.layout()
-        if old:
-            while old.count():
-                item = old.takeAt(0)
-                w = item.widget()
-                if w is not None:
-                    w.setParent(None)
-                    w.deleteLater()
-            # Détacher le layout
-            QWidget().setLayout(old)
+    def _build_ui(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border:none; background:transparent; }")
+        scroll.setStyleSheet("QScrollArea{border:none; background:transparent;}")
 
         container = QWidget()
         container.setStyleSheet("background:transparent;")
         self._main = QVBoxLayout(container)
-        self._main.setSpacing(24)
-        self._main.setContentsMargins(32, 28, 32, 28)
+        self._main.setSpacing(16)
+        self._main.setContentsMargins(24, 18, 24, 20)
 
+        # ── En-tête ──
         self._build_header()
-        self._reset_refs()
-        self._build_widgets()
-        self._main.addStretch()
 
+        # ── Ligne KPI (4 cartes pleine largeur) ──
+        self._build_kpi_row()
+
+        # ── Grille 2×2 ──────────────────────────────────────────
+        # ┌──────────────────────┬──────────────────────┐
+        # │ Activités+Infos [L]  │  Top Clients     [R] │
+        # ├──────────────────────┼──────────────────────┤
+        # │ Dernières Factures[L]│  Alertes Stock   [R] │
+        # └──────────────────────┴──────────────────────┘
+
+        grid = QGridLayout()
+        grid.setSpacing(14)
+        grid.setColumnStretch(0, 1)
+        grid.setColumnStretch(1, 1)
+
+        # Ligne 0
+        grid.addWidget(self._build_activity_info_card(), 0, 0)
+        grid.addWidget(self._build_top_clients_card(),   0, 1)
+
+        # Ligne 1
+        grid.addWidget(self._build_invoices_card(),      1, 0)
+        grid.addWidget(self._build_low_stock_card(),     1, 1)
+
+        self._main.addLayout(grid)
+
+        # ── Ventes 7 jours (pleine largeur) ──
+        self._build_sales_chart_card()
+
+        self._main.addStretch()
         scroll.setWidget(container)
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
         root.addWidget(scroll)
 
-    def _build_header(self) -> None:
+    # ─────────────────────────────────────────────────────────────
+    #  En-tête
+    # ─────────────────────────────────────────────────────────────
+
+    def _build_header(self):
         row = QHBoxLayout()
         row.setSpacing(12)
 
         col = QVBoxLayout()
-        col.setSpacing(3)
-        col.addWidget(_lbl("📊 Tableau de Bord", 22, bold=True))
-        n = len(self._cfg.get("enabled", []))
-        
-        # Créer le sous-titre et le stocker
-        self._sub_lbl = _lbl(
-            f"Vue d'ensemble de l'activité  ·  {n} widget(s) actif(s)",
-            11, color=COLORS['TXT_SEC'])
-        col.addWidget(self._sub_lbl)
+        col.setSpacing(2)
+        title = QLabel("📊 Tableau de Bord")
+        title.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+        title.setStyleSheet(
+            f"color:{COLORS.get('TXT_PRI','#F0F4FF')}; background:transparent;")
+        col.addWidget(title)
+        self._subtitle = QLabel("Vue d'ensemble de l'activité")
+        self._subtitle.setFont(QFont("Segoe UI", 10))
+        self._subtitle.setStyleSheet(
+            f"color:{COLORS.get('TXT_SEC','#A0AACC')}; background:transparent;")
+        col.addWidget(self._subtitle)
         row.addLayout(col)
         row.addStretch()
 
-        # Bouton Personnaliser
-        cb = QPushButton("✨  Personnaliser")
-        cb.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        cb.setFixedHeight(38)
-        cb.setFixedWidth(155)
-        cb.setCursor(Qt.CursorShape.PointingHandCursor)
-        cb.setStyleSheet(f"""
-            QPushButton {{
-                background:{COLORS['secondary']}22;
-                color:{COLORS['secondary']};
-                border:1.5px solid {COLORS['secondary']}66;
-                border-radius:10px; padding:0 16px;
-            }}
-            QPushButton:hover {{ background:{COLORS['secondary']}44; }}
-        """)
-        cb.clicked.connect(self._open_editor)
-        row.addWidget(cb)
+        self._last_update_lbl = QLabel("")
+        self._last_update_lbl.setFont(QFont("Segoe UI", 9))
+        self._last_update_lbl.setStyleSheet(
+            "color:rgba(160,170,204,0.45); background:transparent;")
+        row.addWidget(self._last_update_lbl)
 
+        btn = QPushButton("🔄  Rafraîchir")
+        btn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        btn.setFixedHeight(36)
+        btn.setFixedWidth(130)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setStyleSheet(f"""
+            QPushButton {{
+                background:rgba(59,130,246,0.15);
+                color:{COLORS.get('primary','#3B82F6')};
+                border:1.5px solid {COLORS.get('primary','#3B82F6')}88;
+                border-radius:9px;
+            }}
+            QPushButton:hover  {{ background:rgba(59,130,246,0.28); }}
+            QPushButton:pressed {{ background:rgba(59,130,246,0.42); }}
+        """)
+        btn.clicked.connect(self.refresh)
+        row.addWidget(btn)
         self._main.addLayout(row)
 
-    def _build_widgets(self) -> None:
-        """Construit et place les widgets selon la configuration."""
-        builder = WidgetBuilder(self.db, self)
-        enabled = self._cfg.get("enabled", [])
-        order   = self._cfg.get("order", DEFAULT_ORDER)
-        to_build = [w for w in order if w in enabled]
+    # ─────────────────────────────────────────────────────────────
+    #  Ligne KPI
+    # ─────────────────────────────────────────────────────────────
 
-        processed = set()
+    def _build_kpi_row(self):
+        row = QHBoxLayout()
+        row.setSpacing(14)
+        sym = currency_manager.primary.symbol
 
-        for wid in to_build:
-            if wid in processed:
-                continue
+        self._kpi_meta = [
+            ("Ventes Totales", "#6366F1", "💳", f" {sym}"),
+            ("Achats",         "#F59E0B", "🛒", f" {sym}"),
+            ("Bénéfice Net",   "#10B981", "📈", f" {sym}"),
+            ("Clients",        "#06B6D4", "👥", ""),
+        ]
+        self.kpi_cards = []
+        for title, color, icon, suffix in self._kpi_meta:
+            card = self._make_kpi_card(icon, title, color, suffix)
+            row.addWidget(card)
+            self.kpi_cards.append(card)
+        self._main.addLayout(row)
 
-            if wid == "kpi_row":
-                kpi_layout = builder.build_kpi_row()
-                self._main.addLayout(kpi_layout)
+    def _make_kpi_card(self, icon, title, color, suffix):
+        card = QFrame()
+        card.setObjectName("kpi")
+        card.setFixedHeight(118)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        card.setStyleSheet(f"""
+            QFrame#kpi {{
+                background:{COLORS.get('BG_CARD','#252535')};
+                border-radius:14px; border:1px solid {color}44;
+            }}
+        """)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(18, 13, 18, 11)
+        lay.setSpacing(6)
 
-            # Paire 1: Activités + Infos Rapides
-            elif wid == "activities":
-                act = builder.build_activities()
-                if "quick_info" in to_build:
-                    qi = builder.build_quick_info()
-                    row = QHBoxLayout()
-                    row.setSpacing(16)
-                    row.addWidget(act, 1)
-                    row.addLayout(qi, 1)
-                    self._main.addLayout(row)
-                    processed.add("quick_info")
-                else:
-                    self._main.addWidget(act)
+        top = QHBoxLayout()
+        top.setSpacing(10)
+        top.addWidget(_icon_box(icon, color, size=38, icon_size=16))
 
-            elif wid == "quick_info":
-                if "quick_info" not in processed and "activities" not in to_build:
-                    qi = builder.build_quick_info()
-                    row = QHBoxLayout()
-                    row.setSpacing(16)
-                    row.addLayout(qi)
-                    self._main.addLayout(row)
+        title_lbl = QLabel(title)
+        title_lbl.setFont(QFont("Segoe UI", 11))
+        title_lbl.setStyleSheet(
+            f"color:{COLORS.get('TXT_SEC','#A0AACC')}; "
+            "background:transparent; border:none;")
+        top.addWidget(title_lbl)
+        top.addStretch()
 
-            # Paire 2: Factures + Graphique Ventes
-            elif wid == "invoice_table":
-                inv_table = builder.build_invoice_table()
-                if "sales_chart" in to_build:
-                    sc = builder.build_sales_chart()
-                    row = QHBoxLayout()
-                    row.setSpacing(16)
-                    row.addWidget(inv_table, 2)
-                    row.addWidget(sc, 1)
-                    self._main.addLayout(row)
-                    processed.add("sales_chart")
-                else:
-                    self._main.addWidget(inv_table)
+        evol = QLabel("")
+        evol.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        evol.setStyleSheet("background:transparent; border:none; color:transparent;")
+        top.addWidget(evol)
+        lay.addLayout(top)
 
-            elif wid == "sales_chart":
-                if "sales_chart" not in processed and "invoice_table" not in to_build:
-                    sc = builder.build_sales_chart()
-                    self._main.addWidget(sc)
+        val_lbl = QLabel("0")
+        val_lbl.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
+        val_lbl.setStyleSheet(f"color:{color}; background:transparent; border:none;")
+        lay.addWidget(val_lbl)
 
-            # Paire 3: Stock Faible + Top Clients
-            elif wid == "low_stock":
-                ls = builder.build_low_stock()
-                if "top_clients" in to_build:
-                    tc = builder.build_top_clients()
-                    row = QHBoxLayout()
-                    row.setSpacing(16)
-                    row.addWidget(ls, 1)
-                    row.addWidget(tc, 1)
-                    self._main.addLayout(row)
-                    processed.add("top_clients")
-                else:
-                    self._main.addWidget(ls)
+        bar = QFrame()
+        bar.setFixedHeight(3)
+        bar.setStyleSheet(
+            f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+            f"stop:0 {color}, stop:0.55 {color}77, stop:1 transparent);"
+            "border-radius:2px; border:none;")
+        lay.addWidget(bar)
 
-            elif wid == "top_clients":
-                if "top_clients" not in processed and "low_stock" not in to_build:
-                    tc = builder.build_top_clients()
-                    self._main.addWidget(tc)
+        card.value_label = val_lbl
+        card.evol_badge  = evol
+        card.suffix      = suffix
+        card.kpi_color   = color
+        return card
 
-    # ── Éditeur ──────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    #  WIDGET GAUCHE / LIGNE 0
+    #  Activités Récentes + Infos Rapides (fusionnés en 1 carte)
+    # ─────────────────────────────────────────────────────────────
 
-    def _open_editor(self) -> None:
-        dlg = DashboardEditor(self._cfg, parent=self)
-        dlg.config_changed.connect(self._apply_config)
-        dlg.exec()
+    def _build_activity_info_card(self):
+        """Carte unique = Activités (haut) + Infos Rapides (bas)."""
+        card = _card("actinfo")
+        card.setMinimumHeight(280)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(18, 14, 18, 14)
+        lay.setSpacing(0)
 
-    def _apply_config(self, new_cfg: dict) -> None:
-        self._cfg = new_cfg
-        self._config.save(new_cfg)
-        self._build_page()
-        self.refresh()
+        # ── Section Activités ──────────────────────────────────
+        lay.addWidget(_lbl("🕒  Activités Récentes", 13, bold=True))
+        lay.addSpacing(8)
+        lay.addWidget(_sep())
+        lay.addSpacing(8)
+
+        self.activities_layout = QVBoxLayout()
+        self.activities_layout.setSpacing(7)
+        lay.addLayout(self.activities_layout)
+
+        lay.addSpacing(14)
+        lay.addWidget(_sep())
+        lay.addSpacing(10)
+
+        # ── Section Infos Rapides ──────────────────────────────
+        
+        return card
+
+    # ─────────────────────────────────────────────────────────────
+    #  WIDGET DROIT / LIGNE 0
+    #  Top Clients avec noms + montants + barres
+    # ─────────────────────────────────────────────────────────────
+
+    def _build_top_clients_card(self):
+        card = _card("tc")
+        card.setMinimumHeight(80)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(18, 14, 18, 14)
+        lay.setSpacing(0)
+
+        hdr = QHBoxLayout()
+        hdr.addWidget(_lbl("🏆  Top Clients", 13, bold=True))
+        hdr.addStretch()
+        self._tc_period_lbl = _lbl("Cette année", 9,
+                                    color=COLORS.get("TXT_SEC","#A0AACC"))
+        hdr.addWidget(self._tc_period_lbl)
+        lay.addLayout(hdr)
+        lay.addSpacing(0)
+        lay.addWidget(_sep())
+        lay.addSpacing(0)
+
+        self.top_clients_layout = QVBoxLayout()
+        self.top_clients_layout.setSpacing(0)
+        lay.addLayout(self.top_clients_layout)
+        lay.addStretch()
+        return card
+
+    # ─────────────────────────────────────────────────────────────
+    #  WIDGET GAUCHE / LIGNE 1
+    #  Dernières Factures
+    # ─────────────────────────────────────────────────────────────
+
+    def _build_invoices_card(self):
+        card = _card("inv")
+        card.setMinimumHeight(260)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(18, 14, 18, 14)
+        lay.setSpacing(0)
+
+        hdr = QHBoxLayout()
+        hdr.addWidget(_lbl("🧾  Dernières Factures", 13, bold=True))
+        hdr.addStretch()
+        hdr.addWidget(_lbl("10 dernières", 9,
+                            color=COLORS.get("TXT_SEC","#A0AACC")))
+        lay.addLayout(hdr)
+        lay.addSpacing(8)
+        lay.addWidget(_sep())
+        lay.addSpacing(4)
+
+        self.invoice_table = QTableWidget(0, 6)
+        self.invoice_table.setHorizontalHeaderLabels(
+            ["N° Facture", "Client", "Total TTC", "Date", "Paiement", ""])
+
+        hv = self.invoice_table.horizontalHeader()
+        hv.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        hv.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        hv.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        hv.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        hv.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        hv.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        self.invoice_table.setColumnWidth(5, 40)
+
+        self.invoice_table.verticalHeader().setVisible(False)
+        self.invoice_table.setAlternatingRowColors(True)
+        self.invoice_table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectRows)
+        self.invoice_table.setEditTriggers(
+            QTableWidget.EditTrigger.NoEditTriggers)
+        self.invoice_table.setShowGrid(False)
+        self.invoice_table.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+
+        self.invoice_table.setStyleSheet(f"""
+            QTableWidget {{
+                background:transparent;
+                alternate-background-color:rgba(255,255,255,0.03);
+                color:{COLORS.get('TXT_PRI','#F0F4FF')};
+                border:none; font-size:12px;
+            }}
+            QHeaderView::section {{
+                background:{COLORS.get('BG_DEEP','#16161F')};
+                color:{COLORS.get('primary','#3B82F6')};
+                font-size:11px; font-weight:bold;
+                padding:9px 8px; border:none;
+                border-bottom:2px solid {COLORS.get('primary','#3B82F6')};
+            }}
+            QTableWidget::item {{
+                padding:9px 8px;
+                border-bottom:1px solid rgba(255,255,255,0.04);
+            }}
+            QTableWidget::item:selected {{
+                background:rgba(99,102,241,0.22); color:white;
+            }}
+        """)
+        lay.addWidget(self.invoice_table, 1)
+        return card
+
+    # ─────────────────────────────────────────────────────────────
+    #  WIDGET DROIT / LIGNE 1
+    #  Alertes Stock Faible
+    # ─────────────────────────────────────────────────────────────
+
+    def _build_low_stock_card(self):
+        card = _card("ls")
+        card.setMinimumHeight(260)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(18, 14, 18, 14)
+        lay.setSpacing(0)
+
+        hdr = QHBoxLayout()
+        hdr.addWidget(_lbl("⚠️  Alertes Stock Faible", 13, bold=True))
+        hdr.addStretch()
+        self._ls_count = _lbl("", 10,
+                               color=COLORS.get("warning","#FBBF24"))
+        hdr.addWidget(self._ls_count)
+        lay.addLayout(hdr)
+        lay.addSpacing(8)
+        lay.addWidget(_sep())
+        lay.addSpacing(10)
+
+        self.low_stock_layout = QVBoxLayout()
+        self.low_stock_layout.setSpacing(8)
+        lay.addLayout(self.low_stock_layout)
+        lay.addStretch()
+        return card
+
+    # ─────────────────────────────────────────────────────────────
+    #  Graphique Ventes 7 jours (pleine largeur)
+    # ─────────────────────────────────────────────────────────────
+
+    def _build_sales_chart_card(self):
+        card = _card("chart")
+        card.setMinimumHeight(190)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(18, 14, 18, 14)
+        lay.setSpacing(0)
+
+        hdr = QHBoxLayout()
+        hdr.addWidget(_lbl("📈  Ventes — 7 derniers jours", 13, bold=True))
+        hdr.addStretch()
+        self._chart_total = _lbl("", 11, bold=True,
+                                  color=COLORS.get("success","#22C55E"))
+        hdr.addWidget(self._chart_total)
+        lay.addLayout(hdr)
+        lay.addSpacing(8)
+        lay.addWidget(_sep())
+        lay.addSpacing(10)
+
+        self.sales_chart_layout = QVBoxLayout()
+        self.sales_chart_layout.setSpacing(6)
+        lay.addLayout(self.sales_chart_layout)
+        self._main.addWidget(card)
+
+    # ─────────────────────────────────────────────────────────────
+    #  showEvent
+    # ─────────────────────────────────────────────────────────────
 
     def showEvent(self, event):
         super().showEvent(event)
         self.refresh()
 
-    # ── Chargement données ────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    #  Rafraîchissement
+    # ─────────────────────────────────────────────────────────────
 
-    def refresh(self) -> None:
-        
-        enabled = self._cfg.get("enabled", [])
-        
-        # Vérifications avant chaque chargement
-        if "kpi_row" in enabled and self._kpi_cards:
-            self._load_kpis()
-        if "activities" in enabled and self._activities_layout:
-            self._load_activities()
-        if "quick_info" in enabled and self._info_cards:
-            self._load_quick_info()
-        if "invoice_table" in enabled and self.invoice_table:
-            self._load_invoices()
-        if "low_stock" in enabled and self._low_stock_layout:
-            self._load_low_stock()
-        if "top_clients" in enabled and self._top_clients_layout:
-            self._load_top_clients()
-        if "sales_chart" in enabled and self._sales_chart_layout:
-            self._load_sales_chart()
+    def refresh(self):
+        self._load_kpis()
+        self._load_activities()
+        # self._load_info()
+        self._load_invoices()
+        self._load_low_stock()
+        self._load_top_clients()
+        self._load_sales_chart()
+        now = datetime.datetime.now().strftime("%d/%m/%Y  %H:%M")
+        self._last_update_lbl.setText(f"Mis à jour le  {now}")
 
-    def _load_kpis(self) -> None:
-        
+    # ─────────────────────────────────────────────────────────────
+    #  KPI
+    # ─────────────────────────────────────────────────────────────
+
+    def _load_kpis(self):
         stats = self.db.get_statistics() or {}
         sales = float(stats.get("sales_total", 0))
         pur   = float(stats.get("purchases_total", 0))
         prof  = sales - pur
         cli   = int(stats.get("total_clients", 0))
         sym   = currency_manager.primary.symbol
-        for card, val, suf in zip(
-            self._kpi_cards,
-            [sales, pur, prof, float(cli)],
-            [f" {sym}", f" {sym}", f" {sym}", ""]
-        ):
+
+        prev_sales = prev_pur = 0.0
+        try:
+            today      = datetime.date.today()
+            first_this = today.replace(day=1)
+            last_prev  = first_this - datetime.timedelta(days=1)
+            first_prev = last_prev.replace(day=1)
+            self.db.cursor.execute(
+                "SELECT COALESCE(SUM(total),0) FROM sales "
+                "WHERE DATE(sale_date) BETWEEN ? AND ?",
+                (str(first_prev), str(last_prev)))
+            prev_sales = float(self.db.cursor.fetchone()[0] or 0)
+            self.db.cursor.execute(
+                "SELECT COALESCE(SUM(total),0) FROM purchases "
+                "WHERE DATE(purchase_date) BETWEEN ? AND ?",
+                (str(first_prev), str(last_prev)))
+            prev_pur = float(self.db.cursor.fetchone()[0] or 0)
+        except Exception:
+            pass
+
+        prev_prof = prev_sales - prev_pur
+        values   = [sales, pur, prof, float(cli)]
+        prevs    = [prev_sales, prev_pur, prev_prof, None]
+        suffixes = [f" {sym}", f" {sym}", f" {sym}", ""]
+
+        for card, val, prev, suf in zip(self.kpi_cards, values, prevs, suffixes):
+            if card is self.kpi_cards[2]:
+                c = "#10B981" if val >= 0 else "#EF4444"
+                card.value_label.setStyleSheet(
+                    f"color:{c}; background:transparent; border:none;")
+                card.setStyleSheet(f"""
+                    QFrame#kpi {{
+                        background:{COLORS.get('BG_CARD','#252535')};
+                        border-radius:14px; border:1px solid {c}55;
+                    }}
+                """)
+
             animate_value(card.value_label, val, suf)
 
-    def _load_activities(self) -> None:
-        """Charge les activités récentes (ventes + achats)."""
+            if prev is not None and prev > 0:
+                evol = ((val - prev) / prev) * 100
+                if evol > 0.5:
+                    txt, fg, bg = f"▲ +{evol:.0f}%", "#FFF", "#16A34A"
+                elif evol < -0.5:
+                    txt, fg, bg = f"▼ {evol:.0f}%",  "#FFF", "#DC2626"
+                else:
+                    txt, fg, bg = "→ stable", "#F0F4FF", "rgba(160,170,204,0.22)"
+                card.evol_badge.setText(txt)
+                card.evol_badge.setStyleSheet(
+                    f"color:{fg}; background:{bg}; border-radius:5px; "
+                    "padding:2px 8px; font-size:10px; font-weight:bold; border:none;")
+            else:
+                card.evol_badge.setText("")
+                card.evol_badge.setStyleSheet(
+                    "background:transparent; border:none; color:transparent;")
 
-        while self._activities_layout.count():
-            item = self._activities_layout.takeAt(0)
-            w = item.widget()
-            if w is not None: w.deleteLater()
-            
-        try:
-            sales = self.db.get_all_sales(limit=4) or []
-        except Exception as e:
-            print(f"❌ ERREUR get_all_sales : {e}")
-            import traceback
-            traceback.print_exc()   # ← affiche la vraie erreur complète
-            sales = []
+    # ─────────────────────────────────────────────────────────────
+    #  Activités Récentes
+    # ─────────────────────────────────────────────────────────────
 
-        try:
-            purs = self.db.get_all_purchases(limit=4) or []
-        except Exception as e:
-            print(f"❌ ERREUR get_all_purchases : {e}")
-            import traceback
-            traceback.print_exc()
-            purs = []
+    def _load_activities(self):
+        _clear_layout(self.activities_layout)
+
+        try:    sales = self.db.get_all_sales(limit=4) or []
+        except Exception: sales = []
+        try:    purs  = self.db.get_all_purchases(limit=3) or []
+        except Exception: purs  = []
 
         if not sales and not purs:
-            lbl = QLabel("Aucune activité récente")
-            lbl.setFont(QFont("Segoe UI", 11))
-            lbl.setStyleSheet(f"color:{COLORS['TXT_SEC']}; padding:12px; background:transparent;")
-            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._activities_layout.addWidget(lbl)
+            empty = QLabel("  Aucune activité récente")
+            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty.setStyleSheet(
+                "color:rgba(160,170,204,0.60); padding:12px; border:none;")
+            self.activities_layout.addWidget(empty)
             return
 
-        def add_row(dot_color, icon, text):
-            rw = QWidget()
-            rw.setStyleSheet("background:transparent;")
-            rl = QHBoxLayout(rw)
-            rl.setContentsMargins(4, 4, 4, 4)
-            rl.setSpacing(10)
-            dot = QLabel(icon)
-            dot.setFixedSize(22, 22)
-            dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            dot.setStyleSheet(f"""
-                background:{dot_color}22; color:{dot_color};
-                border-radius:11px; border:none; font-size:11px;
-            """)
-            rl.addWidget(dot)
-            lbl = QLabel(text)
-            lbl.setFont(QFont("Segoe UI", 10))
-            lbl.setStyleSheet(f"color:{COLORS['TXT_SEC']}; background:transparent; border:none;")
-            rl.addWidget(lbl, 1)
-            self._activities_layout.addWidget(rw)
+        def _row(icon, bg, text):
+            row = QHBoxLayout()
+            row.setSpacing(10)
+            row.addWidget(_icon_box(icon, "", size=20, icon_size=10))
+            # Override bg direct sur le frame
+            frame = row.itemAt(0).widget()
+            frame.setStyleSheet(
+                f"background:{bg}; border-radius:8px; border:none;")
+            tl = QLabel(text)
+            tl.setFont(QFont("Segoe UI", 11))
+            tl.setStyleSheet(
+                f"color:{COLORS.get('TXT_PRI','#F0F4FF')}; "
+                "background:transparent; border:none;")
+            tl.setWordWrap(False)
+            row.addWidget(tl, 1)
+            self.activities_layout.addLayout(row)
 
         for s in sales:
-            inv  = s.get('invoice_number', '—')
-            tot  = float(s.get('total') or 0)
-            cli  = s.get('client_name', '')
-            txt  = f"Vente  {inv}"
-            
-            if cli: txt += f"  ·  {cli[:20]}"
-            txt += f"  —  {fmt_da(tot, 0)}"
-            add_row("#6366F1", "🧾", txt)
-            
+            txt = f"Vente  {s.get('invoice_number','—')}"
+            if s.get("client_name"):
+                txt += f"  ·  {s['client_name'][:20]}"
+            txt += f"  —  {fmt_da(float(s.get('total', 0)), 0)}"
+            _row("🧾", "rgba(99,102,241,0.25)", txt)
 
         for p in purs:
-            nom = p.get('product_name') or f"Produit #{p.get('product_id','?')}"
-            tot = float(p.get('total') or 0)
-            sup = p.get('supplier_name', '')
-            txt = f"Achat  {nom[:22]}"
-            if sup: txt += f"  ·  {sup[:16]}"
-            txt += f"  —  {fmt_da(tot, 0)}"
-            add_row("#F59E0B", "📦", txt)
+            txt = f"Achat  {str(p.get('product_name','?'))[:22]}"
+            if p.get("supplier_name"):
+                txt += f"  ·  {p['supplier_name'][:16]}"
+            txt += f"  —  {fmt_da(float(p.get('total', 0)), 0)}"
+            _row("📦", "rgba(245,158,11,0.25)", txt)
 
-    def _load_quick_info(self) -> None:
-        
-        stats = self.db.get_statistics() or {}
-        self._info_cards[0].value_label.setText(
-            fmt_da(float(stats.get("sales_today", 0))))
-        top = self.db.get_top_clients(limit=1)
-        self._info_cards[1].value_label.setText(top[0]["name"] if top else "—")
-        low = self.db.get_low_stock_products() or []
-        self._info_cards[2].value_label.setText(
-            f"{len(low)} produit{'s' if len(low) != 1 else ''}")
+    # ─────────────────────────────────────────────────────────────
+    #  Infos Rapides
+    # ─────────────────────────────────────────────────────────────
 
-    def _load_invoices(self) -> None:
-        """Charge les 10 dernières factures dans le tableau."""
-        if not self.invoice_table:
-            print("⚠️ invoice_table est None - widget peut-être désactivé")
-            return
-        
-        try:
-            data = self.db.get_all_sales(limit=10) or []
-        except Exception as e:
-            print(f"❌ Erreur chargement factures: {e}")
-            data = []
-        
+    
+
+    # ─────────────────────────────────────────────────────────────
+    #  Tableau Factures
+    # ─────────────────────────────────────────────────────────────
+
+    def _load_invoices(self):
+        PAY = {
+            "cash":"💵 Espèces","card":"💳 Carte",
+            "check":"📝 Chèque","transfer":"🏦 Virement",
+            "mobile":"📱 Mobile","credit":"🔄 Crédit",
+        }
+        STATUS_COLOR = {
+            "paid":"#22C55E", "pending":"#FBBF24", "cancelled":"#EF4444"}
+
+        try:    data = self.db.get_all_sales(limit=10) or []
+        except Exception: data = []
+
         self.invoice_table.setRowCount(len(data))
         for r, sale in enumerate(data):
-            client = sale.get("client_name") or sale.get("client") or "—"
+            client = sale.get("client_name") or "—"
             date   = str(sale.get("sale_date") or "—").split(" ")[0]
-            pay    = sale.get("payment_method") or sale.get("payment_mode") or "—"
-            # Récupération robuste du total (plusieurs noms possibles)
-            total  = float(sale.get("total") or sale.get("grand_total") or
-                           sale.get("total_amount") or 0)
-            cells  = [
-                (f"{sale.get('invoice_number','—')}", "#F1F7F4"),
-                (client,                              "#F1F7F4"),
-                (fmt_da(total),                       "#10B981"),
-                (date,                                "#F1F7F4"),
-                (pay,                                 "#F1F7F4"),
-            ]
-            for col, (val, color) in enumerate(cells):
-                item = QTableWidgetItem(str(val))
-                item.setForeground(QColor(color))
-                item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                self.invoice_table.setItem(r, col, item)
+            pay    = PAY.get(sale.get("payment_method",""),
+                             sale.get("payment_method") or "—")
+            total  = float(sale.get("total") or 0)
+            status = sale.get("payment_status", "paid")
+            tc     = STATUS_COLOR.get(status, "#F0F4FF")
 
-            btn = QPushButton("👁 Détails")
-            btn.setFixedHeight(30)
+            cells = [
+                (str(sale.get("invoice_number","—")), "#F0F4FF",
+                 Qt.AlignmentFlag.AlignLeft),
+                (str(client), "#F0F4FF",
+                 Qt.AlignmentFlag.AlignLeft),
+                (fmt_da(total), tc,
+                 Qt.AlignmentFlag.AlignRight),
+                (date, "#A0AACC",
+                 Qt.AlignmentFlag.AlignCenter),
+                (pay, "#D1D5DB",
+                 Qt.AlignmentFlag.AlignLeft),
+            ]
+            for col, (val, color, align) in enumerate(cells):
+                it = QTableWidgetItem(val)
+                it.setForeground(QColor(color))
+                it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | align)
+                if col == 2:
+                    it.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+                self.invoice_table.setItem(r, col, it)
+
+            btn = QPushButton("👁")
+            btn.setFixedSize(30, 30)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet("""
                 QPushButton {
-                    background:rgba(99,102,241,0.18); color:#A5B4FC;
-                    border:1px solid rgba(99,102,241,0.40);
-                    border-radius:7px; font-size:11px; font-weight:bold; padding:0 8px;
+                    background:rgba(99,102,241,0.20);
+                    border-radius:8px; font-size:13px; border:none;
                 }
-                QPushButton:hover { background:rgba(99,102,241,0.38); color:white; }
+                QPushButton:hover { background:rgba(99,102,241,0.42); }
             """)
-            sid = sale['id']
-            btn.clicked.connect(lambda _, s=sid: self._open_detail(s))
+            btn.clicked.connect(
+                lambda _, sid=sale["id"]: self._open_detail(sid))
             self.invoice_table.setCellWidget(r, 5, btn)
-            self.invoice_table.setRowHeight(r, 44)
+            self.invoice_table.setRowHeight(r, 40)
 
-    def _load_low_stock(self) -> None:
-        """Charge les alertes de stock faible."""
-        
-        while self._low_stock_layout.count():
-            item = self._low_stock_layout.takeAt(0)
-            w = item.widget()
-            if w is not None: w.deleteLater()
-        try:
-            products = self.db.get_low_stock_products() or []
-        except Exception:
-            products = []
+    # ─────────────────────────────────────────────────────────────
+    #  Alertes Stock Faible
+    # ─────────────────────────────────────────────────────────────
+
+    def _load_low_stock(self):
+        _clear_layout(self.low_stock_layout)
+        try:    products = self.db.get_low_stock_products() or []
+        except Exception: products = []
+
+        nb = len(products)
+        self._ls_count.setText(
+            f"{nb} alerte{'s' if nb != 1 else ''}" if nb else "")
+
         if not products:
-            self._low_stock_layout.addWidget(
-                _lbl("✅  Aucune alerte de stock", 11, color=COLORS['success']))
+            self.low_stock_layout.addWidget(
+                _lbl("✅  Tous les stocks sont suffisants", 11, color="#22C55E"))
             return
+
         for p in products[:8]:
-            rw = QWidget()
-            rw.setStyleSheet("background:transparent;")
-            rl = QHBoxLayout(rw)
-            rl.setContentsMargins(0, 4, 0, 4)
-            rl.setSpacing(8)
-            rl.addWidget(_lbl("⚠", 10, color=COLORS['warning']))
-            rl.addWidget(_lbl(p.get('name','')[:26], 10), 1)
-            stock = int(p.get('stock_quantity', 0))
-            mini  = int(p.get('min_stock', 0))
-            col   = COLORS['danger'] if stock == 0 else COLORS['warning']
-            sl    = _lbl(f"{stock} / min {mini}", 10, color=col)
+            stock      = int(p.get("stock_quantity", 0))
+            mini       = int(p.get("min_stock", 0))
+            name       = str(p.get("name", "—"))
+            is_rupture = (stock == 0)
+            dot_color  = "#EF4444" if is_rupture else "#FBBF24"
+
+            row_frame = QFrame()
+            row_frame.setStyleSheet(
+                f"background:{'rgba(239,68,68,0.08)' if is_rupture else 'rgba(251,191,36,0.07)'};"
+                "border-radius:8px; border:none;")
+            rh = QHBoxLayout(row_frame)
+            rh.setContentsMargins(12, 8, 12, 8)
+            rh.setSpacing(10)
+
+            # Pastille ronde (QFrame, pas QLabel)
+            dot = QFrame()
+            dot.setFixedSize(13, 13)
+            dot.setStyleSheet(
+                f"background:{dot_color}; border-radius:7px; border:none;")
+            rh.addWidget(dot)
+
+            nl = QLabel(name[:34])
+            nl.setFont(QFont("Segoe UI", 11))
+            nl.setStyleSheet(
+                f"color:{COLORS.get('TXT_PRI','#F0F4FF')}; "
+                "background:transparent; border:none;")
+            rh.addWidget(nl, 1)
+
+            sl = QLabel("RUPTURE" if is_rupture else f"{stock} / {mini}")
+            sl.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+            sl.setStyleSheet(
+                f"color:{dot_color}; background:transparent; border:none;")
             sl.setAlignment(Qt.AlignmentFlag.AlignRight)
-            rl.addWidget(sl)
-            self._low_stock_layout.addWidget(rw)
+            rh.addWidget(sl)
 
-    def _load_top_clients(self, period="year") -> None:
-        """Charge le classement des top clients pour une période donnée.
-        
-        Args:
-            period: "year", "month", "week", "all" ou un tuple (start_date, end_date)
-        """
-        
-        # ✅ Nettoyer complètement le layout avant de le reconstruire
-        while self._top_clients_layout.count():
-            item = self._top_clients_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-            elif item.layout():
-                # Nettoyer les sous-layouts
-                while item.layout().count():
-                    sub_item = item.layout().takeAt(0)
-                    if sub_item.widget():
-                        sub_item.widget().deleteLater()
-                item.layout().deleteLater()
-        
-        # Récupérer les dates selon la période
-        from datetime import datetime, timedelta
-        
-        today = datetime.now()
-        start_date = None
-        end_date = None
-        
-        if period == "year":
-            start_date = today.replace(month=1, day=1).strftime('%Y-%m-%d')
-            end_date = today.strftime('%Y-%m-%d')
-            period_label = "Cette année"
-        elif period == "month":
-            start_date = today.replace(day=1).strftime('%Y-%m-%d')
-            end_date = today.strftime('%Y-%m-%d')
-            period_label = "Ce mois"
-        elif period == "week":
-            start_date = (today - timedelta(days=today.weekday())).strftime('%Y-%m-%d')
-            end_date = today.strftime('%Y-%m-%d')
-            period_label = "Cette semaine"
-        elif period == "all":
-            start_date = None
-            end_date = None
-            period_label = "Toutes les périodes"
-        elif isinstance(period, tuple):
-            start_date, end_date = period
-            period_label = f"Du {start_date} au {end_date}"
-        else:
-            start_date = None
-            end_date = None
-            period_label = "Toutes les périodes"
-        
-        try:
-            # Modifier la requête SQL pour filtrer par date
-            if start_date and end_date:
-                self.db.cursor.execute("""
-                    SELECT
-                        c.name,
-                        COUNT(s.id) as sale_count,
-                        SUM(s.total) as total_amount
-                    FROM sales s
-                    JOIN clients c ON s.client_id = c.id
-                    WHERE DATE(s.sale_date) BETWEEN ? AND ?
-                    GROUP BY s.client_id
-                    ORDER BY total_amount DESC
-                    LIMIT 5
-                """, (start_date, end_date))
-            else:
-                self.db.cursor.execute("""
-                    SELECT
-                        c.name,
-                        COUNT(s.id) as sale_count,
-                        SUM(s.total) as total_amount
-                    FROM sales s
-                    JOIN clients c ON s.client_id = c.id
-                    GROUP BY s.client_id
-                    ORDER BY total_amount DESC
-                    LIMIT 5
-                """)
-            
-            clients = [dict(row) for row in self.db.cursor.fetchall()]
-            
-        except Exception as e:
-            clients = []
-        
-        # ✅ Créer le conteneur principal pour les en-têtes
-        header_container = QWidget()
-        header_container.setStyleSheet("background: transparent;")
-        header_layout = QHBoxLayout(header_container)
-        header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(8)
-        
-        # Titre
-        title_label = _lbl("🏆 Top Clients", 13, bold=True, color = "#ff5865")
-        header_layout.addWidget(title_label)
-        header_layout.addStretch()
-        
-        # Label période
-        period_label_widget = _lbl(period_label, 9, color=COLORS['TXT_SEC'])
-        header_layout.addWidget(period_label_widget)
-        
-        # Bouton pour changer la période
-        period_btn = QPushButton("📅 Période")
-        period_btn.setFixedHeight(28)
-        period_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        period_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: rgba(99,102,241,0.15);
-                color: {COLORS['primary']};
-                border: 1px solid rgba(99,102,241,0.3);
-                border-radius: 6px;
-                font-size: 10px;
-                font-weight: bold;
-                padding: 0 12px;
-            }}
-            QPushButton:hover {{
-                background: rgba(99,102,241,0.3);
-            }}
-        """)
-        period_btn.clicked.connect(lambda: self._open_period_selector())
-        header_layout.addWidget(period_btn)
-        
-        # ✅ Ajouter au layout principal
-        self._top_clients_layout.addWidget(header_container)
-        
-        # ✅ Ajouter le séparateur
-        self._top_clients_layout.addWidget(divider())
-        
-        if not clients:
-            self._top_clients_layout.addWidget(
-                _lbl(f"Aucune donnée disponible pour {period_label}", 11, color=COLORS['TXT_SEC']))
-            return
-        
-        MEDAL  = ["🥇","🥈","🥉","4️⃣","5️⃣"]
-        max_t  = max((float(c.get('total_amount',0)) for c in clients), default=1) or 1
-        
-        for rank, c in enumerate(clients):
-            name  = c.get('name','—')[:24]
-            total = float(c.get('total_amount',0))
-            sale = int(c.get('sale_count', 0))
-            pct   = total / max_t
+            self.low_stock_layout.addWidget(row_frame)
 
-            # Conteneur pour chaque client
-            client_container = QWidget()
-            client_container.setStyleSheet("background:transparent;")
-            client_layout = QHBoxLayout(client_container)
-            client_layout.setContentsMargins(0, 4, 0, 0)
-            client_layout.setSpacing(8)
-            
-            # Médaille
-            medal_label = _lbl(MEDAL[rank], 14)
-            client_layout.addWidget(medal_label)
-            
-            # Nom du client
-            name_label = _lbl(name, 10, bold=True)
-            client_layout.addWidget(name_label, 1)
-            
-            # Montant
-            amount_label = _lbl(fmt_da(total, 0), 10, color=COLORS['primary'])
-            amount_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-            client_layout.addWidget(amount_label)
-            
-            # Nombre de ventes
-            sales_label = _lbl(f"({sale} vente{'s' if sale != 1 else ''})", 9, color=COLORS['TXT_SEC'])
-            sales_label.setAlignment(Qt.AlignmentFlag.AlignRight)
-            client_layout.addWidget(sales_label)
-            
-            self._top_clients_layout.addWidget(client_container)
+    # ─────────────────────────────────────────────────────────────
+    #  Top Clients  (noms + montants + barres)
+    # ─────────────────────────────────────────────────────────────
 
-            # Barre de progression
-            bar = QFrame()
-            bar.setFixedHeight(3)
-            bar.setStyleSheet(f"""
-                background:qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                    stop:0 {COLORS['primary']},
-                    stop:{pct:.2f} {COLORS['primary']},
-                    stop:{min(pct+0.01,1):.3f} transparent,
-                    stop:1 transparent);
-                border-radius:2px; border:none;
-            """)
-            self._top_clients_layout.addWidget(bar)
-        
-        # ✅ Stocker la période actuelle pour référence
-        self._top_clients_period = period
-        self._top_clients_period_label = period_label
-        
-    def _open_period_selector(self):
-            """Ouvre un dialogue pour choisir la période des top clients."""
-            from PyQt6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QDateEdit, QLabel, QGroupBox, QRadioButton, QButtonGroup
-            from PyQt6.QtCore import QDate
-            
-            dialog = QDialog(self)
-            dialog.setWindowTitle("Choisir la période - Top Clients")
-            dialog.setMinimumWidth(400)
-            dialog.setStyleSheet(f"""
-                QDialog {{
-                    background: {COLORS['BG_PAGE']};
-                }}
-                QLabel {{
-                    color: {COLORS['TXT_PRI']};
-                }}
-                QGroupBox {{
-                    color: {COLORS['primary']};
-                    border: 1px solid {COLORS['BORDER']};
-                    border-radius: 8px;
-                    margin-top: 10px;
-                    font-weight: bold;
-                    padding-top: 10px;
-                }}
-                QGroupBox::title {{
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px 0 5px;
-                }}
-                QRadioButton {{
-                    color: {COLORS['TXT_PRI']};
-                    spacing: 8px;
-                }}
-                QDateEdit {{
-                    background: {COLORS['BG_DEEP']};
-                    color: {COLORS['TXT_PRI']};
-                    border: 1px solid {COLORS['BORDER']};
-                    border-radius: 6px;
-                    padding: 6px;
-                }}
-            """)
-            
-            layout = QVBoxLayout(dialog)
-            layout.setSpacing(15)
-            layout.setContentsMargins(20, 20, 20, 20)
-            
-            # Groupes de périodes prédéfinies
-            group1 = QGroupBox("Périodes prédéfinies")
-            group1_layout = QVBoxLayout(group1)
-            
-            self.period_radio = QButtonGroup(dialog)
-            
-            self.rb_year = QRadioButton("Cette année")
-            self.rb_month = QRadioButton("Ce mois")
-            self.rb_week = QRadioButton("Cette semaine")
-            self.rb_all = QRadioButton("Toutes les périodes")
-            
-            # Sélectionner la période actuelle
-            current_period = getattr(self, '_top_clients_period', 'year')
-            if current_period == "year":
-                self.rb_year.setChecked(True)
-            elif current_period == "month":
-                self.rb_month.setChecked(True)
-            elif current_period == "week":
-                self.rb_week.setChecked(True)
-            elif current_period == "all":
-                self.rb_all.setChecked(True)
-            else:
-                self.rb_year.setChecked(True)
-            
-            self.period_radio.addButton(self.rb_year, 0)
-            self.period_radio.addButton(self.rb_month, 1)
-            self.period_radio.addButton(self.rb_week, 2)
-            self.period_radio.addButton(self.rb_all, 3)
-            
-            group1_layout.addWidget(self.rb_year)
-            group1_layout.addWidget(self.rb_month)
-            group1_layout.addWidget(self.rb_week)
-            group1_layout.addWidget(self.rb_all)
-            
-            layout.addWidget(group1)
-            
-            # Groupe de période personnalisée
-            group2 = QGroupBox("Période personnalisée")
-            group2_layout = QVBoxLayout(group2)
-            
-            date_layout = QHBoxLayout()
-            date_layout.addWidget(QLabel("Du :"))
-            self.start_date = QDateEdit()
-            self.start_date.setCalendarPopup(True)
-            self.start_date.setDate(QDate.currentDate().addDays(-30))
-            date_layout.addWidget(self.start_date)
-            
-            date_layout.addWidget(QLabel("Au :"))
-            self.end_date = QDateEdit()
-            self.end_date.setCalendarPopup(True)
-            self.end_date.setDate(QDate.currentDate())
-            date_layout.addWidget(self.end_date)
-            
-            group2_layout.addLayout(date_layout)
-            
-            self.custom_radio = QRadioButton("Utiliser cette période")
-            group2_layout.addWidget(self.custom_radio)
-            self.period_radio.addButton(self.custom_radio, 4)
-            
-            layout.addWidget(group2)
-            
-            # Connecter le signal pour désactiver le custom quand une prédéfinie est choisie
-            def on_radio_changed():
-                if self.custom_radio.isChecked():
-                    self.start_date.setEnabled(True)
-                    self.end_date.setEnabled(True)
-                else:
-                    self.start_date.setEnabled(False)
-                    self.end_date.setEnabled(False)
-            
-            self.custom_radio.toggled.connect(on_radio_changed)
-            on_radio_changed()
-            
-            # Boutons
-            btn_layout = QHBoxLayout()
-            btn_layout.setSpacing(10)
-            
-            cancel_btn = QPushButton("Annuler")
-            cancel_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: transparent;
-                    color: {COLORS['TXT_SEC']};
-                    border: 1px solid {COLORS['BORDER']};
-                    border-radius: 6px;
-                    padding: 8px 16px;
-                }}
-                QPushButton:hover {{
-                    background: rgba(255,255,255,0.05);
-                }}
-            """)
-            cancel_btn.clicked.connect(dialog.reject)
-            
-            apply_btn = QPushButton("Appliquer")
-            apply_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: {COLORS['primary']};
-                    color: white;
-                    border: none;
-                    border-radius: 6px;
-                    padding: 8px 20px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background: {COLORS['secondary']};
-                }}
-            """)
-            apply_btn.clicked.connect(dialog.accept)
-            
-            btn_layout.addStretch()
-            btn_layout.addWidget(cancel_btn)
-            btn_layout.addWidget(apply_btn)
-            layout.addLayout(btn_layout)
-            
-            if dialog.exec():
-                selected_id = self.period_radio.checkedId()
-                
-                if selected_id == 0:  # Cette année
-                    self._load_top_clients("year")
-                elif selected_id == 1:  # Ce mois
-                    self._load_top_clients("month")
-                elif selected_id == 2:  # Cette semaine
-                    self._load_top_clients("week")
-                elif selected_id == 3:  # Toutes les périodes
-                    self._load_top_clients("all")
-                elif selected_id == 4:  # Personnalisé
-                    start = self.start_date.date().toString("yyyy-MM-dd")
-                    end = self.end_date.date().toString("yyyy-MM-dd")
-                    self._load_top_clients((start, end))
-                
-            
-    def _load_sales_chart(self) -> None:
-        """Charge et affiche un graphique des ventes avec tous les 7 jours"""
-        
-        while self._sales_chart_layout.count():
-            item = self._sales_chart_layout.takeAt(0)
-            w = item.widget()
-            if w is not None:
-                w.deleteLater()
-        
-        from datetime import datetime, timedelta
-        
-        today = datetime.now().date()
-        jours = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
-        jours_court = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-        
-        # Récupérer les ventes des 7 derniers jours
+    def _load_top_clients(self):
+        _clear_layout(self.top_clients_layout)
         try:
             self.db.cursor.execute("""
-                SELECT 
-                    DATE(sale_date) as day,
-                    SUM(total) as total,
-                    COUNT(*) as nb
-                FROM sales
-                WHERE sale_date >= DATE('now', '-7 days')
-                GROUP BY DATE(sale_date)
+                SELECT c.name,
+                    COUNT(s.id)              AS nb_ventes,
+                    COALESCE(SUM(s.total),0) AS ca
+                FROM   sales s
+                JOIN   clients c ON s.client_id = c.id
+                GROUP  BY s.client_id
+                ORDER  BY ca DESC
+                LIMIT  5
             """)
-            rows = self.db.cursor.fetchall()
-            
-            # Mettre dans un dictionnaire
-            sales_data = {}
-            for row in rows:
-                if hasattr(row, 'keys'):
-                    day = row['day']
-                    total = float(row['total'])
-                    nb = int(row['nb'])
-                else:
-                    day = row[0]
-                    total = float(row[1])
-                    nb = int(row[2])
-                sales_data[day] = {'total': total, 'nb': nb}
-                
-        except Exception as e:
-            print(f"❌ Erreur: {e}")
-            sales_data = {}
-        
-        # Créer les 7 jours
-        all_days = []
-        for i in range(6, -1, -1):
-            day_date = today - timedelta(days=i)
-            all_days.append(day_date)
-        
-        # Calculer le maximum
-        totals = [sales_data.get(str(day), {}).get('total', 0) for day in all_days]
-        max_total = max(totals) if totals else 1
-        
-        # Afficher chaque jour
-        for day_date in all_days:
-            day_str = str(day_date)
-            total = sales_data.get(day_str, {}).get('total', 0)
-            nb = sales_data.get(day_str, {}).get('nb', 0)
-            
-            # Format du jour
-            day_name = jours_court[day_date.weekday()]
-            day_display = f"{day_name} {day_date.day:02d}/{day_date.month:02d}"
-            
-            row_layout = QHBoxLayout()
-            row_layout.setSpacing(10)
-            
-            # Jour
-            day_label = _lbl(day_display, 10, bold=True, color=COLORS['primary'])
-            day_label.setFixedWidth(75)
-            row_layout.addWidget(day_label)
-            
+            clients = [dict(r) for r in self.db.cursor.fetchall()]
+        except Exception:
+            clients = []
+
+        if not clients:
+            self.top_clients_layout.addWidget(
+                _lbl("  Aucun client avec des ventes", 11,
+                    color=COLORS.get("TXT_SEC","#A0AACC")))
+            return
+
+        MEDALS       = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+        MEDAL_COLORS = ["#F59E0B","#94A3B8","#CD7F32","#6B7280","#6B7280"]
+        max_ca       = max((c["ca"] for c in clients), default=1) or 1
+
+        for rank, c in enumerate(clients):
+            name  = str(c["name"])
+            ca    = float(c["ca"])
+            nb_v  = int(c["nb_ventes"])
+            pct   = ca / max_ca
+            mc    = MEDAL_COLORS[rank]
+
+            # Conteneur principal
+            client_container = QWidget()
+            client_layout = QVBoxLayout(client_container)
+            client_layout.setContentsMargins(0, 0, 0, 0)
+            client_layout.setSpacing(4)
+
+            # Ligne principale
+            row_widget = QWidget()
+            row_widget.setStyleSheet(
+                "background:rgba(255,255,255,0.03); "
+                "border-radius:10px; border:none;")
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(12, 10, 12, 10)
+            row_layout.setSpacing(12)
+
+            # Médaille
+            medal_frame = QFrame()
+            medal_frame.setFixedSize(30, 30)
+            medal_frame.setStyleSheet(
+                f"background:{mc}25; border-radius:10px; "
+                f"border:1px solid {mc}50;")
+            medal_layout = QVBoxLayout(medal_frame)
+            medal_layout.setContentsMargins(0, 0, 0, 0)
+            medal_label = QLabel(MEDALS[rank])
+            medal_label.setFont(QFont("Segoe UI", 15))
+            medal_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            medal_label.setStyleSheet("background:transparent; border:none;")
+            medal_layout.addWidget(medal_label)
+            row_layout.addWidget(medal_frame)
+
+            # Nom
+            name_label = QLabel(name[:28])
+            name_label.setFont(QFont("Segoe UI", 10, 
+                                    QFont.Weight.Bold if rank == 0 
+                                    else QFont.Weight.Normal))
+            name_label.setStyleSheet(f"color:{COLORS.get('TXT_PRI','#F0F4FF')};")
+            row_layout.addWidget(name_label, 1)
+
+            # ✅ Montant et nombre ventes sur la même ligne mais avec un espace
+            info_label = QLabel(f"{fmt_da(ca, 0)}  ·  ({nb_v} vente{'s' if nb_v > 1 else ''})")
+            info_label.setFont(QFont("Segoe UI", 10))
+            info_label.setStyleSheet(
+                f"color:{COLORS.get('primary','#3B82F6')};")
+            info_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            row_layout.addWidget(info_label)
+
+            client_layout.addWidget(row_widget)
+
+            # Barre
+            progress_bar = QProgressBar()
+            progress_bar.setRange(0, 1000)
+            progress_bar.setValue(int(pct * 1000))
+            progress_bar.setTextVisible(False)
+            progress_bar.setFixedHeight(3)
+            progress_bar.setStyleSheet(f"""
+                QProgressBar {{
+                    background: rgba(255,255,255,0.08);
+                    border-radius: 2px;
+                    border: none;
+                }}
+                QProgressBar::chunk {{
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                        stop:0 {COLORS.get('primary','#3B82F6')},
+                        stop:1 {COLORS.get('secondary','#A855F7')});
+                    border-radius: 2px;
+                }}
+            """)
+            client_layout.addWidget(progress_bar)
+
+            self.top_clients_layout.addWidget(client_container)
+
+    # ─────────────────────────────────────────────────────────────
+    #  Graphique Ventes 7 jours
+    # ─────────────────────────────────────────────────────────────
+
+    def _load_sales_chart(self):
+        _clear_layout(self.sales_chart_layout)
+        try:
+            self.db.cursor.execute("""
+                SELECT DATE(sale_date) AS day,
+                       SUM(total)      AS total,
+                       COUNT(*)        AS nb
+                FROM   sales
+                WHERE  sale_date >= DATE('now', '-6 days')
+                GROUP  BY day ORDER BY day
+            """)
+            rows_db = {r[0]: (float(r[1] or 0), int(r[2] or 0))
+                       for r in self.db.cursor.fetchall()}
+        except Exception:
+            rows_db = {}
+
+        today   = datetime.date.today()
+        jours   = ["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"]
+        days    = [today - datetime.timedelta(days=6-i) for i in range(7)]
+        totals  = [rows_db.get(str(d),(0.0,0))[0] for d in days]
+        max_val = max(totals, default=1) or 1
+        grand   = sum(totals)
+
+        self._chart_total.setText(
+            f"Total semaine : {fmt_da(grand, 0)}" if grand > 0 else "")
+
+        for day_date, total in zip(days, totals):
+            nb       = rows_db.get(str(day_date),(0,0))[1]
+            dn       = jours[day_date.weekday()]
+            is_today = (day_date == today)
+
+            rh = QHBoxLayout()
+            rh.setSpacing(10)
+
+            # Label jour — largeur fixe pour alignement des barres
+            day_color = (COLORS.get("primary","#3B82F6")
+                         if is_today
+                         else COLORS.get("TXT_SEC","#A0AACC"))
+            prefix = "▶ " if is_today else "   "
+            dl = QLabel(f"{prefix}{dn} {day_date.strftime('%d/%m')}")
+            dl.setFont(QFont("Segoe UI", 10,
+                       QFont.Weight.Bold if is_today else QFont.Weight.Normal))
+            dl.setFixedWidth(95)
+            dl.setStyleSheet(
+                f"color:{day_color}; background:transparent; border:none;")
+            rh.addWidget(dl)
+
             # Barre
             bar = QProgressBar()
             bar.setRange(0, 1000)
-            bar.setValue(int((total / max_total) * 1000) if max_total > 0 else 0)
+            bar.setValue(int((total / max_val) * 1000) if total > 0 else 0)
             bar.setTextVisible(False)
-            bar.setFixedHeight(28)
-            
-            if total == 0:
-                bar.setStyleSheet(f"""
-                    QProgressBar {{
-                        background: {COLORS['BG_DEEP']};
-                        border-radius: 6px;
-                        border: none;
-                    }}
-                    QProgressBar::chunk {{
-                        background: #374151;
-                        border-radius: 6px;
-                    }}
-                """)
-            else:
-                bar.setStyleSheet(f"""
-                    QProgressBar {{
-                        background: {COLORS['BG_DEEP']};
-                        border-radius: 6px;
-                        border: none;
-                    }}
-                    QProgressBar::chunk {{
-                        background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
-                            stop:0 #6366F1, stop:1 #A855F7);
-                        border-radius: 6px;
-                    }}
-                """)
-            row_layout.addWidget(bar, 1)
-            
-            # Montant
-            amount_text = fmt_da(total, 0) if total > 0 else "0 DA"
-            amount_color = COLORS['success'] if total > 0 else COLORS['TXT_SEC']
-            amount = _lbl(amount_text, 10, bold=True, color=amount_color)
-            amount.setMinimumWidth(100)
-            amount.setAlignment(Qt.AlignmentFlag.AlignRight)
-            row_layout.addWidget(amount)
-            
-            # Nombre de ventes
-            if nb > 0:
-                count_text = f"({nb} vente{'s' if nb > 1 else ''})"
-                count = _lbl(count_text, 9, color=COLORS['TXT_SEC'])
-            else:
-                count = _lbl("(aucune)", 9, color=COLORS['TXT_SEC'])
-            count.setMinimumWidth(70)
-            count.setAlignment(Qt.AlignmentFlag.AlignRight)
-            row_layout.addWidget(count)
-            
-            self._sales_chart_layout.addLayout(row_layout)
+            bar.setFixedHeight(14)
 
-    def _open_detail(self, sale_id: int) -> None:
+            if total == 0:
+                chunk = "background:rgba(255,255,255,0.06); border-radius:5px;"
+            elif is_today:
+                chunk = (
+                    f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+                    f"stop:0 {COLORS.get('primary','#3B82F6')},"
+                    f"stop:1 {COLORS.get('secondary','#A855F7')});"
+                    "border-radius:5px;")
+            else:
+                chunk = (
+                    f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+                    f"stop:0 {COLORS.get('primary','#3B82F6')}99,"
+                    f"stop:1 {COLORS.get('secondary','#A855F7')}99);"
+                    "border-radius:5px;")
+
+            bar.setStyleSheet(f"""
+                QProgressBar {{
+                    background:{COLORS.get('BG_DEEP','#16161F')};
+                    border-radius:5px; border:none;
+                }}
+                QProgressBar::chunk {{ {chunk} }}
+            """)
+            rh.addWidget(bar, 1)
+
+            # Montant
+            amt_color = (COLORS.get("success","#22C55E")
+                         if total > 0
+                         else "rgba(160,170,204,0.35)")
+            al = QLabel(fmt_da(total, 0) if total > 0 else "—")
+            al.setFont(QFont("Segoe UI", 11,
+                       QFont.Weight.Bold if total > 0 else QFont.Weight.Normal))
+            al.setFixedWidth(135)
+            al.setAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            al.setStyleSheet(
+                f"color:{amt_color}; background:transparent; border:none;")
+            rh.addWidget(al)
+
+            # Nb ventes
+            nbl = QLabel(f"({nb})" if nb > 0 else "")
+            nbl.setFont(QFont("Segoe UI", 9))
+            nbl.setFixedWidth(40)
+            nbl.setAlignment(
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            nbl.setStyleSheet(
+                "color:rgba(160,170,204,0.60); background:transparent; border:none;")
+            rh.addWidget(nbl)
+
+            self.sales_chart_layout.addLayout(rh)
+
+    # ─────────────────────────────────────────────────────────────
+    #  Détail facture
+    # ─────────────────────────────────────────────────────────────
+
+    def _open_detail(self, sale_id: int):
         if not _DETAIL_AVAILABLE:
             QMessageBox.warning(self, "Module manquant",
-                "Le module sales_history.py est introuvable.")
+                                "Le module sales_history.py est introuvable.")
             return
-        sale = self.db.get_sale_by_id(sale_id)
-        if sale:
-            InvoiceDetailsDialog(sale, self).exec()
-
-
+        try:
+            sale = self.db.get_sale_by_id(sale_id)
+            if sale:
+                InvoiceDetailsDialog(sale, self).exec()
+            else:
+                QMessageBox.warning(self, "Introuvable",
+                                    "Cette vente n'existe plus en base.")
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur",
+                                 f"Impossible d'ouvrir la facture :\n{e}")
