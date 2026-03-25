@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
         logo_layout.setSpacing(0)
 
         logo_label = QLabel()
-        logo_label.setFixedSize(90, 90)
+        logo_label.setFixedSize(50, 50)
         logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         db = get_database()
@@ -315,28 +315,7 @@ class MainWindow(QMainWindow):
         sep2.setStyleSheet(f"background: {COLORS['BORDER']}; border: none; margin: 0 8px;")
         nav_layout.addWidget(sep2)
 
-        about_btn = QPushButton("ℹ️  À propos")
-        about_btn.setFont(QFont("Segoe UI", 10))
-        about_btn.setFixedHeight(40)
-        about_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        about_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                border-left: 4px solid transparent;
-                color: {COLORS['TXT_SEC']};
-                text-align: left;
-                padding-left: 12px;
-                font-weight: 400;
-                font-style: italic;
-            }}
-            QPushButton:hover {{
-                background: rgba(255,255,255,0.05);
-                border-left: 4px solid {COLORS['TXT_SEC']}55;
-                color: {COLORS['TXT_PRI']};
-            }}
-        """)
-        about_btn.clicked.connect(self.show_about)
-        nav_layout.addWidget(about_btn)
+       
 
         layout.addWidget(nav_widget)
         layout.addStretch()

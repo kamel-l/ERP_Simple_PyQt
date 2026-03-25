@@ -280,7 +280,7 @@ class ProductsPage(QWidget):
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(0)
         table_container.setLayout(table_layout)
-
+ 
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels([
             "ID", "Nom", "Description", "Stock", 
