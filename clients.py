@@ -2,10 +2,10 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QHBoxLayout, QLineEdit, QDialog, QFormLayout,
     QFrame, QMessageBox, QTabWidget, QScrollArea, QGridLayout, QSizePolicy,
-    QSpacerItem, QProgressBar
+    QSpacerItem, QProgressBar, QTextEdit, QComboBox, QApplication
 )
-from PyQt6.QtGui import QFont, QColor
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont, QColor, QPainter, QPainterPath
+from PyQt6.QtCore import Qt, pyqtSignal, QSize
 from auth import session
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
@@ -88,426 +88,479 @@ class ClientDialog(QDialog):
 
 # ------------------ PAGE CLIENTS ------------------
 class ClientsPage(QWidget):
-    # Signal émis quand un client est ajouté ou modifié
+    """Page clients — grille de cartes avec avatar, tri alphabétique."""
+
     client_added = pyqtSignal()
-    
+
+    # Palette d'avatars — une couleur par lettre initiale
+    _AVATAR_COLORS = [
+        "#6366F1","#A855F7","#EC4899","#F59E0B","#10B981",
+        "#3B82F6","#EF4444","#14B8A6","#F97316","#8B5CF6",
+    ]
+
     def __init__(self):
         super().__init__()
-        
-        # Connexion à la base de données
         self.db = get_database()
+        self._all_clients = []   # cache complet pour filtre/tri
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(20)
-        layout.setContentsMargins(20, 20, 20, 20)
-        
-        # ------------------- HEADER -------------------
-        title = QLabel("👥 Gestion des Clients")
-        title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['BG_CARD']}; margin-bottom: 5px;")
-        layout.addWidget(title)
+        # ── Layout racine ──────────────────────────────────────
+        root = QVBoxLayout(self)
+        root.setSpacing(0)
+        root.setContentsMargins(0, 0, 0, 0)
 
-        subtitle = QLabel("Gérez vos clients et leurs informations")
-        subtitle.setFont(QFont("Segoe UI", 14))
-        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']}; margin-bottom: 15px;")
-        layout.addWidget(subtitle)
-
-        # ------------------- STATISTICS CARDS -------------------
-        self.stats_layout = QHBoxLayout()
-        self.stats_layout.setSpacing(15)
-        layout.addLayout(self.stats_layout)
-
-        # Les cartes seront créées dans load_statistics()
-        self.load_statistics()
-        self.stats_layout.addStretch()
-
-        # ------------------- SEARCH & ACTIONS BAR -------------------
-        search_layout = QHBoxLayout()
-        search_layout.setSpacing(15)
-        layout.addLayout(search_layout)
-
-        # Barre de recherche
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Rechercher par nom ou email...")
-        self.search_input.setStyleSheet(INPUT_STYLE)
-        self.search_input.textChanged.connect(self.filter_clients)
-        self.search_input.setMinimumHeight(45)
-        search_layout.addWidget(self.search_input)
-
-        # Bouton Ajouter
-        self.add_btn = QPushButton("➕ Nouveau Client")
-        self.add_btn.setStyleSheet(BUTTON_STYLES['primary'])
-        self.add_btn.setFixedWidth(180)
-        self.add_btn.setMinimumHeight(45)
-        self.add_btn.clicked.connect(self.add_client)
-        self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        search_layout.addWidget(self.add_btn)
-
-        # ------------------- CLIENT TABLE -------------------
-        table_container = QFrame()
-        table_container.setStyleSheet(
-            f"""
+        # ── En-tête ────────────────────────────────────────────
+        hdr_frame = QFrame()
+        hdr_frame.setStyleSheet(f"""
             QFrame {{
-                background-color: {COLORS['bg_card']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 0px;
-            }}
-        """
-        )
-        table_layout = QVBoxLayout()
-        table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(0)
-        table_container.setLayout(table_layout)
-        
-        self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Nom", "Téléphone", ""])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(2, 120)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setStyleSheet(TABLE_STYLE + f"""
-            QHeaderView::section {{
-                background-color: {COLORS['bg_light']};
-                color: {COLORS['text_primary']};
-                font-size: 13px;
-                font-weight: bold;
-                padding: 10px 8px;
-                border: none;
-                border-right: 1px solid {COLORS['border']};
-                border-bottom: 2px solid {COLORS['primary']};
-            }}
-            QHeaderView::section:last {{
-                border-right: none;
+                background: {COLORS.get('BG_PAGE','#1E1E2E')};
+                border-bottom: 1px solid {COLORS.get('BORDER','rgba(0,180,255,0.2)')};
             }}
         """)
-        
-        table_layout.addWidget(self.table)
-        layout.addWidget(table_container)
-        
-        self.load_clients()  # Charger les clients à l'affichage de la page
+        hdr_lay = QVBoxLayout(hdr_frame)
+        hdr_lay.setContentsMargins(28, 20, 28, 16)
+        hdr_lay.setSpacing(12)
 
-        # ------------------- ACTIONS BUTTONS -------------------
-        actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(10)
-        layout.addLayout(actions_layout)
+        # Titre + bouton
+        top_row = QHBoxLayout()
+        col = QVBoxLayout()
+        col.setSpacing(3)
+        title = QLabel("👥 Gestion des Clients")
+        title.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
+        title.setStyleSheet(f"color: {COLORS.get('TXT_PRI','#F0F4FF')}; background:transparent;")
+        col.addWidget(title)
+        sub = QLabel("Gérez vos clients, leurs factures et notes")
+        sub.setFont(QFont("Segoe UI", 11))
+        sub.setStyleSheet(f"color: {COLORS.get('TXT_SEC','#A0AACC')}; background:transparent;")
+        col.addWidget(sub)
+        top_row.addLayout(col)
+        top_row.addStretch()
 
-        self.edit_btn = QPushButton("✏️ Modifier")
+        self.add_btn = QPushButton("➕  Nouveau Client")
+        self.add_btn.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        self.add_btn.setFixedHeight(42)
+        self.add_btn.setFixedWidth(175)
+        self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.add_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {COLORS.get('primary','#3B82F6')};
+                color: white; border: none; border-radius: 10px;
+            }}
+            QPushButton:hover {{ background: {COLORS.get('primary_dark','#2563EB')}; }}
+        """)
+        self.add_btn.clicked.connect(self.add_client)
+        top_row.addWidget(self.add_btn)
+        hdr_lay.addLayout(top_row)
+
+        # Statistiques
+        self.stats_layout = QHBoxLayout()
+        self.stats_layout.setSpacing(12)
+        hdr_lay.addLayout(self.stats_layout)
+
+        # Barre recherche + tri
+        ctrl_row = QHBoxLayout()
+        ctrl_row.setSpacing(10)
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("🔍 Rechercher un client...")
+        self.search_input.setMinimumHeight(40)
+        self.search_input.setStyleSheet(INPUT_STYLE)
+        self.search_input.textChanged.connect(self._apply_filter)
+        ctrl_row.addWidget(self.search_input, 1)
+
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItems(["A → Z", "Z → A", "Plus récent", "Plus de ventes"])
+        self.sort_combo.setMinimumHeight(40)
+        self.sort_combo.setFixedWidth(160)
+        self.sort_combo.setStyleSheet(INPUT_STYLE)
+        self.sort_combo.currentIndexChanged.connect(self._apply_filter)
+        ctrl_row.addWidget(self.sort_combo)
+
+        hdr_lay.addLayout(ctrl_row)
+        root.addWidget(hdr_frame)
+
+        # ── Zone scrollable pour la grille ─────────────────────
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setStyleSheet("QScrollArea { border:none; background:transparent; }")
+
+        self._grid_container = QWidget()
+        self._grid_container.setStyleSheet(f"background: {COLORS.get('BG_PAGE','#1E1E2E')};")
+        self._grid_layout = QGridLayout(self._grid_container)
+        self._grid_layout.setSpacing(16)
+        self._grid_layout.setContentsMargins(28, 20, 28, 20)
+        self._grid_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+        self._scroll.setWidget(self._grid_container)
+        root.addWidget(self._scroll, 1)
+
+        # ── Boutons d'action en bas ─────────────────────────────
+        action_bar = QFrame()
+        action_bar.setFixedHeight(60)
+        action_bar.setStyleSheet(f"""
+            QFrame {{
+                background: {COLORS.get('BG_PAGE','#1E1E2E')};
+                border-top: 1px solid {COLORS.get('BORDER','rgba(0,180,255,0.2)')};
+            }}
+        """)
+        ab_lay = QHBoxLayout(action_bar)
+        ab_lay.setContentsMargins(28, 8, 28, 8)
+        ab_lay.setSpacing(10)
+        ab_lay.addStretch()
+
+        self.edit_btn = QPushButton("✏️  Modifier")
+        self.edit_btn.setFixedHeight(38)
+        self.edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.edit_btn.setStyleSheet(BUTTON_STYLES['secondary'])
         self.edit_btn.clicked.connect(self.edit_client)
-        self.edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.edit_btn.setMinimumHeight(40)
-        
-        self.delete_btn = QPushButton("🗑️ Supprimer")
+        ab_lay.addWidget(self.edit_btn)
+
+        self.delete_btn = QPushButton("🗑️  Supprimer")
+        self.delete_btn.setFixedHeight(38)
+        self.delete_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.delete_btn.setStyleSheet(BUTTON_STYLES['danger'])
         self.delete_btn.clicked.connect(self.delete_client)
-        self.delete_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.delete_btn.setMinimumHeight(40)
+        ab_lay.addWidget(self.delete_btn)
 
-        actions_layout.addStretch()
-        actions_layout.addWidget(self.edit_btn)
-        actions_layout.addWidget(self.delete_btn)
+        root.addWidget(action_bar)
 
-        # Charger les données
+        # ── Chargement initial ──────────────────────────────────
+        self.load_statistics()
         self.load_clients()
 
-    def build_stat_card(self, title, value, color):
-        """Construit une petite carte de statistique"""
+    # ── Carte client ───────────────────────────────────────────
+    def _make_card(self, client: dict) -> QFrame:
+        """Crée une carte visuelle pour un client."""
+        cid   = client["id"]
+        name  = client.get("name", "?")
+        phone = client.get("phone") or "—"
+        email = client.get("email") or ""
+        init  = name[0].upper() if name else "?"
+        color = self._AVATAR_COLORS[ord(init) % len(self._AVATAR_COLORS)]
+
+        # Compter les ventes
+        try:
+            self.db.cursor.execute(
+                "SELECT COUNT(*), COALESCE(SUM(total),0) FROM sales WHERE client_id=?", (cid,))
+            nb_v, ca = self.db.cursor.fetchone()
+            nb_v = int(nb_v or 0)
+            ca   = float(ca or 0)
+        except Exception:
+            nb_v, ca = 0, 0.0
+
         card = QFrame()
+        card.setObjectName(f"card_{cid}")
+        card.setFixedHeight(190)
+        card.setCursor(Qt.CursorShape.PointingHandCursor)
         card.setStyleSheet(f"""
-            QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 10px;
-                border: 1px solid {COLORS['border']};
+            QFrame#card_{cid} {{
+                background: {COLORS.get('BG_CARD','#252535')};
+                border-radius: 14px;
+                border: 1px solid {COLORS.get('BORDER','rgba(0,180,255,0.2)')};
+            }}
+            QFrame#card_{cid}:hover {{
+                border: 1px solid {color};
+                background: {color}0A;
             }}
         """)
-        card.setFixedHeight(80)
-        card.setMinimumWidth(180)
 
-        card_layout = QVBoxLayout()
-        card.setLayout(card_layout)
-        card_layout.setSpacing(5)
-        card_layout.setContentsMargins(15, 10, 15, 10)
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(16, 16, 16, 14)
+        lay.setSpacing(10)
 
-        title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 11))
-        title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        card_layout.addWidget(title_label)
+        # ── Ligne haut : avatar + nom + actions ────────────────
+        top = QHBoxLayout()
+        top.setSpacing(12)
 
-        value_label = QLabel(str(value))
-        value_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
-        value_label.setStyleSheet(f"color: {color}; border: none;")
-        card_layout.addWidget(value_label)
+        # Avatar
+        av = QLabel(init)
+        av.setFixedSize(48, 48)
+        av.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        av.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        av.setStyleSheet(f"""
+            background: {color};
+            color: white;
+            border-radius: 24px;
+            border: none;
+        """)
+        top.addWidget(av)
+
+        # Nom + téléphone
+        info_col = QVBoxLayout()
+        info_col.setSpacing(2)
+        name_lbl = QLabel(name)
+        name_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        name_lbl.setStyleSheet(f"color:{COLORS.get('TXT_PRI','#F0F4FF')}; background:transparent;")
+        name_lbl.setWordWrap(False)
+        info_col.addWidget(name_lbl)
+
+        ph_lbl = QLabel(f"📞 {phone}")
+        ph_lbl.setFont(QFont("Segoe UI", 10))
+        ph_lbl.setStyleSheet(f"color:{COLORS.get('TXT_SEC','#A0AACC')}; background:transparent;")
+        info_col.addWidget(ph_lbl)
+
+        if email:
+            em_lbl = QLabel(f"✉ {email[:26]}{'…' if len(email)>26 else ''}")
+            em_lbl.setFont(QFont("Segoe UI", 9))
+            em_lbl.setStyleSheet(f"color:{COLORS.get('TXT_SEC','#A0AACC')}; background:transparent;")
+            info_col.addWidget(em_lbl)
+
+        top.addLayout(info_col, 1)
+        lay.addLayout(top)
+
+        # ── Séparateur ──────────────────────────────────────────
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setFixedHeight(1)
+        sep.setStyleSheet(f"background:{COLORS.get('BORDER','rgba(0,180,255,0.2)')}; border:none;")
+        lay.addWidget(sep)
+
+        # ── Stats ventes ────────────────────────────────────────
+        stat_row = QHBoxLayout()
+        stat_row.setSpacing(0)
+
+        for label, val, col in [
+            ("Ventes", str(nb_v), color),
+            ("CA Total", fmt_da(ca, 0), "#10B981"),
+        ]:
+            s_frame = QFrame()
+            s_frame.setStyleSheet("background:transparent; border:none;")
+            sl = QVBoxLayout(s_frame)
+            sl.setContentsMargins(0, 0, 0, 0)
+            sl.setSpacing(1)
+            vl = QLabel(val)
+            vl.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+            vl.setStyleSheet(f"color:{col}; background:transparent;")
+            tl = QLabel(label)
+            tl.setFont(QFont("Segoe UI", 8))
+            tl.setStyleSheet(f"color:{COLORS.get('TXT_SEC','#A0AACC')}; background:transparent;")
+            sl.addWidget(vl)
+            sl.addWidget(tl)
+            stat_row.addWidget(s_frame, 1)
+
+        lay.addLayout(stat_row)
+
+        # ── Bouton Fiche ────────────────────────────────────────
+        fiche_btn = QPushButton("📋  Voir Fiche")
+        fiche_btn.setFixedHeight(30)
+        fiche_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        fiche_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {color}18; color: {color};
+                border: 1px solid {color}55;
+                border-radius: 8px; font-size: 11px; font-weight: bold;
+            }}
+            QPushButton:hover {{ background: {color}35; }}
+        """)
+        fiche_btn.clicked.connect(lambda _, i=cid: self.open_fiche(i))
+        lay.addWidget(fiche_btn)
+
+        # Stocker l'ID pour edit/delete
+        card.setProperty("client_id", cid)
+        card.mousePressEvent = lambda e, i=cid: self._select_card(i)
 
         return card
 
-    def load_statistics(self):
-        """Charge les statistiques depuis la base de données"""
-        # Effacer les anciennes cartes
-        while self.stats_layout.count():
-            child = self.stats_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-        
-        # Récupérer les stats
-        stats = self.db.get_statistics()
-        
-        # Créer les cartes
-        self.stats_layout.addWidget(
-            self.build_stat_card("Total Clients", stats['total_clients'], COLORS['primary'])
-        )
-        self.stats_layout.addWidget(
-            self.build_stat_card("Clients actifs", stats['total_clients'], COLORS['success'])
-        )
+    # ── Sélection de carte ─────────────────────────────────────
+    def _select_card(self, client_id: int):
+        self._selected_id = client_id
 
-    # ------------------ CHARGEMENT DES DONNÉES ------------------
-    def load_clients(self):
-        """Charge tous les clients depuis la base de données"""
-        self.table.setRowCount(0)
-        clients = self.db.get_all_clients()
-        
-        for client in clients:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-            
-            # Stocker l'ID dans la colonne Nom (UserRole invisible)
-            name_item = QTableWidgetItem(client["name"])
-            name_item.setData(Qt.ItemDataRole.UserRole, client["id"])
-            name_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+    # ── Affichage grille ───────────────────────────────────────
+    def _display_grid(self, clients: list):
+        """Remplit la grille avec la liste de clients."""
+        # Vider la grille
+        while self._grid_layout.count():
+            item = self._grid_layout.takeAt(0)
+            w = item.widget()
+            if w: w.deleteLater()
 
-            phone_item = QTableWidgetItem(client["phone"] or "—")
-
-            self.table.setItem(row, 0, name_item)
-            self.table.setItem(row, 1, phone_item)
-            
-            # Bouton Fiche
-            btn = QPushButton("📋 Voir Fiche")
-            btn.setFixedHeight(32)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: rgba(0,180,255,0.15); color: #00B4FF;
-                    border: 1px solid rgba(0,180,255,0.4);
-                    border-radius: 6px; font-size: 11px; font-weight: bold; padding: 0 10px;
-                }
-                QPushButton:hover { background: rgba(0,180,255,0.3); color: white; }
-            """)
-            cid = client["id"]
-            btn.clicked.connect(lambda _, i=cid: self.open_fiche(i))
-            self.table.setCellWidget(row, 2, btn)
-            self.table.setRowHeight(row, 46)
-
-    # ------------------ RECHERCHE ------------------
-    def filter_clients(self, text):
-        """Filtre les clients par nom ou email"""
-        if not text:
-            self.load_clients()
+        if not clients:
+            empty = QLabel("Aucun client trouvé")
+            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty.setFont(QFont("Segoe UI", 14))
+            empty.setStyleSheet(f"color:{COLORS.get('TXT_SEC','#A0AACC')}; padding:60px;")
+            self._grid_layout.addWidget(empty, 0, 0, 1, 3)
             return
-        
-        self.table.setRowCount(0)
-        # Si la recherche est une lettre unique (a-z, A-Z)
-        if len(text) == 1 and text.isalpha():
-            clients = self.db.search_clients_by_first_letter(text)
-        else:
-            clients = self.db.search_clients(text)
-        
-        for client in clients:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-            
-            name_item = QTableWidgetItem(client["name"])
-            name_item.setData(Qt.ItemDataRole.UserRole, client["id"])
-            self.table.setItem(row, 0, name_item)
-            self.table.setItem(row, 1, QTableWidgetItem(client["phone"] or "—"))
-            
-            # Bouton Fiche
-            btn = QPushButton("📋 Voir Fiche")
-            btn.setFixedHeight(32)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: rgba(0,180,255,0.15); color: #00B4FF;
-                    border: 1px solid rgba(0,180,255,0.4);
-                    border-radius: 6px; font-size: 11px; font-weight: bold; padding: 0 10px;
-                }
-                QPushButton:hover { background: rgba(0,180,255,0.3); color: white; }
-            """)
-            cid = client["id"]
-            btn.clicked.connect(lambda _, i=cid: self.open_fiche(i))
-            self.table.setCellWidget(row, 2, btn)
-            self.table.setRowHeight(row, 46)
 
-    # ------------------ FICHE CLIENT ------------------
-    def open_fiche(self, client_id: int) -> None:
-        """Ouvre la fiche détaillée d'un client."""
+        cols = 3
+        for i, client in enumerate(clients):
+            card = self._make_card(client)
+            self._grid_layout.addWidget(card, i // cols, i % cols)
+
+    # ── Filtre + tri ───────────────────────────────────────────
+    def _apply_filter(self):
+        text  = self.search_input.text().lower().strip()
+        order = self.sort_combo.currentIndex()
+
+        clients = [c for c in self._all_clients
+                   if not text or text in c.get("name","").lower()
+                   or text in (c.get("phone") or "").lower()
+                   or text in (c.get("email") or "").lower()]
+
+        if order == 0:   # A → Z
+            clients.sort(key=lambda c: c.get("name","").lower())
+        elif order == 1: # Z → A
+            clients.sort(key=lambda c: c.get("name","").lower(), reverse=True)
+        elif order == 2: # Plus récent
+            clients.sort(key=lambda c: c.get("created_at",""), reverse=True)
+        elif order == 3: # Plus de ventes
+            def get_ca(client):
+                try:
+                    self.db.cursor.execute(
+                        "SELECT COALESCE(SUM(total),0) FROM sales WHERE client_id=?",
+                        (client["id"],))
+                    return float(self.db.cursor.fetchone()[0] or 0)
+                except Exception:
+                    return 0.0
+            clients.sort(key=get_ca, reverse=True)
+
+        self._display_grid(clients)
+
+    # ── Statistiques ───────────────────────────────────────────
+    def build_stat_card(self, title, value, color):
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background: {color}15;
+                border-radius: 10px;
+                border: 1px solid {color}44;
+            }}
+        """)
+        card.setFixedHeight(72)
+        card.setMinimumWidth(160)
+        cl = QVBoxLayout(card)
+        cl.setContentsMargins(16, 10, 16, 10)
+        cl.setSpacing(2)
+        vl = QLabel(str(value))
+        vl.setFont(QFont("Segoe UI", 20, QFont.Weight.Bold))
+        vl.setStyleSheet(f"color:{color}; border:none; background:transparent;")
+        tl = QLabel(title)
+        tl.setFont(QFont("Segoe UI", 10))
+        tl.setStyleSheet(f"color:{COLORS.get('TXT_SEC','#A0AACC')}; border:none; background:transparent;")
+        cl.addWidget(vl)
+        cl.addWidget(tl)
+        return card
+
+    def load_statistics(self):
+        while self.stats_layout.count():
+            item = self.stats_layout.takeAt(0)
+            w = item.widget()
+            if w: w.deleteLater()
+        stats = self.db.get_statistics()
+        self.stats_layout.addWidget(
+            self.build_stat_card("Total Clients",  stats['total_clients'], COLORS.get('primary','#3B82F6')))
+        self.stats_layout.addWidget(
+            self.build_stat_card("Clients actifs", stats['total_clients'], COLORS.get('success','#22C55E')))
+        self.stats_layout.addStretch()
+
+    # ── Chargement ─────────────────────────────────────────────
+    def load_clients(self):
+        self._selected_id = None
+        try:
+            clients = self.db.get_all_clients() or []
+        except Exception:
+            clients = []
+        # Tri par défaut A→Z
+        clients.sort(key=lambda c: c.get("name","").lower())
+        self._all_clients = clients
+        self._apply_filter()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.load_clients()
+        self.load_statistics()
+
+    def filter_clients(self, text):
+        self._apply_filter()
+
+    # ── Fiche ──────────────────────────────────────────────────
+    def open_fiche(self, client_id: int):
         client = self.db.get_client_by_id(client_id)
         if not client:
             QMessageBox.warning(self, "Erreur", "Client introuvable.")
             return
         dlg = ClientFicheDialog(client, self.db, parent=self)
         dlg.exec()
+        self.load_clients()
 
-    # ------------------ AJOUTER CLIENT ------------------
+    # ── CRUD ───────────────────────────────────────────────────
     def add_client(self):
-        """Ajoute un nouveau client"""
         if not session.can('add_client'):
             QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'ajouter des clients.")
             return
         dialog = ClientDialog()
         if dialog.exec():
-            name = dialog.name_edit.text().strip()
-            phone = dialog.phone_edit.text().strip()
-            email = dialog.email_edit.text().strip()
+            name    = dialog.name_edit.text().strip()
+            phone   = dialog.phone_edit.text().strip()
+            email   = dialog.email_edit.text().strip()
             address = dialog.address_edit.text().strip()
-            
             if not name:
-                QMessageBox.warning(
-                    self,
-                    "Erreur",
-                    "Le nom du client est obligatoire!"
-                )
+                QMessageBox.warning(self, "Erreur", "Le nom du client est obligatoire!")
                 return
-            
             client_id = self.db.add_client(name, phone, email, address)
-            
             if client_id:
-                QMessageBox.information(
-                    self,
-                    "Succès",
-                    f"Client '{name}' ajouté avec succès!"
-                )
+                QMessageBox.information(self, "Succès", f"Client '{name}' ajouté avec succès!")
                 self.load_clients()
                 self.load_statistics()
-                # Émettre le signal pour notifier les autres modules
                 self.client_added.emit()
             else:
-                QMessageBox.critical(
-                    self,
-                    "Erreur",
-                    "Impossible d'ajouter le client!"
-                )
+                QMessageBox.critical(self, "Erreur", "Impossible d'ajouter le client!")
 
-    # ------------------ MODIFIER CLIENT ------------------
     def edit_client(self):
-        """Modifie un client existant"""
         if not session.can('edit_client'):
             QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas de modifier des clients.")
             return
-        selected = self.table.currentRow()
-        if selected < 0:
-            QMessageBox.warning(
-                self,
-                "Attention",
-                "Veuillez sélectionner un client à modifier!"
-            )
+        cid = getattr(self, '_selected_id', None)
+        if not cid:
+            QMessageBox.warning(self, "Attention", "Cliquez d'abord sur une carte client pour la sélectionner.")
             return
-        
-        # Récupérer l'ID du client
-        client_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
-        
-        # Récupérer les données du client
-        client = self.db.get_client_by_id(client_id)
-        
+        client = self.db.get_client_by_id(cid)
         if not client:
-            QMessageBox.critical(
-                self,
-                "Erreur",
-                "Client introuvable!"
-            )
+            QMessageBox.critical(self, "Erreur", "Client introuvable!")
             return
-        
-        # Ouvrir le dialogue avec les données existantes
         dialog = ClientDialog(
-            name=client["name"],
-            phone=client["phone"] or "",
-            email=client["email"] or "",
-            address=client["address"] or "",
-            client_id=client_id
-        )
-        
+            name=client["name"], phone=client["phone"] or "",
+            email=client["email"] or "", address=client["address"] or "",
+            client_id=cid)
         if dialog.exec():
-            name = dialog.name_edit.text().strip()
-            phone = dialog.phone_edit.text().strip()
-            email = dialog.email_edit.text().strip()
+            name    = dialog.name_edit.text().strip()
+            phone   = dialog.phone_edit.text().strip()
+            email   = dialog.email_edit.text().strip()
             address = dialog.address_edit.text().strip()
-            
             if not name:
-                QMessageBox.warning(
-                    self,
-                    "Erreur",
-                    "Le nom du client est obligatoire!"
-                )
+                QMessageBox.warning(self, "Erreur", "Le nom est obligatoire!")
                 return
-            
-            if self.db.update_client(client_id, name, phone, email, address):
-                QMessageBox.information(
-                    self,
-                    "Succès",
-                    f"Client '{name}' modifié avec succès!"
-                )
+            if self.db.update_client(cid, name, phone, email, address):
+                QMessageBox.information(self, "Succès", f"Client '{name}' modifié!")
                 self.load_clients()
-                # Émettre le signal pour notifier les autres modules
                 self.client_added.emit()
             else:
-                QMessageBox.critical(
-                    self,
-                    "Erreur",
-                    "Impossible de modifier le client!"
-                )
+                QMessageBox.critical(self, "Erreur", "Impossible de modifier le client!")
 
-    # ------------------ SUPPRIMER CLIENT ------------------
     def delete_client(self):
-        """Supprime un client"""
         if not session.can('delete_client'):
             QMessageBox.warning(self, "Accès refusé", "Seul un administrateur peut supprimer des clients.")
             return
-        selected = self.table.currentRow()
-        if selected < 0:
-            QMessageBox.warning(
-                self,
-                "Attention",
-                "Veuillez sélectionner un client à supprimer!"
-            )
+        cid = getattr(self, '_selected_id', None)
+        if not cid:
+            QMessageBox.warning(self, "Attention", "Cliquez d'abord sur une carte client.")
             return
-        
-        # Récupérer l'ID et le nom du client
-        client_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
-        client_name = self.table.item(selected, 0).text()
-        
-        # Confirmation
+        client = self.db.get_client_by_id(cid)
+        client_name = client["name"] if client else "ce client"
         reply = QMessageBox.question(
-            self,
-            "Confirmation",
-            f"Voulez-vous vraiment supprimer le client '{client_name}'?\n\n"
-            "Cette action est irréversible!",
+            self, "Confirmation",
+            f"Supprimer '{client_name}' ? Cette action est irréversible.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        
+            QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            if self.db.delete_client(client_id):
-                QMessageBox.information(
-                    self,
-                    "Succès",
-                    f"Client '{client_name}' supprimé avec succès!"
-                )
+            if self.db.delete_client(cid):
+                QMessageBox.information(self, "Succès", "Client supprimé!")
+                self._selected_id = None
                 self.load_clients()
                 self.load_statistics()
-                # Émettre le signal pour notifier les autres modules
                 self.client_added.emit()
             else:
-                QMessageBox.critical(
-                    self,
-                    "Erreur",
-                    "Impossible de supprimer le client!"
-                )
+                QMessageBox.critical(self, "Erreur", "Impossible de supprimer!")
 
-# ═══════════════════════════════════════════════════════════════
-#  FICHE CLIENT — Dialog avec onglets complets
-# ═══════════════════════════════════════════════════════════════
 
 class ClientFicheDialog(QDialog):
     """Fiche détaillée d'un client : infos, factures, paiements, statistiques."""
@@ -587,10 +640,12 @@ class ClientFicheDialog(QDialog):
 
         # ── Onglets ────────────────────────────────────────────
         tabs = QTabWidget()
-        tabs.addTab(self._tab_infos(),      "👤  Informations")
-        tabs.addTab(self._tab_factures(),   "🧾  Factures")
-        tabs.addTab(self._tab_paiements(),  "💳  Paiements")
+        tabs.addTab(self._tab_infos(),        "👤  Informations")
+        tabs.addTab(self._tab_factures(),     "🧾  Factures")
+        tabs.addTab(self._tab_paiements(),    "💳  Paiements")
         tabs.addTab(self._tab_statistiques(), "📊  Statistiques")
+        tabs.addTab(self._tab_email(),        "📧  Email")
+        tabs.addTab(self._tab_notes(),        "📝  Notes & Appels")
         main.addWidget(tabs)
 
         # ── Bouton fermer ──────────────────────────────────────
@@ -1023,3 +1078,377 @@ class ClientFicheDialog(QDialog):
 
         lay.addStretch()
         return w
+
+    # ── Onglet Email ───────────────────────────────────────────
+    def _tab_email(self) -> QWidget:
+        """Onglet pour envoyer un email au client."""
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(16, 16, 16, 16)
+        lay.setSpacing(12)
+
+        # Vérifier si le client a un email
+        client_email = self.client.get('email', '')
+
+        if not client_email:
+            # Pas d'email enregistré
+            no_email = QFrame()
+            no_email.setStyleSheet("""
+                QFrame { background: rgba(245,158,11,0.08);
+                         border-radius: 10px; border: 1px solid rgba(245,158,11,0.3); }
+            """)
+            nel = QVBoxLayout(no_email)
+            nel.setContentsMargins(20, 20, 20, 20)
+            nel.setSpacing(8)
+            ico = QLabel("⚠️")
+            ico.setFont(QFont("Segoe UI", 28))
+            ico.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            ico.setStyleSheet("border:none;")
+            nel.addWidget(ico)
+            msg = QLabel("Aucun email enregistré pour ce client.")
+            msg.setFont(QFont("Segoe UI", 12))
+            msg.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            msg.setStyleSheet("color:#F59E0B; border:none;")
+            nel.addWidget(msg)
+            hint = QLabel("Modifiez la fiche client pour ajouter une adresse email.")
+            hint.setFont(QFont("Segoe UI", 10))
+            hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            hint.setStyleSheet("color:rgba(160,170,204,0.7); border:none;")
+            nel.addWidget(hint)
+            lay.addWidget(no_email)
+            lay.addStretch()
+            return w
+
+        # ── Formulaire d'email ────────────────────────────────
+        # Destinataire
+        dest_frame = QFrame()
+        dest_frame.setStyleSheet("""
+            QFrame { background: rgba(0,0,0,0.2); border-radius: 8px;
+                     border: 1px solid rgba(255,255,255,0.06); }
+        """)
+        dl = QHBoxLayout(dest_frame)
+        dl.setContentsMargins(14, 10, 14, 10)
+        dest_lbl = QLabel("À :")
+        dest_lbl.setFixedWidth(50)
+        dest_lbl.setFont(QFont("Segoe UI", 10))
+        dest_lbl.setStyleSheet("color:rgba(160,170,204,0.8); border:none;")
+        dl.addWidget(dest_lbl)
+        dest_val = QLabel(client_email)
+        dest_val.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        dest_val.setStyleSheet("color:#00B4FF; border:none;")
+        dl.addWidget(dest_val, 1)
+        lay.addWidget(dest_frame)
+
+        # Sujet
+        subj_frame = QFrame()
+        subj_frame.setStyleSheet("""
+            QFrame { background: rgba(0,0,0,0.2); border-radius: 8px;
+                     border: 1px solid rgba(255,255,255,0.06); }
+        """)
+        sl = QHBoxLayout(subj_frame)
+        sl.setContentsMargins(14, 6, 14, 6)
+        subj_lbl = QLabel("Sujet :")
+        subj_lbl.setFixedWidth(50)
+        subj_lbl.setFont(QFont("Segoe UI", 10))
+        subj_lbl.setStyleSheet("color:rgba(160,170,204,0.8); border:none;")
+        sl.addWidget(subj_lbl)
+        self._email_subject = QLineEdit()
+        self._email_subject.setPlaceholderText("Objet de l'email...")
+        self._email_subject.setText(f"Message de votre partenaire")
+        self._email_subject.setStyleSheet("""
+            QLineEdit { background:transparent; color:#F0F4FF;
+                        border:none; font-size:12px; }
+        """)
+        sl.addWidget(self._email_subject, 1)
+        lay.addWidget(subj_frame)
+
+        # Corps du message
+        body_lbl = QLabel("Message :")
+        body_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        body_lbl.setStyleSheet("color:#F0F4FF;")
+        lay.addWidget(body_lbl)
+
+        self._email_body = QTextEdit()
+        self._email_body.setPlaceholderText(
+            f"Bonjour {self.client.get('name','')},\n\n"
+            "Écrivez votre message ici...\n\n"
+            "Cordialement,")
+        self._email_body.setFont(QFont("Segoe UI", 11))
+        self._email_body.setStyleSheet(f"""
+            QTextEdit {{
+                background: rgba(0,0,0,0.25);
+                color: #F0F4FF;
+                border: 1px solid rgba(0,180,255,0.2);
+                border-radius: 8px;
+                padding: 10px;
+            }}
+            QTextEdit:focus {{ border: 1px solid #00B4FF; }}
+        """)
+        lay.addWidget(self._email_body, 1)
+
+        # Boutons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        copy_btn = QPushButton("📋  Copier l'email")
+        copy_btn.setFixedHeight(38)
+        copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        copy_btn.setStyleSheet("""
+            QPushButton { background:rgba(0,180,255,0.12); color:#00B4FF;
+                border:1px solid rgba(0,180,255,0.3); border-radius:8px;
+                font-size:11px; font-weight:bold; padding:0 14px; }
+            QPushButton:hover { background:rgba(0,180,255,0.25); }
+        """)
+        copy_btn.clicked.connect(lambda: (
+            QApplication.clipboard().setText(client_email),
+            QMessageBox.information(self, "✅ Copié", f"Email copié : {client_email}")
+        ))
+        btn_row.addWidget(copy_btn)
+
+        open_btn = QPushButton("📧  Ouvrir dans la messagerie")
+        open_btn.setFixedHeight(38)
+        open_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        open_btn.setStyleSheet("""
+            QPushButton { background:#00B4FF; color:white;
+                border:none; border-radius:8px;
+                font-size:11px; font-weight:bold; padding:0 14px; }
+            QPushButton:hover { background:#0090DD; }
+        """)
+        def open_mail():
+            import urllib.parse
+            subject = urllib.parse.quote(self._email_subject.text())
+            body    = urllib.parse.quote(self._email_body.toPlainText())
+            import subprocess
+            import sys
+            url = f"mailto:{client_email}?subject={subject}&body={body}"
+            if sys.platform == "win32":
+                import os
+                os.startfile(url)
+        open_btn.clicked.connect(open_mail)
+        btn_row.addWidget(open_btn)
+        btn_row.addStretch()
+        lay.addLayout(btn_row)
+        return w
+
+    # ── Onglet Notes & Appels ──────────────────────────────────
+    def _tab_notes(self) -> QWidget:
+        """Onglet pour gérer les notes et l'historique des appels."""
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(16, 16, 16, 16)
+        lay.setSpacing(12)
+
+        # ── Ajouter une note ──────────────────────────────────
+        add_frame = QFrame()
+        add_frame.setStyleSheet("""
+            QFrame { background: rgba(0,0,0,0.2); border-radius: 10px;
+                     border: 1px solid rgba(0,180,255,0.15); }
+        """)
+        af = QVBoxLayout(add_frame)
+        af.setContentsMargins(14, 12, 14, 12)
+        af.setSpacing(8)
+
+        add_hdr = QHBoxLayout()
+        add_title = QLabel("➕  Ajouter une note / un appel")
+        add_title.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        add_title.setStyleSheet("color:#F0F4FF; border:none;")
+        add_hdr.addWidget(add_title)
+        add_hdr.addStretch()
+
+        # Type : note ou appel
+        self._note_type = QComboBox()
+        self._note_type.addItems(["📝 Note", "📞 Appel entrant", "📞 Appel sortant", "📅 Rendez-vous"])
+        self._note_type.setFixedWidth(180)
+        self._note_type.setFixedHeight(32)
+        self._note_type.setStyleSheet("""
+            QComboBox { background:rgba(0,180,255,0.1); color:#00B4FF;
+                border:1px solid rgba(0,180,255,0.3); border-radius:6px;
+                padding:0 8px; font-size:11px; }
+            QComboBox::drop-down { border:none; }
+            QComboBox QAbstractItemView { background:#252535; color:#F0F4FF;
+                border:1px solid rgba(0,180,255,0.2); }
+        """)
+        add_hdr.addWidget(self._note_type)
+        af.addLayout(add_hdr)
+
+        self._note_edit = QTextEdit()
+        self._note_edit.setPlaceholderText("Écrivez votre note ou le résumé de l'appel...")
+        self._note_edit.setFixedHeight(80)
+        self._note_edit.setFont(QFont("Segoe UI", 11))
+        self._note_edit.setStyleSheet("""
+            QTextEdit { background:rgba(0,0,0,0.2); color:#F0F4FF;
+                border:1px solid rgba(0,180,255,0.15);
+                border-radius:8px; padding:8px; }
+            QTextEdit:focus { border:1px solid #00B4FF; }
+        """)
+        af.addWidget(self._note_edit)
+
+        save_note_btn = QPushButton("💾  Enregistrer")
+        save_note_btn.setFixedHeight(34)
+        save_note_btn.setFixedWidth(140)
+        save_note_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        save_note_btn.setStyleSheet("""
+            QPushButton { background:#00B4FF; color:white; border:none;
+                border-radius:7px; font-size:11px; font-weight:bold; }
+            QPushButton:hover { background:#0090DD; }
+        """)
+        af.addWidget(save_note_btn, alignment=Qt.AlignmentFlag.AlignRight)
+        lay.addWidget(add_frame)
+
+        # ── Historique des notes ───────────────────────────────
+        hist_lbl = QLabel("📋  Historique")
+        hist_lbl.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        hist_lbl.setStyleSheet("color:#F0F4FF;")
+        lay.addWidget(hist_lbl)
+
+        # Zone scrollable pour les notes
+        self._notes_scroll = QScrollArea()
+        self._notes_scroll.setWidgetResizable(True)
+        self._notes_scroll.setStyleSheet("QScrollArea { border:none; background:transparent; }")
+
+        self._notes_container = QWidget()
+        self._notes_container.setStyleSheet("background:transparent;")
+        self._notes_list_layout = QVBoxLayout(self._notes_container)
+        self._notes_list_layout.setSpacing(8)
+        self._notes_list_layout.setContentsMargins(0, 0, 0, 0)
+        self._notes_list_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self._notes_scroll.setWidget(self._notes_container)
+        lay.addWidget(self._notes_scroll, 1)
+
+        # Charger les notes existantes
+        self._load_notes()
+
+        # Connecter le bouton sauvegarder
+        save_note_btn.clicked.connect(self._save_note)
+
+        return w
+
+    def _load_notes(self):
+        """Charge les notes depuis la BDD."""
+        # Vider la liste
+        while self._notes_list_layout.count():
+            item = self._notes_list_layout.takeAt(0)
+            w = item.widget()
+            if w: w.deleteLater()
+
+        try:
+            self.db.cursor.execute("""
+                SELECT id, note_type, content, created_at
+                FROM client_notes
+                WHERE client_id = ?
+                ORDER BY created_at DESC
+            """, (self.client['id'],))
+            notes = self.db.cursor.fetchall()
+        except Exception:
+            notes = []
+
+        if not notes:
+            empty = QLabel("Aucune note pour ce client.\nAjoutez la première note ci-dessus.")
+            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty.setFont(QFont("Segoe UI", 11))
+            empty.setStyleSheet("color:rgba(160,170,204,0.5); padding:20px;")
+            self._notes_list_layout.addWidget(empty)
+            return
+
+        TYPE_COLOR = {
+            "📝 Note":           "#6366F1",
+            "📞 Appel entrant":  "#10B981",
+            "📞 Appel sortant":  "#3B82F6",
+            "📅 Rendez-vous":    "#F59E0B",
+        }
+
+        for note in notes:
+            nid      = note[0] if not hasattr(note, 'keys') else note['id']
+            ntype    = note[1] if not hasattr(note, 'keys') else note['note_type']
+            content  = note[2] if not hasattr(note, 'keys') else note['content']
+            created  = str(note[3] if not hasattr(note, 'keys') else note['created_at']).split('.')[0]
+            color    = TYPE_COLOR.get(ntype, "#A0AACC")
+
+            row = QFrame()
+            row.setStyleSheet(f"""
+                QFrame {{ background: rgba(0,0,0,0.2);
+                          border-radius: 10px;
+                          border-left: 3px solid {color};
+                          border-top: 1px solid rgba(255,255,255,0.05);
+                          border-right: 1px solid rgba(255,255,255,0.05);
+                          border-bottom: 1px solid rgba(255,255,255,0.05); }}
+            """)
+            rl = QVBoxLayout(row)
+            rl.setContentsMargins(14, 10, 14, 10)
+            rl.setSpacing(4)
+
+            # En-tête : type + date + supprimer
+            rh = QHBoxLayout()
+            type_lbl = QLabel(ntype)
+            type_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            type_lbl.setStyleSheet(f"color:{color}; border:none; background:transparent;")
+            rh.addWidget(type_lbl)
+            rh.addStretch()
+            date_lbl = QLabel(created)
+            date_lbl.setFont(QFont("Segoe UI", 9))
+            date_lbl.setStyleSheet("color:rgba(160,170,204,0.6); border:none; background:transparent;")
+            rh.addWidget(date_lbl)
+
+            del_btn = QPushButton("✕")
+            del_btn.setFixedSize(22, 22)
+            del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            del_btn.setStyleSheet("""
+                QPushButton { background:transparent; color:rgba(160,170,204,0.4);
+                    border:none; font-size:10px; }
+                QPushButton:hover { color:#EF4444; }
+            """)
+            del_btn.clicked.connect(lambda _, i=nid: self._delete_note(i))
+            rh.addWidget(del_btn)
+            rl.addLayout(rh)
+
+            # Contenu
+            content_lbl = QLabel(content)
+            content_lbl.setFont(QFont("Segoe UI", 10))
+            content_lbl.setStyleSheet("color:#F0F4FF; border:none; background:transparent;")
+            content_lbl.setWordWrap(True)
+            rl.addWidget(content_lbl)
+
+            self._notes_list_layout.addWidget(row)
+
+    def _save_note(self):
+        """Enregistre une note en BDD."""
+        content = self._note_edit.toPlainText().strip()
+        if not content:
+            QMessageBox.warning(self, "Attention", "Écrivez une note avant d'enregistrer.")
+            return
+        note_type = self._note_type.currentText()
+        try:
+            # Créer la table si elle n'existe pas
+            self.db.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS client_notes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    client_id INTEGER NOT NULL,
+                    note_type TEXT,
+                    content TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (client_id) REFERENCES clients(id)
+                )
+            """)
+            self.db.conn.commit()
+            self.db.cursor.execute("""
+                INSERT INTO client_notes (client_id, note_type, content)
+                VALUES (?, ?, ?)
+            """, (self.client['id'], note_type, content))
+            self.db.conn.commit()
+            self._note_edit.clear()
+            self._load_notes()
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Impossible d'enregistrer la note :\n{e}")
+
+    def _delete_note(self, note_id: int):
+        """Supprime une note."""
+        reply = QMessageBox.question(
+            self, "Supprimer", "Supprimer cette note ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                self.db.cursor.execute("DELETE FROM client_notes WHERE id=?", (note_id,))
+                self.db.conn.commit()
+                self._load_notes()
+            except Exception as e:
+                QMessageBox.critical(self, "Erreur", f"Impossible de supprimer :\n{e}")
