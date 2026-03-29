@@ -11,19 +11,32 @@ from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
 
-def clean_num(text):
-    """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
+
+def clean_num(value):
+    """
+    Nettoie une valeur pour obtenir un nombre flottant.
+    Accepte soit un string, soit un QTableWidgetItem.
+    '1,250.50 DA' → 1250.50
+    """
     try:
-        return float(str(text or "0").replace(f" {currency_manager.primary.symbol}", "").replace(",", "").strip() or "0")
-    except (ValueError, TypeError):
+        # Si c'est un QTableWidgetItem, récupérer son texte
+        if hasattr(value, 'text'):
+            text = value.text()
+        else:
+            text = str(value)
+        
+        # Supprimer le symbole de la devise et les espaces
+        text = text.replace(f" {currency_manager.primary.symbol}", "").strip()
+        text = text.replace(",", "").strip()
+        
+        # Si vide, retourner 0
+        if not text:
+            return 0.0
+            
+        return float(text)
+    except (ValueError, TypeError, AttributeError):
         return 0.0
 
-def clean_num(text):
-    """Nettoie une cellule monétaire : '1,250.50 DA' → 1250.50"""
-    try:
-        return float(str(text or "0").replace(f" {currency_manager.primary.symbol}", "").replace(",", "").strip() or "0")
-    except (ValueError, TypeError):
-        return 0.0
 
 # ------------------ DIALOG POUR CRÉER UN NOUVEAU PRODUIT ------------------
 class NewProductDialog(QDialog):
@@ -337,10 +350,10 @@ class ProductEditDialog(QDialog):
             self.qty_edit.selectAll()
             return
         self.quantity = qty   # ← assigné seulement si tout est valide
-        print(f"✅ Quantité saisie et stockée: {self.quantity}")  # Debug
         self.accept()
 
 
+# ------------------ DIALOG POUR SÉLECTIONNER UN PRODUIT ------------------
 # ------------------ DIALOG POUR SÉLECTIONNER UN PRODUIT ------------------
 class ProductSelectorDialog(QDialog):
     def __init__(self, products):
@@ -441,10 +454,9 @@ class ProductSelectorDialog(QDialog):
         search_text = text.lower().strip()
         
         for row in range(self.table.rowCount()):
-            item = self.table.item(row, 0)  # Colonne 0 = nom du produit
+            item = self.table.item(row, 0)
             if item:
                 product_name = item.text().lower()
-                # Vérifie si le nom du produit COMMENCE par le texte recherché
                 show = product_name.startswith(search_text) if search_text else True
                 self.table.setRowHidden(row, not show)
         
@@ -456,7 +468,6 @@ class ProductSelectorDialog(QDialog):
                 product = item.data(Qt.ItemDataRole.UserRole)
                 edit_dialog = ProductEditDialog(product, parent=self)
                 if edit_dialog.exec():
-                    print(f"📦 ProductSelectorDialog - Dialog accepté, quantité: {edit_dialog.quantity}")  # Debug
                     # Sauvegarder les modifications en base
                     self.db.update_product(
                         product['id'],
@@ -472,36 +483,56 @@ class ProductSelectorDialog(QDialog):
                     # Récupérer le produit mis à jour
                     updated = self.db.get_product_by_id(product['id'])
                     self.selected_product = updated if updated else product
-                    # ✅ CORRECTION : Bien récupérer la quantité du dialog
-                    self.selected_product['_qty'] = edit_dialog.quantity  # Cette ligne existe déjà, elle devrait fonctionner
-                    print(f"📦 ProductSelectorDialog - Quantité stockée: {self.selected_product['_qty']}")  # Debug
+                    self.selected_product['_qty'] = edit_dialog.quantity
                     self.accept()
-        
+    
     def create_new_product(self):
         dialog = NewProductDialog()
         if dialog.exec():
-            name = dialog.name_edit.text().strip()
-            purchase_price = float(dialog.purchase_price_edit.text())
-            selling_price = float(dialog.selling_price_edit.text())
-            stock = int(dialog.stock_edit.text())
-            
-            product_id = self.db.add_product(
-                name=name,
-                selling_price=selling_price,
-                purchase_price=purchase_price,
-                stock_quantity=stock,
-                category_id=None,
-                min_stock=5
-            )
-            
-            if product_id:
-                QMessageBox.information(self, "Succès", f"Produit '{name}' créé!")
-                product = self.db.get_product_by_id(product_id)
-                qty = int(dialog.stock_edit.text())
-                if product:
-                    product['_qty'] = qty  # Assigner la quantité saisie dans le dialog
-                    self.selected_product = product
-                    self.accept()
+            try:
+                name = dialog.name_edit.text().strip()
+                purchase_price = float(dialog.purchase_price_edit.text())
+                selling_price = float(dialog.selling_price_edit.text())
+                stock = int(dialog.stock_edit.text())
+                
+                # Créer le produit
+                product_id = self.db.add_product(
+                    name=name,
+                    selling_price=selling_price,
+                    purchase_price=purchase_price,
+                    stock_quantity=stock,
+                    category_id=None,
+                    min_stock=5
+                )
+                
+                if product_id:
+                    # Récupérer le produit fraîchement créé
+                    product = self.db.get_product_by_id(product_id)
+                    qty = int(dialog.stock_edit.text()) 
+                    if product:
+                        product['_qty'] = qty  # Assigner la quantité saisie dans le dialog
+                        self.selected_product = product
+                        self.accept()
+                        
+                        QMessageBox.information(self, "Succès", 
+                            f"Produit '{name}' créé avec succès!\n"
+                            f"Prix d'achat: {fmt_da(purchase_price)}\n"
+                            f"Stock initial: {stock} unités")
+                        
+                        self.accept()
+                    else:
+                        QMessageBox.critical(self, "Erreur", 
+                            "Impossible de récupérer le produit créé.")
+                else:
+                    QMessageBox.critical(self, "Erreur", 
+                        "Impossible de créer le produit.")
+                        
+            except ValueError as e:
+                QMessageBox.critical(self, "Erreur", 
+                    f"Erreur de conversion des données: {str(e)}")
+            except Exception as e:
+                QMessageBox.critical(self, "Erreur", 
+                    f"Erreur lors de la création du produit: {str(e)}")
 
 
 # ------------------ DIALOG POUR AJOUTER UN FOURNISSEUR ------------------
@@ -606,7 +637,6 @@ class PurchasesPage(QWidget):
         super().__init__()
         
         self.db = get_database()
-        self.showEvent = self.refresh_page
         # Layout principal - comme dans products.py
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(15)
@@ -746,7 +776,7 @@ class PurchasesPage(QWidget):
         subtotal_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
         
         self.subtotal_label = QLabel("0.00 DA")
-        self.subtotal_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.subtotal_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         self.subtotal_label.setStyleSheet(f"color: {COLORS['text_primary']};")
         self.subtotal_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
@@ -764,14 +794,8 @@ class PurchasesPage(QWidget):
         self.tax_title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}")
         
         self.tax_label = QLabel("0.00 DA")
-
-        self.tax_label.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self.tax_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         self.tax_label.setStyleSheet(f"color: {COLORS['warning']}; border: none;")
-        
-
-        self.tax_label.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
-        self.tax_label.setStyleSheet(f"color: {COLORS['warning']};")
-
         self.tax_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         
         tax_line.addWidget(self.tax_title_label)
@@ -821,7 +845,7 @@ class PurchasesPage(QWidget):
 
         # Connexion du signal pour mettre à jour les totaux
         self.table.itemChanged.connect(self.update_totals)
-        self.showEvent = self.refresh_page()
+        self.refresh_page()
         
     def showEvent(self, event):
         super().showEvent(event)
@@ -871,9 +895,7 @@ class PurchasesPage(QWidget):
         dialog = ProductSelectorDialog(products)
         if dialog.exec() and dialog.selected_product:
             product = dialog.selected_product
-            # ✅ Vérifier que _qty existe, sinon utiliser 1
             quantity = product.get('_qty', 1)
-            print(f"✅ Quantité utilisée dans add_item: {quantity}")  # Debug
             
             # Vérifier si le produit existe déjà dans le tableau
             for row in range(self.table.rowCount()):
@@ -895,7 +917,7 @@ class PurchasesPage(QWidget):
             product_item.setFlags(product_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
             self.table.setItem(row, 0, product_item)
 
-            # ✅ Quantité (utiliser la valeur saisie)
+            # Quantité
             qty_item = QTableWidgetItem(str(quantity))
             qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(row, 1, qty_item)
@@ -947,18 +969,25 @@ class PurchasesPage(QWidget):
         
         for row in range(self.table.rowCount()):
             try:
-                qty   = clean_num(self.table.item(row, 1).text())
-                price = clean_num(self.table.item(row, 2).text())
-                total_row = qty * price
-
-                total_item = self.table.item(row, 3)
-                if total_item:
-                    total_item.setText(fmt_da(total_row))
+                # Utiliser clean_num avec les items directement
+                qty_item = self.table.item(row, 1)
+                price_item = self.table.item(row, 2)
                 
-                subtotal += total_row
-            except:
+                if qty_item and price_item:
+                    qty = clean_num(qty_item)
+                    price = clean_num(price_item)
+                    total_row = qty * price
+
+                    total_item = self.table.item(row, 3)
+                    if total_item:
+                        total_item.setText(fmt_da(total_row))
+                    
+                    subtotal += total_row
+            except Exception as e:
+                print(f"Erreur ligne {row}: {e}")
                 continue
 
+        # Récupérer le taux de taxe
         try:
             tax_rate_pct = float(self.db.get_setting('purchase_vat', '10') or '10')
         except (ValueError, TypeError):
@@ -991,15 +1020,14 @@ class PurchasesPage(QWidget):
         items = []
         for row in range(self.table.rowCount()):
             try:
-                product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)  # C'est l'ID
-                product_name = self.table.item(row, 0).text()  # C'est le nom affiché
-                
-                quantity  = int(clean_num(self.table.item(row, 1).text()))
-                unit_price = clean_num(self.table.item(row, 2).text())
+                product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+                product_name = self.table.item(row, 0).text()
+                quantity = int(clean_num(self.table.item(row, 1)))
+                unit_price = clean_num(self.table.item(row, 2))
                 
                 items.append({
-                    'product_id': product_id,  # Garder l'ID pour le stock
-                    'product_name': product_name,  # Utiliser le nom pour l'affichage
+                    'product_id': product_id,
+                    'product_name': product_name,
                     'quantity': quantity,
                     'unit_price': unit_price
                 })
@@ -1022,7 +1050,7 @@ class PurchasesPage(QWidget):
             self.table.setRowCount(0)
             self.supplier_combo.setCurrentIndex(0)
             self.update_totals()
-            # Notifier les autres pages (dashboard, produits, stats)
+            # Notifier les autres pages
             self.purchase_saved.emit()
         else:
             QMessageBox.critical(self, "Erreur", "Impossible d'enregistrer l'achat!")
