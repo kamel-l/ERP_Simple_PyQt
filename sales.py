@@ -1,116 +1,218 @@
-
-
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem,
     QHeaderView, QPushButton, QComboBox, QHBoxLayout, QFrame, QDialog,
     QFormLayout, QLineEdit, QSpinBox, QDoubleSpinBox, QMessageBox, QGridLayout,
     QScrollArea, QSizePolicy
 )
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt, pyqtSignal
-from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from datetime import datetime
-from payment_module import show_payment_dialog  # ← AJOUTER CETTE LIGNE
+from payment_module import show_payment_dialog
+
+# ── Palette Midnight Amber ────────────────────────────────────────────────
+C = {
+    'bg':        '#0D0D0F',
+    'bg_card':   '#1C1C23',
+    'bg_input':  '#12121A',
+    'bg_row':    '#141418',
+    'amber':     '#F5A623',
+    'amber_d':   '#C4841A',
+    'amber_l':   '#FFD080',
+    'teal':      '#4ECDC4',
+    'coral':     '#FF6B6B',
+    'yellow':    '#FFE66D',
+    'txt':       '#F0EDE8',
+    'txt_sec':   '#B0A99A',
+    'txt_dim':   '#6B6460',
+    'border':    '#2A2A35',
+    'border_a':  'rgba(245,166,35,0.18)',
+}
+
+BTN = {
+    'primary': f"""
+        QPushButton {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['amber']}, stop:1 {C['amber_d']});
+            color: #0D0D0F; border: none; border-radius: 6px;
+            padding: 10px 20px; font-size: 13px; font-weight: bold; min-height: 36px;
+        }}
+        QPushButton:hover {{ background: {C['amber_l']}; }}
+        QPushButton:pressed {{ background: {C['amber_d']}; }}
+        QPushButton:disabled {{ background: #2A2A35; color: #4A4450; }}
+    """,
+    'success': f"""
+        QPushButton {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['teal']}, stop:1 #3AAA9F);
+            color: #0D0D0F; border: none; border-radius: 6px;
+            padding: 10px 20px; font-size: 13px; font-weight: bold; min-height: 36px;
+        }}
+        QPushButton:hover {{ background: #7EDBD5; }}
+        QPushButton:pressed {{ background: #3AAA9F; }}
+    """,
+    'danger': f"""
+        QPushButton {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['coral']}, stop:1 #CC4444);
+            color: {C['txt']}; border: none; border-radius: 6px;
+            padding: 10px 20px; font-size: 13px; font-weight: bold; min-height: 36px;
+        }}
+        QPushButton:hover {{ background: #FF9090; }}
+        QPushButton:pressed {{ background: #CC4444; }}
+    """,
+    'secondary': f"""
+        QPushButton {{
+            background: transparent; color: {C['amber']};
+            border: 1.5px solid rgba(245,166,35,0.4); border-radius: 6px;
+            padding: 10px 20px; font-size: 13px; font-weight: bold; min-height: 36px;
+        }}
+        QPushButton:hover {{ background: rgba(245,166,35,0.10); border-color:{C['amber']}; }}
+        QPushButton:pressed {{ background: rgba(245,166,35,0.20); }}
+    """,
+}
+
+INPUT_STYLE = f"""
+    QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit {{
+        background-color: {C['bg_input']}; border: 1.5px solid {C['border']};
+        border-radius: 6px; padding: 8px 12px;
+        color: {C['txt']}; font-size: 13px; min-height: 36px;
+    }}
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus,
+    QDoubleSpinBox:focus, QTextEdit:focus {{
+        border: 1.5px solid {C['amber']}; background-color: {C['bg_card']};
+    }}
+    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover {{
+        border: 1.5px solid rgba(245,166,35,0.40);
+    }}
+    QComboBox::drop-down {{ border:none; width:30px; }}
+    QComboBox::down-arrow {{
+        image:none; border-left:5px solid transparent; border-right:5px solid transparent;
+        border-top:5px solid {C['amber']}; margin-right:10px;
+    }}
+    QComboBox QAbstractItemView {{
+        background-color: {C['bg_card']}; border:1px solid rgba(245,166,35,0.25);
+        selection-background-color: rgba(245,166,35,0.18); color: {C['txt']};
+    }}
+"""
+
+TABLE_STYLE = f"""
+    QTableWidget {{
+        background-color: {C['bg_card']}; alternate-background-color: {C['bg_row']};
+        border: 1px solid {C['border']}; border-radius: 8px;
+        gridline-color: rgba(255,255,255,0.04); color: {C['txt']};
+        selection-background-color: rgba(245,166,35,0.18); font-size: 13px;
+    }}
+    QTableWidget::item {{ padding: 10px 8px; border:none; }}
+    QTableWidget::item:selected {{ background-color:rgba(245,166,35,0.22); color:{C['txt']}; }}
+    QTableWidget::item:hover {{ background-color:rgba(245,166,35,0.08); }}
+    QHeaderView::section {{
+        background: {C['bg']}; color: {C['amber']};
+        padding: 10px 8px; border:none;
+        border-bottom: 2px solid rgba(245,166,35,0.30);
+        font-weight:bold; font-size:11px; letter-spacing:0.8px;
+    }}
+    QScrollBar:vertical {{ background:{C['bg']}; width:6px; border-radius:3px; }}
+    QScrollBar::handle:vertical {{ background:rgba(245,166,35,0.35); border-radius:3px; }}
+    QScrollBar::handle:vertical:hover {{ background:{C['amber']}; }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height:0; }}
+"""
+
+
+def fmt_da(v, d=None):
+    from currency import fmt_da as _fmt_da
+    return _fmt_da(v) if d is None else _fmt_da(v, d)
 
 
 class AddProductDialog(QDialog):
-    """Dialogue pour ajouter un produit à la facture"""
     def __init__(self):
         super().__init__()
-        
         self.db = get_database()
         self.selected_product = None
         self.all_products = []
-        
-        self.setWindowTitle("🛒 Ajouter un Article à la Facture")
-        self.setFixedWidth(700)
-        self.setFixedHeight(920)
+
+        self.setWindowTitle("Ajouter un Article")
+        self.setFixedWidth(680)
+        self.setFixedHeight(880)
         self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {COLORS['bg_medium']};
-            }}
-            QLabel {{
-                color: {COLORS['text_primary']};
-                font-size: 13px;
-            }}
+            QDialog {{ background-color: {C['bg']}; }}
+            QLabel  {{ color: {C['txt']}; font-size: 13px; }}
             {INPUT_STYLE}
         """)
 
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(6)
-        main_layout.setContentsMargins(12, 12, 12, 12)
+        main = QVBoxLayout(self)
+        main.setSpacing(12)
+        main.setContentsMargins(18, 18, 18, 18)
 
-        # En-tête
+        # Header
         header = QFrame()
         header.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {COLORS['success']}, stop:1 {COLORS['primary']});
+                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+                    stop:0 #1C1408, stop:1 #121812);
                 border-radius: 10px;
-                padding: 15px;
+                border: 1px solid rgba(245,166,35,0.20);
             }}
         """)
-        header_layout = QVBoxLayout()
-        header.setLayout(header_layout)
+        hl = QVBoxLayout(header)
+        hl.setContentsMargins(18, 14, 18, 14)
 
-        title = QLabel("🛒 Ajouter un Article")
-        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title.setStyleSheet("color: white; margin-bottom: 5px; border: none;")
-        header_layout.addWidget(title)
+        row = QHBoxLayout()
+        ic = QLabel("🛒")
+        ic.setFont(QFont("Segoe UI", 20))
+        ic.setStyleSheet("background:transparent; border:none;")
+        row.addWidget(ic)
+        titles = QVBoxLayout()
+        t = QLabel("Ajouter un Article")
+        t.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        t.setStyleSheet(f"color:{C['amber']}; background:transparent; border:none;")
+        titles.addWidget(t)
+        s = QLabel("Recherchez et sélectionnez le produit souhaité")
+        s.setFont(QFont("Segoe UI", 10))
+        s.setStyleSheet(f"color:{C['txt_sec']}; background:transparent; border:none;")
+        titles.addWidget(s)
+        row.addLayout(titles)
+        row.addStretch()
+        hl.addLayout(row)
+        main.addWidget(header)
 
-        subtitle = QLabel("Recherchez et sélectionnez le produit souhaité")
-        subtitle.setFont(QFont("Segoe UI", 11))
-        subtitle.setStyleSheet("color: rgba(255, 255, 255, 0.8); border: none;")
-        header_layout.addWidget(subtitle)
-
-        main_layout.addWidget(header)
-
-        # ScrollArea pour le contenu principal
+        # Scroll
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-        
-        scroll_widget = QWidget()
-        scroll_widget.setStyleSheet("background: transparent;")
-        scroll_layout = QVBoxLayout(scroll_widget)
-        scroll_layout.setSpacing(5)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll.setStyleSheet(f"QScrollArea {{ border:none; background:transparent; }}")
+        sw = QWidget()
+        sw.setStyleSheet("background:transparent;")
+        sl = QVBoxLayout(sw)
+        sl.setSpacing(10)
+        sl.setContentsMargins(0, 0, 0, 0)
 
-        # Containers de recherche et tableau
-        search_container = QFrame()
-        search_container.setStyleSheet(f"""
-            QFrame {{
-                background: {COLORS['bg_card']};
-                border-radius: 10px;
-                padding: 8px;
-            }}
+        # Search container
+        search_card = QFrame()
+        search_card.setStyleSheet(f"""
+            QFrame {{ background:{C['bg_card']}; border-radius:10px; border:1px solid {C['border']}; }}
         """)
-        search_layout = QVBoxLayout()
-        search_layout.setContentsMargins(0, 0, 0, 0)
-        search_layout.setSpacing(4)
-        search_container.setLayout(search_layout)
+        scl = QVBoxLayout(search_card)
+        scl.setContentsMargins(14, 12, 14, 12)
+        scl.setSpacing(8)
 
-        # Champ de recherche
-        product_label = QLabel("🔍 Rechercher un produit: *")
-        product_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; font-weight: bold; font-size: 14px;")
-        search_layout.addWidget(product_label)
-        
+        pl = QLabel("Rechercher un produit *")
+        pl.setStyleSheet(f"color:{C['amber']}; border:none; font-weight:bold; font-size:13px;")
+        scl.addWidget(pl)
+
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Tapez le nom du produit...")
         self.search_input.setStyleSheet(INPUT_STYLE)
-        self.search_input.setMinimumHeight(32)
+        self.search_input.setMinimumHeight(40)
         self.search_input.textChanged.connect(self.filter_products)
-        search_layout.addWidget(self.search_input)
+        scl.addWidget(self.search_input)
 
-        # Table des produits
         self.product_table = QTableWidget(0, 3)
-        self.product_table.setHorizontalHeaderLabels(["Produit", "Prix Unit.", "Stock Disponible"])
+        self.product_table.setHorizontalHeaderLabels(["Produit", "Prix Unitaire", "Stock"])
         self.product_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.product_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
         self.product_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self.product_table.setColumnWidth(1, 120)
-        self.product_table.setColumnWidth(2, 140)
+        self.product_table.setColumnWidth(2, 130)
         self.product_table.verticalHeader().setVisible(False)
         self.product_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.product_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
@@ -118,857 +220,620 @@ class AddProductDialog(QDialog):
         self.product_table.setMaximumHeight(180)
         self.product_table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.product_table.itemSelectionChanged.connect(self.on_product_selected_from_table)
-        self.product_table.setStyleSheet(TABLE_STYLE + f"""
-            QHeaderView::section {{
-                background-color: {COLORS['bg_light']};
-                color: {COLORS['text_primary']};
-                font-size: 12px;
-                font-weight: bold;
-                padding: 10px 8px;
-                border: none;
-                border-right: 1px solid {COLORS['border']};
-                border-bottom: 2px solid {COLORS['primary']};
-            }}
+        self.product_table.setStyleSheet(TABLE_STYLE)
+        scl.addWidget(self.product_table)
+        sl.addWidget(search_card)
+
+        # Form card
+        form_card = QFrame()
+        form_card.setStyleSheet(f"""
+            QFrame {{ background:{C['bg_card']}; border-radius:10px; border:1px solid {C['border']}; }}
         """)
-        search_layout.addWidget(self.product_table)
+        fcl = QFormLayout(form_card)
+        fcl.setContentsMargins(16, 14, 16, 14)
+        fcl.setSpacing(10)
+        fcl.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        scroll_layout.addWidget(search_container)
+        def mk_lbl(t):
+            l = QLabel(t)
+            l.setStyleSheet(f"color:{C['txt_sec']}; border:none; font-size:12px;")
+            return l
 
-        # Formulaire pour quantité et remise
-        form_container = QFrame()
-        form_container.setStyleSheet(f"""
-            QFrame {{
-                background: {COLORS['bg_card']};
-                border-radius: 10px;
-                padding: 10px;
-            }}
-        """)
-        form_layout = QFormLayout()
-        form_container.setLayout(form_layout)
-        form_layout.setSpacing(6)
-        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-
-        # Prix unitaire
-        price_label = QLabel("Prix unitaire:")
-        price_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        
         self.price_display = QLabel("0 DA")
         self.price_display.setStyleSheet(f"""
-            color: {COLORS['success']}; 
-            border: none;
-            font-size: 18px;
-            font-weight: bold;
-            padding: 10px;
-            background: {COLORS['bg_light']};
-            border-radius: 5px;
+            color:{C['amber']}; border:none; font-size:18px; font-weight:bold;
+            padding:10px; background:{C['bg_input']}; border-radius:5px;
         """)
-        form_layout.addRow(price_label, self.price_display)
+        fcl.addRow(mk_lbl("Prix unitaire:"), self.price_display)
 
-        # Stock disponible
-        stock_label = QLabel("Stock disponible:")
-        stock_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        
         self.stock_display = QLabel("0")
         self.stock_display.setStyleSheet(f"""
-            color: {COLORS['warning']}; 
-            border: none;
-            font-size: 16px;
-            font-weight: bold;
-            padding: 10px;
-            background: {COLORS['bg_light']};
-            border-radius: 5px;
+            color:{C['teal']}; border:none; font-size:16px; font-weight:bold;
+            padding:10px; background:{C['bg_input']}; border-radius:5px;
         """)
-        form_layout.addRow(stock_label, self.stock_display)
+        fcl.addRow(mk_lbl("Stock disponible:"), self.stock_display)
 
-        # Séparateur
-        separator = QFrame()
-        separator.setFrameShape(QFrame.Shape.HLine)
-        separator.setStyleSheet(f"background-color: {COLORS['border']}; border: none; margin: 10px 0;")
-        form_layout.addRow(separator)
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet(f"background:{C['border']}; border:none; margin:6px 0;")
+        fcl.addRow(sep)
 
-        # Quantité
-        qty_label = QLabel("Quantité: *")
-        qty_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none; font-weight: bold;")
-        
         self.quantity = QLineEdit()
         self.quantity.setText("1")
         self.quantity.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.quantity.setStyleSheet(INPUT_STYLE)
-        self.quantity.setMinimumHeight(32)
+        self.quantity.setMinimumHeight(40)
         self.quantity.textChanged.connect(self.update_total)
-        
-        form_layout.addRow(qty_label, self.quantity)
+        fcl.addRow(mk_lbl("Quantité *"), self.quantity)
 
-        # Remise
-        discount_label = QLabel("Remise (%)")
-        discount_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        
         self.discount = QLineEdit()
         self.discount.setText("0")
         self.discount.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.discount.setStyleSheet(INPUT_STYLE)
-        self.discount.setMinimumHeight(32)
+        self.discount.setMinimumHeight(40)
         self.discount.textChanged.connect(self.update_total)
-        
-        form_layout.addRow(discount_label, self.discount)
+        fcl.addRow(mk_lbl("Remise (%)"), self.discount)
+        sl.addWidget(form_card)
 
-        scroll_layout.addWidget(form_container)
-
-        # Résumé du total
-        total_container = QFrame()
-        total_container.setStyleSheet(f"""
+        # Total
+        total_card = QFrame()
+        total_card.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 10px;
-                border: 2px solid {COLORS['primary']};
-                padding: 8px;
+                background:{C['bg_card']}; border-radius:10px;
+                border:2px solid rgba(245,166,35,0.40);
             }}
         """)
-        total_layout = QHBoxLayout()
-        total_container.setLayout(total_layout)
-        total_layout.setContentsMargins(11, 10, 16, 13)
-
-        total_text = QLabel("TOTAL:")
-        total_text.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        total_text.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        
+        tl = QHBoxLayout(total_card)
+        tl.setContentsMargins(14, 12, 18, 12)
+        tl_label = QLabel("TOTAL :")
+        tl_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        tl_label.setStyleSheet(f"color:{C['txt']}; border:none;")
         self.total_display = QLabel("0 DA")
-        self.total_display.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-        self.total_display.setStyleSheet(f"color: {COLORS['success']}; border: none;")
-        self.total_display.setMinimumWidth(150)
+        self.total_display.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
+        self.total_display.setStyleSheet(f"color:{C['amber']}; border:none;")
         self.total_display.setAlignment(Qt.AlignmentFlag.AlignRight)
+        tl.addWidget(tl_label)
+        tl.addStretch()
+        tl.addWidget(self.total_display)
+        sl.addWidget(total_card)
 
-        total_layout.addWidget(total_text)
-        total_layout.addStretch()
-        total_layout.addWidget(self.total_display)
+        scroll.setWidget(sw)
+        main.addWidget(scroll)
 
-        scroll_layout.addWidget(total_container)
-
-        scroll.setWidget(scroll_widget)
-        main_layout.addWidget(scroll)
-
-        # Boutons
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(10)
-        
-        cancel_btn = QPushButton("❌ Annuler")
-        cancel_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        cancel_btn.setMinimumHeight(40)
+        # Buttons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+        cancel_btn = QPushButton("Annuler")
+        cancel_btn.setStyleSheet(BTN['secondary'])
+        cancel_btn.setMinimumHeight(44)
         cancel_btn.clicked.connect(self.reject)
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        add_btn = QPushButton("✅ Ajouter")
-        add_btn.setStyleSheet(BUTTON_STYLES['success'])
-        add_btn.setMinimumHeight(40)
+        add_btn = QPushButton("✓  Ajouter")
+        add_btn.setStyleSheet(BTN['success'])
+        add_btn.setMinimumHeight(44)
         add_btn.setFixedWidth(180)
         add_btn.clicked.connect(self.validate_and_accept)
         add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_row.addWidget(cancel_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(add_btn)
+        main.addLayout(btn_row)
 
-        btn_layout.addWidget(cancel_btn)
-        btn_layout.addStretch()
-        btn_layout.addWidget(add_btn)
-        
-        main_layout.addLayout(btn_layout)
-
-        # Charger les produits
         self.load_products()
 
     def load_products(self):
-        """Charge les produits depuis la base"""
         self.all_products = []
         self.product_table.setRowCount(0)
-        
-        products = self.db.get_all_products()
-        for product in products:
-            if product['stock_quantity'] > 0:
-                self.all_products.append(product)
-        
-        # Afficher tous les produits initialement
+        for p in self.db.get_all_products():
+            if p['stock_quantity'] > 0:
+                self.all_products.append(p)
         self.display_products(self.all_products)
 
     def display_products(self, products):
-        """Affiche les produits dans la table"""
+        from currency import fmt_da
         self.product_table.setRowCount(0)
-        
-        for product in products:
+        for p in products:
             row = self.product_table.rowCount()
             self.product_table.insertRow(row)
-            
-            # Nom du produit
-            name_item = QTableWidgetItem(product['name'])
-            name_item.setData(Qt.ItemDataRole.UserRole, product)
+            self.product_table.setRowHeight(row, 40)
+            name_item = QTableWidgetItem(p['name'])
+            name_item.setData(Qt.ItemDataRole.UserRole, p)
+            name_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
             self.product_table.setItem(row, 0, name_item)
-            
-            # Prix unitaire
-            price_item = QTableWidgetItem(f"{fmt_da(product['selling_price'], 2)}")
+            price_item = QTableWidgetItem(fmt_da(p['selling_price']))
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            price_item.setForeground(QColor(C['amber']))
             self.product_table.setItem(row, 1, price_item)
-            
-            # Stock
-            stock_item = QTableWidgetItem(str(product['stock_quantity']))
+            stock_item = QTableWidgetItem(str(p['stock_quantity']))
             stock_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            stock_item.setForeground(QColor(C['teal']))
             self.product_table.setItem(row, 2, stock_item)
 
     def filter_products(self, text):
-        """Filtre les produits selon le texte de recherche"""
-        search_text = text.lower().strip()
-        
-        if not search_text:
-            self.display_products(self.all_products)
-        else:
-            filtered = [p for p in self.all_products if p['name'].lower().startswith(search_text)]
-            self.display_products(filtered)
+        t = text.lower().strip()
+        self.display_products(
+            self.all_products if not t
+            else [p for p in self.all_products if p['name'].lower().startswith(t)])
 
     def on_product_selected_from_table(self):
-        """Quand un produit est sélectionné dans la table"""
-        selected_row = self.product_table.currentRow()
-        
-        if selected_row >= 0:
-            item = self.product_table.item(selected_row, 0)
+        from currency import fmt_da
+        r = self.product_table.currentRow()
+        if r >= 0:
+            item = self.product_table.item(r, 0)
             if item:
-                product = item.data(Qt.ItemDataRole.UserRole)
-                self.selected_product = product
-                self.price_display.setText(f"{fmt_da(product['selling_price'], 2)}")
-                self.stock_display.setText(str(product['stock_quantity']))
+                p = item.data(Qt.ItemDataRole.UserRole)
+                self.selected_product = p
+                self.price_display.setText(fmt_da(p['selling_price']))
+                self.stock_display.setText(str(p['stock_quantity']))
                 self.quantity.setText("1")
                 self.discount.setText("0")
                 self.update_total()
         else:
             self.selected_product = None
-            self.price_display.setText("0 DA")
-            self.stock_display.setText("0")
 
     def update_total(self):
-        """Met à jour le total"""
+        from currency import fmt_da
         if self.selected_product:
             try:
                 qty = int(self.quantity.text() or 1)
                 price = self.selected_product['selling_price']
-                discount = float(self.discount.text() or 0)
-                
-                total = qty * price * (1 - discount / 100)
-                self.total_display.setText(f"{fmt_da(total, 2)}")
+                disc = float(self.discount.text() or 0)
+                total = qty * price * (1 - disc / 100)
+                self.total_display.setText(fmt_da(total))
             except ValueError:
                 self.total_display.setText("0 DA")
 
     def validate_and_accept(self):
-        """Valide et accepte"""
         if not self.selected_product:
             QMessageBox.warning(self, "Erreur", "Veuillez sélectionner un produit!")
             return
-        
         try:
             qty = int(self.quantity.text() or 1)
         except ValueError:
             QMessageBox.warning(self, "Erreur", "La quantité doit être un nombre!")
             return
-        
         if qty > self.selected_product['stock_quantity']:
             QMessageBox.warning(self, "Erreur", "Stock insuffisant!")
             return
-        
         self.accept()
 
 
 class SalesPage(QWidget):
-    # Émis après chaque vente enregistrée
     sale_saved = pyqtSignal()
 
     def __init__(self):
         super().__init__()
-        # self.showEvent = self.refresh  # Rafraîchir à chaque affichage
         self.db = get_database()
-        self.cart_items = []  # Articles dans le panier
-        self.vat_rate = self._get_vat_rate()  # Récupérer la TVA depuis les settings
-        
-        # Layout racine sans marges
-        root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(12, 12, 12, 12)
-        root_layout.setSpacing(8)
+        self.cart_items = []
+        self.vat_rate = self._get_vat_rate()
 
-        layout = root_layout
+        self.setStyleSheet(f"background-color:{C['bg']};")
+        root = QVBoxLayout(self)
+        root.setContentsMargins(22, 20, 22, 20)
+        root.setSpacing(14)
+        layout = root
 
-        # Header
-        title = QLabel("💰 Point de Vente")
-        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']};")
-        layout.addWidget(title)
+        # ── Titre ──
+        hdr = QHBoxLayout()
+        accent = QFrame()
+        accent.setFixedSize(4, 50)
+        accent.setStyleSheet(f"""
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['amber']}, stop:1 {C['teal']});
+            border-radius: 2px;
+        """)
+        hdr.addWidget(accent)
+        hdr.addSpacing(10)
+        titles = QVBoxLayout()
+        titles.setSpacing(2)
+        t = QLabel("Point de Vente")
+        t.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
+        t.setStyleSheet(f"color:{C['txt']}; background:transparent;")
+        titles.addWidget(t)
+        s = QLabel("Gestion des ventes et facturation")
+        s.setFont(QFont("Segoe UI", 11))
+        s.setStyleSheet(f"color:{C['txt_dim']}; background:transparent;")
+        titles.addWidget(s)
+        hdr.addLayout(titles)
+        hdr.addStretch()
+        layout.addLayout(hdr)
 
-        subtitle = QLabel("Gestion des ventes et facturation")
-        subtitle.setFont(QFont("Segoe UI", 11))
-        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-        layout.addWidget(subtitle)
-
-        # Client Selection
+        # ── Sélection client ──
         client_card = QFrame()
         client_card.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 20px;
+                background:{C['bg_card']}; border-radius:10px; border:1px solid {C['border']};
             }}
         """)
-        client_layout = QHBoxLayout()
-        client_card.setLayout(client_layout)
-        client_layout.setSpacing(10)
+        cl = QHBoxLayout(client_card)
+        cl.setContentsMargins(16, 12, 16, 12)
+        cl.setSpacing(12)
 
-        client_label = QLabel("👤 Client: *")
-        client_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        client_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
+        client_lbl = QLabel("👤  Client *")
+        client_lbl.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        client_lbl.setStyleSheet(f"color:{C['amber']}; border:none;")
 
-        self.client_required_label = QLabel("⚠ Champ obligatoire")
+        self.client_required_label = QLabel("⚠  Champ obligatoire")
         self.client_required_label.setFont(QFont("Segoe UI", 10))
-        self.client_required_label.setStyleSheet(f"color: {COLORS['warning']}; border: none;")
+        self.client_required_label.setStyleSheet(f"color:{C['coral']}; border:none;")
         self.client_required_label.setVisible(False)
 
         self.client_combo = QComboBox()
         self.client_combo.setStyleSheet(INPUT_STYLE)
-        self.client_combo.setMinimumHeight(32)
+        self.client_combo.setMinimumHeight(40)
         self.client_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.client_combo.currentIndexChanged.connect(self._on_client_changed)
         self.load_clients()
 
-        # Bouton ajouter article
-        self.add_item_btn = QPushButton("➕ Ajouter Article")
-        self.add_item_btn.setStyleSheet(BUTTON_STYLES['primary'])
-        self.add_item_btn.setMinimumHeight(32)
+        self.add_item_btn = QPushButton("＋  Ajouter Article")
+        self.add_item_btn.setStyleSheet(BTN['primary'])
+        self.add_item_btn.setMinimumHeight(40)
         self.add_item_btn.setFixedWidth(180)
         self.add_item_btn.clicked.connect(self.add_item)
         self.add_item_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        # Layout vertical pour label + message d'erreur
-        client_info_layout = QVBoxLayout()
-        client_info_layout.setSpacing(2)
-        client_info_layout.addWidget(client_label)
-        client_info_layout.addWidget(self.client_required_label)
-
-        client_layout.addLayout(client_info_layout)
-        client_layout.addWidget(self.client_combo)
-        client_layout.addStretch()
-        client_layout.addWidget(self.add_item_btn)
-
+        info_col = QVBoxLayout()
+        info_col.setSpacing(2)
+        info_col.addWidget(client_lbl)
+        info_col.addWidget(self.client_required_label)
+        cl.addLayout(info_col)
+        cl.addWidget(self.client_combo)
+        cl.addStretch()
+        cl.addWidget(self.add_item_btn)
         layout.addWidget(client_card)
 
-        # Cart Table
-        table_container = QFrame()
-        table_container.setStyleSheet(f"""
-            QFrame {{
-                background: {COLORS['bg_card']};
-                border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 0px;
-            }}
+        # ── Tableau panier ──
+        tbl_card = QFrame()
+        tbl_card.setStyleSheet(f"""
+            QFrame {{ background:{C['bg_card']}; border-radius:12px; border:1px solid {C['border']}; }}
         """)
-        table_layout = QVBoxLayout()
-        table_layout.setContentsMargins(10, 10, 10, 10)
-        table_layout.setSpacing(8)
-        table_container.setLayout(table_layout)
+        tcl = QVBoxLayout(tbl_card)
+        tcl.setContentsMargins(14, 12, 14, 12)
+        tcl.setSpacing(8)
 
-        table_title = QLabel("🛒 Panier")
-        table_title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        table_title.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
-        table_layout.addWidget(table_title)
+        tbl_title_row = QHBoxLayout()
+        tbl_title = QLabel("🛒  Panier")
+        tbl_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        tbl_title.setStyleSheet(f"color:{C['txt']}; border:none;")
+        tbl_title_row.addWidget(tbl_title)
+        tbl_title_row.addStretch()
+        tcl.addLayout(tbl_title_row)
 
         self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["Produit", "Quantité", "Prix Unit.", "Remise", "Total", ""])
+        self.table.setHorizontalHeaderLabels(
+            ["Produit", "Quantité", "Prix Unit.", "Remise", "Total", ""])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
-        self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-        self.table.setColumnWidth(1, 100)
-        self.table.setColumnWidth(2, 120)
-        self.table.setColumnWidth(3, 100)
-        self.table.setColumnWidth(4, 120)
-        self.table.setColumnWidth(5, 80)
-        
+        for i, w in [(1, 100), (2, 120), (3, 100), (4, 120), (5, 80)]:
+            self.table.horizontalHeader().setSectionResizeMode(
+                i, QHeaderView.ResizeMode.Fixed)
+            self.table.setColumnWidth(i, w)
         self.table.setAlternatingRowColors(True)
         self.table.verticalHeader().setVisible(False)
-        self.table.setMinimumHeight(80)
+        self.table.setMinimumHeight(120)
         self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        self.table.setStyleSheet(TABLE_STYLE + f"""
-            QHeaderView::section {{
-                background-color: {COLORS['bg_light']};
-                color: {COLORS['text_primary']};
-                font-size: 13px;
-                font-weight: bold;
-                padding: 10px 8px;
-                border: none;
-                border-right: 1px solid {COLORS['border']};
-                border-bottom: 2px solid {COLORS['primary']};
-            }}
-            QHeaderView::section:last {{
-                border-right: none;
-            }}
-        """)
+        self.table.setShowGrid(False)
+        self.table.setStyleSheet(TABLE_STYLE)
+        tcl.addWidget(self.table)
+        layout.addWidget(tbl_card)
 
-        table_layout.addWidget(self.table)
-        layout.addWidget(table_container)
-
-        # ── Summary Section ──────────────────────────────────────────────
+        # ── Résumé ──
         summary_card = QFrame()
         summary_card.setObjectName("summaryCard")
         summary_card.setStyleSheet(f"""
             QFrame#summaryCard {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
-                border-radius: 12px;
-                border: 2px solid {COLORS['success']};
+                background:{C['bg_card']}; border-radius:12px;
+                border:2px solid rgba(245,166,35,0.35);
             }}
         """)
+        sl = QVBoxLayout(summary_card)
+        sl.setContentsMargins(20, 16, 20, 16)
+        sl.setSpacing(10)
 
-        # summary_card.setMinimumHeight(260)
-        summary_main_layout = QVBoxLayout(summary_card)
-        summary_main_layout.setContentsMargins(16, 12, 16, 12)
-        summary_main_layout.setSpacing(8)
+        # Titre + client badge
+        top_row = QHBoxLayout()
+        sum_title = QLabel("💰  Résumé de la Vente")
+        sum_title.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        sum_title.setStyleSheet(f"color:{C['txt']}; background:transparent;")
+        top_row.addWidget(sum_title)
+        top_row.addStretch()
 
-        # ── Ligne titre + client ──────────────────────────────────────────
-        title_client_row = QHBoxLayout()
-
-        # Titre
-        summary_title = QLabel("💰 Résumé de la Vente")
-        summary_title.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
-        summary_title.setStyleSheet(f"color: {COLORS['text_primary']};")
-        # summary_main_layout.addWidget(summary_title)
-        title_client_row.addWidget(summary_title)
-        title_client_row.addStretch()
-
-        # Badge client
-        client_badge_frame = QFrame()
-        client_badge_frame.setStyleSheet(f"""
-            QFrame {{
-                background: {COLORS['primary']}22;
-                border-radius: 8px;
-                border: 1px solid {COLORS['primary']};
-            }}
+        badge_frame = QFrame()
+        badge_frame.setStyleSheet(f"""
+            QFrame {{ background:rgba(245,166,35,0.10); border-radius:7px;
+                     border:1px solid rgba(245,166,35,0.30); }}
         """)
-        client_badge_layout = QHBoxLayout(client_badge_frame)
-        client_badge_layout.setContentsMargins(10, 5, 10, 5)
-        client_badge_layout.setSpacing(6)
-
-        client_icon = QLabel("👤")
-        client_icon.setFont(QFont("Segoe UI", 12))
-        client_icon.setStyleSheet("border: none;")
-        client_badge_layout.addWidget(client_icon)
-
+        bfl = QHBoxLayout(badge_frame)
+        bfl.setContentsMargins(10, 5, 10, 5)
+        bfl.setSpacing(6)
+        QLabel("👤", styleSheet="border:none; background:transparent;",
+               font=QFont("Segoe UI", 12))
+        bfl.addWidget(QLabel("👤", styleSheet="border:none; background:transparent;"))
         self.client_name_label = QLabel("—")
-        self.client_name_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        self.client_name_label.setStyleSheet(f"color: {COLORS['primary']}; border: none;")
-        client_badge_layout.addWidget(self.client_name_label)
+        self.client_name_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        self.client_name_label.setStyleSheet(f"color:{C['amber']}; border:none;")
+        bfl.addWidget(self.client_name_label)
+        top_row.addWidget(badge_frame)
+        sl.addLayout(top_row)
 
-        title_client_row.addWidget(client_badge_frame)
-        summary_main_layout.addLayout(title_client_row)
-
-        # ── Grille principale en 2 colonnes ──────────────────────────────
+        # ── Grille infos ──
         info_row = QHBoxLayout()
-        info_row.setSpacing(25)
+        info_row.setSpacing(20)
 
-        # helper pour créer une ligne label + valeur
-        def _row(parent_layout, icon_text, color):
+        def mk_row_label(text, color=None):
+            l = QLabel(text)
+            l.setFont(QFont("Segoe UI", 11))
+            l.setStyleSheet(f"color:{C['txt_sec']}; background:transparent;")
+            return l
+
+        def mk_val_label(text="—", color=None):
+            l = QLabel(text)
+            l.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+            l.setStyleSheet(f"color:{color or C['txt']}; background:transparent;")
+            l.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            l.setMinimumWidth(120)
+            return l
+
+        left = QVBoxLayout()
+        left.setSpacing(5)
+
+        def add_info_row(parent_layout, label_text, color_val=None):
             h = QHBoxLayout()
             h.setSpacing(8)
-            lbl = QLabel(icon_text)
-            lbl.setFont(QFont("Segoe UI", 12))
-            lbl.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-            val = QLabel("—")
-            val.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-            val.setStyleSheet(f"color: {color};")
-            val.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            val.setMinimumWidth(120)
-            h.addWidget(lbl, 1)
-            h.addWidget(val)
+            h.addWidget(mk_row_label(label_text), 1)
+            v = mk_val_label(color=color_val)
+            h.addWidget(v)
             parent_layout.addLayout(h)
-            return val
+            return v
 
-        # Colonne gauche
-        left_col = QVBoxLayout()
-        left_col.setSpacing(4)
-        self.nb_articles_label   = _row(left_col, "📦 Articles :", COLORS['primary'])
-        self.qty_total_label     = _row(left_col, "🔢 Quantité :",   COLORS['primary'])
-        self.discount_total_label= _row(left_col, "🏷️  Remise :",    COLORS['danger'])
+        self.nb_articles_label = add_info_row(left, "📦  Articles :", C['amber'])
+        self.qty_total_label = add_info_row(left, "🔢  Quantité :", C['amber'])
+        self.discount_total_label = add_info_row(left, "🏷️  Remise :", C['coral'])
 
-        # Colonne droite
-        right_col = QVBoxLayout()
-        right_col.setSpacing(4)
-        self.subtotal_label = _row(right_col, "Sous-total HT :", COLORS['text_primary'])
-        
-        # Créer la ligne TVA de manière dynamique pour pouvoir la mettre à jour
-        self.vat_percent = float(self.db.get_setting('vat', '19'))
+        right = QVBoxLayout()
+        right.setSpacing(5)
+        self.subtotal_label = add_info_row(right, "Sous-total HT :", C['txt'])
+
         tax_row = QHBoxLayout()
         tax_row.setSpacing(8)
-        self.tax_header_label = QLabel(f"TVA ({self.vat_percent:}%) :")
-        self.tax_header_label.setFont(QFont("Segoe UI", 12))
-        self.tax_header_label.setStyleSheet(f"color: {COLORS['text_tertiary']};")
+        self.vat_percent = float(self.db.get_setting('vat', '19'))
+        self.tax_header_label = QLabel(f"TVA ({self.vat_percent:.0f}%) :")
+        self.tax_header_label.setFont(QFont("Segoe UI", 11))
+        self.tax_header_label.setStyleSheet(f"color:{C['txt_sec']}; background:transparent;")
         self.tax_label = QLabel("—")
-        self.tax_label.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        self.tax_label.setStyleSheet(f"color: {COLORS['warning']};")
+        self.tax_label.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        self.tax_label.setStyleSheet(f"color:{C['yellow']}; background:transparent;")
         self.tax_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.tax_label.setMinimumWidth(120)
         tax_row.addWidget(self.tax_header_label, 1)
         tax_row.addWidget(self.tax_label)
-        right_col.addLayout(tax_row)
+        right.addLayout(tax_row)
 
-        info_row.addLayout(left_col, 1)
+        info_row.addLayout(left, 1)
+        vsep = QFrame()
+        vsep.setFrameShape(QFrame.Shape.VLine)
+        vsep.setFixedWidth(1)
+        vsep.setStyleSheet(f"background:{C['border']};")
+        info_row.addWidget(vsep)
+        info_row.addLayout(right, 1)
+        sl.addLayout(info_row)
 
-        v_sep = QFrame()
-        v_sep.setFrameShape(QFrame.Shape.VLine)
-        v_sep.setFixedWidth(1)
-        v_sep.setStyleSheet(f"background-color: {COLORS['border']};")
-        info_row.addWidget(v_sep)
+        # Séparateur
+        hsep = QFrame()
+        hsep.setFrameShape(QFrame.Shape.HLine)
+        hsep.setFixedHeight(1)
+        hsep.setStyleSheet(f"background:rgba(245,166,35,0.30); border:none;")
+        sl.addWidget(hsep)
 
-        info_row.addLayout(right_col, 1)
-        summary_main_layout.addLayout(info_row)
-
-        # ── Séparateur vert ──────────────────────────────────────────────
-        h_sep = QFrame()
-        h_sep.setFrameShape(QFrame.Shape.HLine)
-        h_sep.setFixedHeight(1)
-        h_sep.setStyleSheet(f"background-color: {COLORS['success']};")
-        summary_main_layout.addWidget(h_sep)
-
-        # ── TOTAL TTC ────────────────────────────────────────────────────
-        total_row = QHBoxLayout()
-        total_lbl = QLabel("TOTAL TTC :")
-        total_lbl.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
-        total_lbl.setStyleSheet(f"color: {COLORS['text_primary']};")
+        # Total TTC
+        ttc_row = QHBoxLayout()
+        ttc_lbl = QLabel("TOTAL TTC :")
+        ttc_lbl.setFont(QFont("Segoe UI", 13, QFont.Weight.Bold))
+        ttc_lbl.setStyleSheet(f"color:{C['txt']}; background:transparent;")
         self.total_label = QLabel("0 DA")
-        self.total_label.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        self.total_label.setStyleSheet(f"color: {COLORS['success']};")
+        self.total_label.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+        self.total_label.setStyleSheet(f"color:{C['amber']}; background:transparent;")
         self.total_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-        total_row.addWidget(total_lbl)
-        total_row.addStretch()
-        total_row.addWidget(self.total_label)
-        summary_main_layout.addLayout(total_row)
+        ttc_row.addWidget(ttc_lbl)
+        ttc_row.addStretch()
+        ttc_row.addWidget(self.total_label)
+        sl.addLayout(ttc_row)
 
-        # ── Boutons ──────────────────────────────────────────────────────
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)
-
-        self.clear_btn = QPushButton("🗑️ Vider le Panier")
-        self.clear_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        self.clear_btn.setMinimumHeight(40)
+        # Boutons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+        self.clear_btn = QPushButton("🗑  Vider le Panier")
+        self.clear_btn.setStyleSheet(BTN['secondary'])
+        self.clear_btn.setMinimumHeight(44)
         self.clear_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.clear_btn.clicked.connect(self.clear_cart)
-
-        self.save_btn = QPushButton("💾 Enregistrer la Vente")
-        self.save_btn.setStyleSheet(BUTTON_STYLES['success'])
-        self.save_btn.setMinimumHeight(40)
-        self.save_btn.setMinimumWidth(220)
+        self.save_btn = QPushButton("✦  Enregistrer la Vente")
+        self.save_btn.setStyleSheet(BTN['success'])
+        self.save_btn.setMinimumHeight(44)
+        self.save_btn.setMinimumWidth(230)
         self.save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.save_btn.clicked.connect(self.save_sale)
-
-        button_layout.addWidget(self.clear_btn)
-        button_layout.addStretch()
-        button_layout.addWidget(self.save_btn)
-        summary_main_layout.addLayout(button_layout)
-
+        btn_row.addWidget(self.clear_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(self.save_btn)
+        sl.addLayout(btn_row)
         layout.addWidget(summary_card)
 
-        # Initialiser l'affichage
         self.update_totals()
-        self.showEvent = self.refresh_page()  # Rafraîchir à chaque affichage
-    
+        self.showEvent = self.refresh_page()
+
     def showEvent(self, event):
         super().showEvent(event)
         self.refresh_page()
-        
-        
+
     def refresh_page(self):
-        """Rafraîchit les données de la page (clients, produits, etc.)"""
         self.load_clients()
         self.cart_items = []
         self.table.setRowCount(0)
         self.update_totals()
-        
-           
+
     def load_clients(self):
-        """Charge les clients (peut être appelée depuis l'extérieur pour rafraîchir)"""
         self.client_combo.clear()
         self.client_combo.addItem("Client Anonyme", None)
-        
-        clients = self.db.get_all_clients()
-        for client in clients:
+        for client in self.db.get_all_clients():
             self.client_combo.addItem(client['name'], client['id'])
 
     def add_item(self):
-        """Ajoute un article au panier"""
         dialog = AddProductDialog()
         if dialog.exec() and dialog.selected_product:
-            product = dialog.selected_product
-            quantity = int(dialog.quantity.text() or 1)
-            discount = float(dialog.discount.text() or 0)
-            unit_price = product['selling_price']
-            total = quantity * unit_price * (1 - discount / 100)
-            
-            # Ajouter au panier
+            from currency import fmt_da
+            p = dialog.selected_product
+            qty = int(dialog.quantity.text() or 1)
+            disc = float(dialog.discount.text() or 0)
+            unit_price = p['selling_price']
+            total = qty * unit_price * (1 - disc / 100)
             self.cart_items.append({
-                'product_id': product['id'],
-                'product_name': product['name'],
-                'quantity': quantity,
-                'unit_price': unit_price,
-                'discount': discount,
-                'total': total
+                'product_id': p['id'], 'product_name': p['name'],
+                'quantity': qty, 'unit_price': unit_price,
+                'discount': disc, 'total': total
             })
-            
-            # Ajouter à la table
             row = self.table.rowCount()
             self.table.insertRow(row)
-            
-            # Produit
-            product_item = QTableWidgetItem(product['name'])
+            self.table.setRowHeight(row, 44)
+
+            product_item = QTableWidgetItem(p['name'])
+            product_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
             self.table.setItem(row, 0, product_item)
-            
-            # Quantité
-            qty_item = QTableWidgetItem(str(quantity))
-            qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setItem(row, 1, qty_item)
-            
-            # Prix unitaire
-            price_item = QTableWidgetItem(f"{unit_price:,}")
-            price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            self.table.setItem(row, 2, price_item)
-            
-            # Remise
-            discount_item = QTableWidgetItem(f"{discount:,}%")
-            discount_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self.table.setItem(row, 3, discount_item)
-            
-            # Total
-            total_item = QTableWidgetItem(f"{total:,}")
-            total_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-            total_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-            self.table.setItem(row, 4, total_item)
-            
-            # Bouton supprimer
-            remove_btn = QPushButton("🗑️")
-            remove_btn.setFont(QFont("Segoe UI", 14))
-            remove_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background: transparent;
-                    color: {COLORS['danger']};
-                    border: none;
-                }}
+
+            def mk_center(text, color=None):
+                it = QTableWidgetItem(text)
+                it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if color:
+                    it.setForeground(QColor(color))
+                return it
+
+            def mk_right(text, color=None):
+                it = QTableWidgetItem(text)
+                it.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                if color:
+                    it.setForeground(QColor(color))
+                return it
+
+            self.table.setItem(row, 1, mk_center(str(qty)))
+            self.table.setItem(row, 2, mk_right(f"{unit_price:,}", C['txt_sec']))
+            self.table.setItem(row, 3, mk_center(f"{disc:,}%", C['yellow']))
+            total_it = mk_right(f"{total:,}", C['amber'])
+            total_it.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+            self.table.setItem(row, 4, total_it)
+
+            rm_btn = QPushButton("✕")
+            rm_btn.setFont(QFont("Segoe UI", 13))
+            rm_btn.setStyleSheet(f"""
+                QPushButton {{ background:transparent; color:{C['coral']}; border:none; }}
                 QPushButton:hover {{
-                    background: {COLORS['danger']};
-                    color: white;
-                    border-radius: 5px;
+                    background:{C['coral']}; color:white; border-radius:4px;
                 }}
             """)
-            remove_btn.clicked.connect(lambda _, r=row: self.remove_item(r))
-            remove_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            self.table.setCellWidget(row, 5, remove_btn)
-            
+            rm_btn.clicked.connect(lambda _, r=row: self.remove_item(r))
+            rm_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.table.setCellWidget(row, 5, rm_btn)
             self.update_totals()
 
     def remove_item(self, row):
-        """Supprime un article"""
         if row < len(self.cart_items):
             del self.cart_items[row]
         self.table.removeRow(row)
         self.update_totals()
 
     def clear_cart(self):
-        """Vide le panier"""
-        reply = QMessageBox.question(
-            self,
-            "Confirmation",
+        reply = QMessageBox.question(self, "Confirmation",
             "Voulez-vous vraiment vider le panier?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             self.cart_items = []
             self.table.setRowCount(0)
             self.update_totals()
 
     def _get_vat_rate(self):
-        """Récupère le taux de TVA depuis les settings"""
         try:
-            vat_str = self.db.get_setting('vat', '19')
-            return float(vat_str) / 100.0  # Convertir en décimal (ex: 19 -> 0.19)
+            return float(self.db.get_setting('vat', '19')) / 100.0
         except:
-            return 0.19  # Valeur par défaut
+            return 0.19
+
     def update_totals(self):
-        """Met à jour les totaux"""
+        from currency import fmt_da
         subtotal = sum(item['total'] for item in self.cart_items)
         self.vat_rate = self._get_vat_rate()
-        self.vat_percent = self.vat_rate * 100  # Convertir en pourcentage pour l'affichage
-        # Mettre à jour le label de TVA avec le nouveau pourcentage
+        self.vat_percent = self.vat_rate * 100
         self.tax_header_label.setText(f"TVA ({self.vat_percent:.0f}%) :")
         tax = subtotal * self.vat_rate
         total = subtotal + tax
-
-        # Calcul du nombre d'articles et de la quantité totale
-        nb_articles = len(self.cart_items)
+        nb = len(self.cart_items)
         qty_total = sum(item['quantity'] for item in self.cart_items)
-
-        # Calcul de la remise totale (prix sans remise - prix avec remise)
         total_sans_remise = sum(
-            item['quantity'] * item['unit_price'] for item in self.cart_items
-        )
+            item['quantity'] * item['unit_price'] for item in self.cart_items)
         remise_total = total_sans_remise - subtotal
-
-        self.nb_articles_label.setText(f"{nb_articles} article(s)")
+        self.nb_articles_label.setText(f"{nb} article(s)")
         self.qty_total_label.setText(f"{qty_total} unité(s)")
         self.discount_total_label.setText(f"-{fmt_da(remise_total)}")
-        self.subtotal_label.setText(f"{fmt_da(subtotal)}")
-        self.tax_label.setText(f"{fmt_da(tax)}")
-        self.total_label.setText(f"{fmt_da(total)}")
+        self.subtotal_label.setText(fmt_da(subtotal))
+        self.tax_label.setText(fmt_da(tax))
+        self.total_label.setText(fmt_da(total))
 
     def _on_client_changed(self, index):
-        """Réinitialise le style d'erreur dès que l'utilisateur sélectionne un vrai client."""
         if index > 0:
             self.client_combo.setStyleSheet(INPUT_STYLE)
             self.client_required_label.setVisible(False)
+            self.client_name_label.setText(self.client_combo.currentText())
+        else:
+            self.client_name_label.setText("—")
 
     def save_sale(self):
-        """Enregistre la vente avec gestion du paiement"""
+        from currency import fmt_da
         if not self.cart_items:
             QMessageBox.warning(self, "Attention", "Le panier est vide!")
             return
-
-        # ✅ Vérification : le nom du client est obligatoire
         if self.client_combo.currentIndex() == 0:
-            # Bordure rouge sur le combo
             self.client_combo.setStyleSheet(INPUT_STYLE + f"""
-                QComboBox {{
-                    border: 2px solid {COLORS['danger']};
-                    background-color: rgba(248, 113, 113, 0.10);
-                }}
+                QComboBox {{ border: 2px solid {C['coral']};
+                             background-color: rgba(255,107,107,0.10); }}
             """)
             self.client_required_label.setVisible(True)
             self.client_combo.setFocus()
-            QMessageBox.warning(
-                self,
-                "Client obligatoire",
-                "⚠ Veuillez sélectionner un client avant d\'enregistrer la facture.\n\n"
-                "Si le client n\'existe pas encore, ajoutez-le depuis la page Clients."
-            )
+            QMessageBox.warning(self, "Client obligatoire",
+                "⚠ Veuillez sélectionner un client avant d'enregistrer la facture.")
             return
-
-        # Calculer le total TTC
         subtotal = sum(item['total'] for item in self.cart_items)
         self.vat_rate = self._get_vat_rate()
         tax = subtotal * self.vat_rate
         total_ttc = subtotal + tax
-        
-        # Générer un numéro de facture séquentiel (FAC-1000, FAC-1001, etc.)
         invoice_number = self.db.generate_invoice_number()
-        
-        # 1. Afficher le dialogue de paiement avec tous les détails
         client_name = self.client_combo.currentText()
         payment_data = show_payment_dialog(
-            total_amount=total_ttc,
-            invoice_number=invoice_number,
-            cart_items=self.cart_items,
-            client_name=client_name,
-            parent=self
-        )
-        
-        # Si l'utilisateur a annulé le paiement
+            total_amount=total_ttc, invoice_number=invoice_number,
+            cart_items=self.cart_items, client_name=client_name, parent=self)
         if not payment_data:
-            QMessageBox.information(
-                self,
-                "Paiement annulé",
-                "La vente n'a pas été enregistrée."
-            )
+            QMessageBox.information(self, "Paiement annulé", "La vente n'a pas été enregistrée.")
             return
-        
-        # 2. Si le paiement est validé, enregistrer la vente
         client_id = self.client_combo.currentData()
-        
-        # Préparer les articles
-        items = []
-        for item in self.cart_items:
-            items.append({
-                'product_id': item['product_id'],
-                'quantity': item['quantity'],
-                'unit_price': item['unit_price'],
-                'discount': item['discount']
-            })
-        
-        # Utiliser la méthode de paiement du dialogue
-        payment_method = payment_data['method']
-        
-        # Enregistrer dans la base
-        # La TVA sera récupérée automatiquement depuis les settings
-        sale_id = self.db.create_sale(
-            invoice_number=invoice_number,
-            client_id=client_id,
-            items=items,
-            payment_method=payment_method,
-            discount=0
-        )
-        
-        
-            
-        # Notifier les autres pages (dashboard, historique, stats)
+        items = [{
+            'product_id': item['product_id'],
+            'quantity': item['quantity'],
+            'unit_price': item['unit_price'],
+            'discount': item['discount']
+        } for item in self.cart_items]
+        self.db.create_sale(
+            invoice_number=invoice_number, client_id=client_id,
+            items=items, payment_method=payment_data['method'], discount=0)
         self.sale_saved.emit()
-
-        # Réinitialiser
         self.cart_items = []
         self.table.setRowCount(0)
         self.update_totals()
         self.client_combo.setCurrentIndex(0)
-               
 
     def get_payment_method_name(self, method_code):
-            """Convertit le code de paiement en nom affichable"""
-            method_names = {
-                'cash': '💵 Espèces',
-                'card': '💳 Carte bancaire',
-                'check': '📝 Chèque',
-                'transfer': '🏦 Virement',
-                'mobile': '📱 Mobile Money',
-                'credit': '🔄 Crédit'
-            }
-            return method_names.get(method_code, method_code)
+        return {
+            'cash': '💵 Espèces', 'card': '💳 Carte bancaire',
+            'check': '📝 Chèque', 'transfer': '🏦 Virement',
+            'mobile': '📱 Mobile Money', 'credit': '🔄 Crédit'
+        }.get(method_code, method_code)
 
     def format_payment_details(self, payment_data):
-            """Formate les détails du paiement pour l'affichage"""
-            details = payment_data.get('details', {})
-            method = payment_data['method']
-            
-            detail_text = ""
-            
-            if method == 'cash':
-                if 'received' in details:
-                    detail_text += f"   💵 Reçu: {fmt_da(details['received'], 0)}\n"
-                    if 'change' in details and details['change'] > 0:
-                        detail_text += f"   💸 Monnaie rendue: {fmt_da(details['change'], 0)}"
-            
-            elif method == 'card':
-                if 'transaction' in details and details['transaction']:
-                    detail_text += f"   🔢 Transaction: {details['transaction']}\n"
-                if 'card_type' in details and details['card_type']:
-                    detail_text += f"   💳 Carte: {details['card_type']}"
-            
-            elif method == 'check':
-                if 'check_number' in details and details['check_number']:
-                    detail_text += f"   📝 N° Chèque: {details['check_number']}\n"
-                if 'bank' in details and details['bank']:
-                    detail_text += f"   🏦 Banque: {details['bank']}"
-            
-            elif method == 'transfer':
-                if 'reference' in details and details['reference']:
-                    detail_text += f"   🔢 Référence: {details['reference']}"
-            
-            elif method == 'mobile':
-                if 'operator' in details and details['operator']:
-                    detail_text += f"   📱 Opérateur: {details['operator']}\n"
-                if 'transaction' in details and details['transaction']:
-                    detail_text += f"   🔢 Transaction: {details['transaction']}"
-            
-            elif method == 'credit':
-                if 'due_date' in details and details['due_date']:
-                    detail_text += f"   📅 Échéance: {details['due_date']}\n"
-                detail_text += "   ⚠️ Paiement à crédit"
-            
-            if detail_text:
-                return f"\n📋 Détails du paiement:\n{detail_text}"
-            return ""
+        return ""
+
+
 from currency import fmt_da, fmt, currency_manager
