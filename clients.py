@@ -207,13 +207,7 @@ class ClientsPage(QWidget):
         ab_lay.setSpacing(10)
         ab_lay.addStretch()
 
-        self.edit_btn = QPushButton("✏️  Modifier")
-        self.edit_btn.setFixedHeight(38)
-        self.edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.edit_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        self.edit_btn.clicked.connect(self.edit_client)
-        ab_lay.addWidget(self.edit_btn)
-
+       
         self.delete_btn = QPushButton("🗑️  Supprimer")
         self.delete_btn.setFixedHeight(38)
         self.delete_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -670,8 +664,9 @@ class ClientFicheDialog(QDialog):
     # ── En-tête coloré ─────────────────────────────────────────
     def _build_header(self) -> QFrame:
         frame = QFrame()
+        frame.setObjectName("client_header")
         frame.setStyleSheet(f"""
-            QFrame {{
+            QFrame#client_header {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                     stop:0 rgba(0,180,255,0.18), stop:1 rgba(0,229,255,0.08));
                 border-radius: 12px;
@@ -683,30 +678,30 @@ class ClientFicheDialog(QDialog):
         lay.setContentsMargins(20, 12, 20, 12)
         lay.setSpacing(18)
 
-        avatar = QLabel(self.client.get('name','?')[0].upper())
-        avatar.setFixedSize(56, 56)
-        avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        avatar.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
-        avatar.setStyleSheet("""
+        self._header_avatar = QLabel(self.client.get('name','?')[0].upper())
+        self._header_avatar.setFixedSize(56, 56)
+        self._header_avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._header_avatar.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+        self._header_avatar.setStyleSheet("""
             background: #00B4FF; color: white;
             border-radius: 28px; border: none;
         """)
-        lay.addWidget(avatar)
+        lay.addWidget(self._header_avatar)
 
         col = QVBoxLayout()
         col.setSpacing(2)
-        name_lbl = QLabel(self.client.get('name', '—'))
-        name_lbl.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
-        name_lbl.setStyleSheet("color: #F0F4FF;")
-        col.addWidget(name_lbl)
+        self._header_name_lbl = QLabel(self.client.get('name', '—'))
+        self._header_name_lbl.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        self._header_name_lbl.setStyleSheet("color: #F0F4FF;")
+        col.addWidget(self._header_name_lbl)
 
         sub_parts = []
         if self.client.get('phone'): sub_parts.append(f"📞 {self.client['phone']}")
         if self.client.get('email'): sub_parts.append(f"✉ {self.client['email']}")
-        sub_lbl = QLabel("   ·   ".join(sub_parts) if sub_parts else "Aucune coordonnée")
-        sub_lbl.setFont(QFont("Segoe UI", 10))
-        sub_lbl.setStyleSheet("color: rgba(160,170,204,0.85);")
-        col.addWidget(sub_lbl)
+        self._header_sub_lbl = QLabel("   ·   ".join(sub_parts) if sub_parts else "Aucune coordonnée")
+        self._header_sub_lbl.setFont(QFont("Segoe UI", 10))
+        self._header_sub_lbl.setStyleSheet("color: rgba(160,170,204,0.85);")
+        col.addWidget(self._header_sub_lbl)
         lay.addLayout(col, 1)
 
         # Badge ID
@@ -719,51 +714,204 @@ class ClientFicheDialog(QDialog):
         lay.addWidget(id_lbl)
         return frame
 
-    # ── Onglet 1 : Informations ────────────────────────────────
+    # ── Onglet 1 : Informations (formulaire d'édition) ────────────────────
     def _tab_infos(self) -> QWidget:
         w = QWidget()
         lay = QVBoxLayout(w)
         lay.setContentsMargins(16, 16, 16, 16)
-        lay.setSpacing(12)
+        lay.setSpacing(14)
 
-        def info_row(icon, label, value):
-            row = QFrame()
-            row.setStyleSheet(f"""
+        INPUT = f"""
+            QLineEdit {{
+                background: {COLORS.get('bg_deep','#16161F')};
+                border: 1.5px solid rgba(255,255,255,0.08);
+                border-radius: 8px;
+                padding: 9px 12px;
+                color: #F0F4FF;
+                font-size: 13px;
+            }}
+            QLineEdit:focus {{
+                border: 1.5px solid {COLORS.get('primary','#00B4FF')};
+                background: rgba(0,180,255,0.05);
+            }}
+            QLineEdit:hover {{
+                border: 1.5px solid rgba(0,180,255,0.30);
+            }}
+            QLineEdit:read-only {{
+                color: rgba(160,170,204,0.6);
+                border: 1.5px solid rgba(255,255,255,0.04);
+                background: rgba(0,0,0,0.15);
+            }}
+        """
+
+        def field_row(icon, label_text, value, read_only=False):
+            """Crée une ligne icône + label + QLineEdit."""
+            container = QFrame()
+            container.setStyleSheet(f"""
                 QFrame {{
                     background: {COLORS.get('bg_deep','#16161F')};
-                    border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);
+                    border-radius: 10px;
+                    border: 1px solid rgba(255,255,255,0.05);
                 }}
             """)
-            rl = QHBoxLayout(row)
+            rl = QHBoxLayout(container)
             rl.setContentsMargins(14, 10, 14, 10)
             rl.setSpacing(12)
 
             ico = QLabel(icon)
-            ico.setFixedWidth(24)
+            ico.setFixedWidth(26)
             ico.setFont(QFont("Segoe UI", 14))
             ico.setStyleSheet("border:none; background:transparent;")
             rl.addWidget(ico)
 
-            lbl = QLabel(label)
-            lbl.setFixedWidth(130)
+            lbl = QLabel(label_text)
+            lbl.setFixedWidth(115)
             lbl.setFont(QFont("Segoe UI", 10))
-            lbl.setStyleSheet("color: rgba(160,170,204,0.8); border:none; background:transparent;")
+            lbl.setStyleSheet("color:rgba(160,170,204,0.8); border:none; background:transparent;")
             rl.addWidget(lbl)
 
-            val = QLabel(str(value) if value else "—")
-            val.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-            val.setStyleSheet("color: #F0F4FF; border:none; background:transparent;")
-            val.setWordWrap(True)
-            rl.addWidget(val, 1)
-            return row
+            edit = QLineEdit(str(value) if value else "")
+            edit.setStyleSheet(INPUT)
+            edit.setMinimumHeight(36)
+            if read_only:
+                edit.setReadOnly(True)
+                edit.setPlaceholderText("—")
+            rl.addWidget(edit, 1)
+            return container, edit
 
-        lay.addWidget(info_row("👤", "Nom complet",  self.client.get('name')))
-        lay.addWidget(info_row("📞", "Téléphone",    self.client.get('phone')))
-        lay.addWidget(info_row("✉️",  "Email",        self.client.get('email')))
-        lay.addWidget(info_row("📍", "Adresse",      self.client.get('address')))
-        lay.addWidget(info_row("🗓️", "Créé le",      str(self.client.get('created_at','—')).split(' ')[0]))
+        # ── Champs éditables ──
+        row_nom,     self._edit_name    = field_row("👤", "Nom complet",  self.client.get('name', ''))
+        row_phone,   self._edit_phone   = field_row("📞", "Téléphone",    self.client.get('phone', ''))
+        row_email,   self._edit_email   = field_row("✉️",  "Email",        self.client.get('email', ''))
+        row_address, self._edit_address = field_row("📍", "Adresse",      self.client.get('address', ''))
+        row_date,    _                  = field_row("🗓️", "Créé le",
+                                                    str(self.client.get('created_at','—')).split(' ')[0],
+                                                    read_only=True)
+
+        self._edit_name.setPlaceholderText("Nom du client")
+        self._edit_phone.setPlaceholderText("Ex: 0555 123 456")
+        self._edit_email.setPlaceholderText("email@exemple.com")
+        self._edit_address.setPlaceholderText("Adresse complète")
+
+        lay.addWidget(row_nom)
+        lay.addWidget(row_phone)
+        lay.addWidget(row_email)
+        lay.addWidget(row_address)
+        lay.addWidget(row_date)
+
+        # ── Message de statut ──
+        self._info_status = QLabel("")
+        self._info_status.setFont(QFont("Segoe UI", 10))
+        self._info_status.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._info_status.setStyleSheet("border:none; background:transparent;")
+        self._info_status.setVisible(False)
+        lay.addWidget(self._info_status)
+
         lay.addStretch()
+
+        # ── Bouton Enregistrer ──
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+
+        self._save_info_btn = QPushButton("💾  Enregistrer les modifications")
+        self._save_info_btn.setFixedHeight(42)
+        self._save_info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._save_info_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                    stop:0 {COLORS.get('primary','#00B4FF')},
+                    stop:1 {COLORS.get('primary_dark','#0090DD')});
+                color: white;
+                border: none;
+                border-radius: 9px;
+                font-size: 13px;
+                font-weight: bold;
+                padding: 0 24px;
+            }}
+            QPushButton:hover {{
+                background: {COLORS.get('primary_light','#40CAFF')};
+            }}
+            QPushButton:pressed {{
+                background: {COLORS.get('primary_dark','#0090DD')};
+            }}
+        """)
+        self._save_info_btn.clicked.connect(self._save_client_info)
+
+        btn_row.addStretch()
+        btn_row.addWidget(self._save_info_btn)
+        lay.addLayout(btn_row)
+
         return w
+
+    def _save_client_info(self):
+        """Enregistre les modifications du client directement depuis la fiche."""
+        name    = self._edit_name.text().strip()
+        phone   = self._edit_phone.text().strip()
+        email   = self._edit_email.text().strip()
+        address = self._edit_address.text().strip()
+
+        if not name:
+            self._info_status.setText("⚠️  Le nom du client est obligatoire.")
+            self._info_status.setStyleSheet(
+                "color:#FF6B6B; border:none; background:transparent;")
+            self._info_status.setVisible(True)
+            self._edit_name.setFocus()
+            return
+
+        # Feedback visuel — désactiver le bouton pendant la sauvegarde
+        self._save_info_btn.setEnabled(False)
+        self._save_info_btn.setText("⏳  Enregistrement...")
+
+        success = self.db.update_client(
+            self.client['id'], name, phone, email, address)
+
+        if success:
+            # Mettre à jour le dict local
+            self.client['name']    = name
+            self.client['phone']   = phone
+            self.client['email']   = email
+            self.client['address'] = address
+
+            # Rafraîchir l'en-tête de la fiche
+            self._refresh_header()
+
+            self._info_status.setText("✅  Modifications enregistrées avec succès.")
+            self._info_status.setStyleSheet(
+                "color:#4ECDC4; border:none; background:transparent;")
+        else:
+            self._info_status.setText("❌  Erreur lors de la sauvegarde.")
+            self._info_status.setStyleSheet(
+                "color:#FF6B6B; border:none; background:transparent;")
+
+        self._info_status.setVisible(True)
+        self._save_info_btn.setEnabled(True)
+        self._save_info_btn.setText("💾  Enregistrer les modifications")
+
+        # Cacher le message après 3 secondes
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(3000, lambda: self._info_status.setVisible(False))
+
+    def _refresh_header(self):
+        """Met à jour dynamiquement le nom et les coordonnées dans l'en-tête."""
+        name = self.client.get('name', '—')
+
+        # Mettre à jour le titre de la fenêtre
+        self.setWindowTitle(f"📋 Fiche Client — {name}")
+
+        # Mettre à jour l'avatar (initiale)
+        self._header_avatar.setText(name[0].upper() if name else "?")
+
+        # Mettre à jour le nom
+        self._header_name_lbl.setText(name)
+
+        # Mettre à jour les coordonnées
+        sub_parts = []
+        if self.client.get('phone'):
+            sub_parts.append(f"📞 {self.client['phone']}")
+        if self.client.get('email'):
+            sub_parts.append(f"✉ {self.client['email']}")
+        self._header_sub_lbl.setText(
+            "   ·   ".join(sub_parts) if sub_parts else "Aucune coordonnée")
 
     # ── Onglet 2 : Factures ────────────────────────────────────
     def _tab_factures(self) -> QWidget:
