@@ -564,7 +564,8 @@ class DashboardPage(QWidget):
         hdr.addStretch()
         self._tc_period_lbl = _lbl("Cette année", 9, color=COLORS.get("TXT_SEC","#A0AACC"))
         hdr.addWidget(self._tc_period_lbl)
-        lay.addLayout(hdr)
+        
+       
         lay.addSpacing(0)
         lay.addWidget(_sep())
         lay.addSpacing(8)
