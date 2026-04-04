@@ -382,20 +382,37 @@ class ClientsPage(QWidget):
 
     # ── Filtre + tri ───────────────────────────────────────────
     def _apply_filter(self):
-        text  = self.search_input.text().lower().strip()
+        text = self.search_input.text().strip().lower()
         order = self.sort_combo.currentIndex()
 
-        clients = [c for c in self._all_clients
-                   if not text or text in c.get("name","").lower()
-                   or text in (c.get("phone") or "").lower()
-                   or text in (c.get("email") or "").lower()]
+        clients = []
+        
+        if not text:
+            # Pas de filtre, prendre tous les clients
+            clients = self._all_clients.copy()
+        elif len(text) == 1 and text.isalpha():
+            # 🔥 FILTRE PAR PREMIÈRE LETTRE 🔥
+            # Chercher les clients dont le nom commence par la lettre
+            for c in self._all_clients:
+                name = c.get("name", "").lower()
+                if name.startswith(text):
+                    clients.append(c)
+        else:
+            # Filtre texte normal (recherche partout)
+            for c in self._all_clients:
+                name = c.get("name", "").lower()
+                phone = c.get("phone", "").lower()
+                email = c.get("email", "").lower()
+                if (text in name or text in phone or text in email):
+                    clients.append(c)
 
+        # Tri selon la sélection
         if order == 0:   # A → Z
-            clients.sort(key=lambda c: c.get("name","").lower())
+            clients.sort(key=lambda c: c.get("name", "").lower())
         elif order == 1: # Z → A
-            clients.sort(key=lambda c: c.get("name","").lower(), reverse=True)
+            clients.sort(key=lambda c: c.get("name", "").lower(), reverse=True)
         elif order == 2: # Plus récent
-            clients.sort(key=lambda c: c.get("created_at",""), reverse=True)
+            clients.sort(key=lambda c: c.get("created_at", ""), reverse=True)
         elif order == 3: # Plus de ventes
             def get_ca(client):
                 try:
@@ -406,7 +423,13 @@ class ClientsPage(QWidget):
                 except Exception:
                     return 0.0
             clients.sort(key=get_ca, reverse=True)
-
+        
+        # Afficher un petit badge avec le filtre actif
+        if len(text) == 1 and text.isalpha():
+            self.search_input.setPlaceholderText(f"🔍 Filtré par lettre: {text.upper()} — Tapez autre chose pour chercher...")
+        else:
+            self.search_input.setPlaceholderText("🔍 Rechercher un client...")
+            
         self._display_grid(clients)
 
     # ── Statistiques ───────────────────────────────────────────
