@@ -715,45 +715,58 @@ class ProductsPage(QWidget):
                         if not name:
                             errors.append(f"Ligne {row_num}: Nom manquant")
                             continue
+                        
+                        # Prix de vente
                         try:
-                            sp = row.get('price', row.get('selling_price', '0'))
-                            selling_price = float(sp.replace(' ', '').replace('DA', '').replace(',', '.') or 0)
+                            sp = row.get('selling_price', '0')
+                            selling_price = float(str(sp).replace(' ', '').replace('DA', '').replace(',', '.') or 0)
                         except:
                             selling_price = 0.0
+                        
+                        # Prix d'achat
                         try:
-                            pp = row.get('price_buy', row.get('purchase_price', '0'))
-                            purchase_price = float(pp.replace(' ', '').replace('DA', '').replace(',', '.') or 0)
+                            pp = row.get('purchase_price', '0')
+                            purchase_price = float(str(pp).replace(' ', '').replace('DA', '').replace(',', '.') or 0)
                         except:
                             purchase_price = 0.0
+                        
+                        # Stock quantity - CORRECTION ICI
                         try:
-                            stock = int(row.get('quantity', 0))
+                            stock_val = row.get('stock_quantity', '0')
+                            stock = int(float(str(stock_val).strip())) if str(stock_val).strip() else 0
                         except:
-                            stock = 100
+                            stock = 0
+                        
+                        # Stock minimum
                         try:
-                            min_stock = int(row.get('min_stock', 5))
+                            min_stock = int(row.get('min_stock', 0))
                         except:
-                            min_stock = 5
-                        category_name = row.get('category', row.get('category_name', '')).strip()
+                            min_stock = 0
+                        
+                        category_name = row.get('category', '').strip()
                         category_id = None
                         if category_name:
                             categories = self.db.get_all_categories()
                             cat = next((c for c in categories if c['name'] == category_name), None)
                             category_id = cat['id'] if cat else self.db.add_category(category_name)
+                        
                         existing = [p for p in self.db.search_products(name)
                                     if p["name"].strip().lower() == name.lower()]
                         if existing:
                             self.db.update_product(existing[0]["id"], name, selling_price,
-                                                   category_id, purchase_price=purchase_price,
-                                                   stock_quantity=stock, min_stock=min_stock)
+                                                category_id, purchase_price=purchase_price,
+                                                stock_quantity=stock, min_stock=min_stock)
                             updated += 1
                         else:
                             self.db.add_product(name, selling_price, category_id, "",
-                                               purchase_price, stock, min_stock)
+                                            purchase_price, stock, min_stock)
                             imported += 1
                     except Exception as e:
                         errors.append(f"Ligne {row_num}: {str(e)}")
+            
             self.load_products()
             self.update_statistics()
+            
             msg = f"✅ Importés: {imported}\n🔄 Mis à jour: {updated}"
             if errors:
                 msg += f"\n❌ Erreurs: {len(errors)}\n\n" + "\n".join(errors[:5])

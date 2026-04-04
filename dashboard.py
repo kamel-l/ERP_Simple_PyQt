@@ -662,10 +662,39 @@ class DashboardPage(QWidget):
         lay.addWidget(_sep())
         lay.addSpacing(10)
 
-        self.low_stock_layout = QVBoxLayout()
+        # === AJOUT SCROLLBAR ===
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setStyleSheet("""
+            QScrollArea { background: transparent; border: none; }
+            QScrollBar:vertical {
+                background: #1E1E2E;
+                width: 6px;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical {
+                background: #F59E0B;
+                border-radius: 3px;
+                min-height: 30px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #FBBF24;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+        
+        container = QWidget()
+        self.low_stock_layout = QVBoxLayout(container)
         self.low_stock_layout.setSpacing(8)
-        lay.addLayout(self.low_stock_layout)
-        lay.addStretch()
+        self.low_stock_layout.setContentsMargins(0, 0, 5, 0)
+        
+        scroll_area.setWidget(container)
+        lay.addWidget(scroll_area, 1)
+        # === FIN AJOUT ===
+
         return card
 
     # ─────────────────────────────────────────────────────────────
@@ -989,7 +1018,7 @@ class DashboardPage(QWidget):
 
             row_frame = QFrame()
             row_frame.setStyleSheet(
-                f"background:{'rgba(239,68,68,0.08)' if is_rupture else 'rgba(251,191,36,0.07)'};"
+                f"background:{'rgba(239,68,68,0.12)' if is_rupture else 'rgba(251,191,36,0.10)'};"
                 "border-radius:8px; border:none;")
             rh = QHBoxLayout(row_frame)
             rh.setContentsMargins(12, 8, 12, 8)
@@ -1001,15 +1030,23 @@ class DashboardPage(QWidget):
             rh.addWidget(dot)
 
             nl = QLabel(name[:34])
-            nl.setFont(QFont("Segoe UI", 11))
+            nl.setFont(QFont("Segoe UI", 11, QFont.Weight.Medium))
             nl.setStyleSheet(
-                f"color:{COLORS.get('TXT_PRI','#F0F4FF')}; "
+                f"color:#FFFFFF; "  # ← Texte BLANC pour visibilité
                 "background:transparent; border:none;")
             rh.addWidget(nl, 1)
 
-            sl = QLabel("RUPTURE" if is_rupture else f"{stock} / {mini}")
-            sl.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-            sl.setStyleSheet(f"color:{dot_color}; background:transparent; border:none;")
+            # Affichage du stock
+            if is_rupture:
+                stock_text = "⚠️ RUPTURE"
+                stock_color = "#FF6B6B"
+            else:
+                stock_text = f"📦 {stock} / {mini}"
+                stock_color = dot_color
+            
+            sl = QLabel(stock_text)
+            sl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            sl.setStyleSheet(f"color:{stock_color}; background:transparent; border:none;")
             sl.setAlignment(Qt.AlignmentFlag.AlignRight)
             rh.addWidget(sl)
 

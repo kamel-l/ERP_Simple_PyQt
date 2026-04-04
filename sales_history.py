@@ -915,66 +915,123 @@ class SalesHistoryPage(QWidget):
                     if '=' in part:
                         k, _, v = part.partition('=')
                         params[k] = unquote_plus(v)
+                
                 client_name = params.get('Customer', 'Client Anonyme').strip() or 'Client Anonyme'
                 date_str = params.get('Date', '').strip()
                 if not date_str:
                     date_str = datetime.now().strftime('%Y-%m-%d')
                 if len(date_str) == 10:
                     date_str = date_str + " 00:00:00"
+                
                 tax_rate = float(params.get('TaxRate', 0) or 0)
                 notes = params.get('Notes', '')
                 payment_terms = params.get('PaymentTerms', '1')
                 pay_map = {'1': 'cash', '2': 'credit', '3': 'card', '4': 'transfer'}
                 payment_method = pay_map.get(str(payment_terms), 'cash')
+                
+                # Gestion client
                 clients = self.db.search_clients(client_name)
                 client_id = clients[0]['id'] if clients else self.db.add_client(client_name)
                 if not client_id:
                     raise ValueError(f"Impossible de créer le client '{client_name}'")
+                
                 item_count = int(params.get('ItemCount', 1) or 1)
                 items_for_db = []
+                
                 for i in range(1, item_count + 1):
                     name = params.get(f'Item{i}Code', '').strip()
                     desc = params.get(f'Item{i}Name', '').strip()
                     code = params.get(f'Item{i}Code', '').strip()
-                    qty_raw = params.get(f'Item{i}Qty', '1')
-                    price_raw = params.get(f'Item{i}UnitValue', '0')
-                    disc_raw = params.get(f'Item{i}Discount', '0')
+                    
                     try:
-                        qty = float(qty_raw or 1)
-                        price = float(price_raw or 0) / 100
-                        discount = float(disc_raw or 0)
+                        qty = float(params.get(f'Item{i}Qty', '1') or 1)
+                        price = float(params.get(f'Item{i}UnitValue', '0') or 0) / 100
+                        discount = float(params.get(f'Item{i}Discount', '0') or 0)
                     except:
                         qty, price, discount = 1.0, 0.0, 0.0
+                    
+                    # RECHERCHE PRODUIT EXISTANT
                     product_id = None
+                    existing_product = None
+                    
+                    # 1. Recherche par code (barcode)
                     if code:
                         results = self.db.search_products(code)
                         if results:
-                            product_id = results[0]['id']
+                            existing_product = results[0]
+                            product_id = existing_product['id']
+                    
+                    # 2. Recherche par nom
                     if not product_id and name:
                         results = self.db.search_products(name)
                         if results:
-                            product_id = results[0]['id']
-                    if not product_id:
+                            existing_product = results[0]
+                            product_id = existing_product['id']
+                    
+                    # 3. Recherche par description
+                    if not product_id and desc:
+                        results = self.db.search_products(desc)
+                        if results:
+                            existing_product = results[0]
+                            product_id = existing_product['id']
+                    
+                    # SI LE PRODUIT EXISTE DÉJÀ
+                    if product_id and existing_product:
+                        # Mettre à jour le stock (quantité positive = ajout au stock)
+                        new_stock = existing_product['stock_quantity'] + int(qty)
+                        self.db.update_product(
+                            product_id=product_id,
+                            name=existing_product['name'],
+                            selling_price=existing_product['selling_price'],
+                            category_id=existing_product.get('category_id'),
+                            description=existing_product.get('description', ''),
+                            purchase_price=existing_product['purchase_price'],
+                            stock_quantity=new_stock,
+                            min_stock=existing_product.get('min_stock', 0)
+                        )
+                        print(f"✅ Stock mis à jour: {existing_product['name']} +{int(qty)} → {new_stock}")
+                    
+                    # SINON CRÉER UN NOUVEAU PRODUIT
+                    else:
                         product_id = self.db.add_product(
                             name=name or desc or f'Article {i}',
-                            description=desc, selling_price=price,
-                            purchase_price=price, stock_quantity=0, barcode=code)
-                    if not product_id:
-                        raise ValueError(f"Impossible de créer le produit '{name or desc}'")
+                            description=desc,
+                            selling_price=price,
+                            purchase_price=price,
+                            stock_quantity=int(qty),  # Stock initial
+                            barcode=code,
+                            min_stock=0
+                        )
+                        if not product_id:
+                            raise ValueError(f"Impossible de créer le produit '{name or desc}'")
+                        print(f"✅ Nouveau produit créé: {name or desc} (Stock: {int(qty)})")
+                    
                     items_for_db.append({
-                        'product_id': product_id, 'quantity': qty,
-                        'unit_price': price, 'discount': discount})
+                        'product_id': product_id,
+                        'quantity': qty,
+                        'unit_price': price,
+                        'discount': discount
+                    })
+                
+                # Créer la vente
                 base_name = os.path.splitext(os.path.basename(file_path))[0]
                 invoice_number = f"IMP-{base_name}-{datetime.now().strftime('%H%M%S')}"
                 sale_id = self.db.create_sale(
-                    invoice_number=invoice_number, client_id=client_id,
-                    items=items_for_db, payment_method=payment_method,
-                    tax_rate=tax_rate, notes=notes, sale_date=date_str)
+                    invoice_number=invoice_number,
+                    client_id=client_id,
+                    items=items_for_db,
+                    payment_method=payment_method,
+                    tax_rate=tax_rate,
+                    notes=notes,
+                    sale_date=date_str
+                )
                 if not sale_id:
                     raise ValueError("La vente n'a pas pu être enregistrée")
                 imported += 1
+                
             except Exception as e:
                 errors.append(f"• {os.path.basename(file_path)}\n  → {str(e)}")
+        
         self.load_sales()
         if errors:
             msg = f"✅ {imported} facture(s) importée(s)."
