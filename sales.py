@@ -545,9 +545,10 @@ class SalesPage(QWidget):
         bfl = QHBoxLayout(badge_frame)
         bfl.setContentsMargins(10, 5, 10, 5)
         bfl.setSpacing(6)
-        QLabel("👤", styleSheet="border:none; background:transparent;",
-               font=QFont("Segoe UI", 12))
-        bfl.addWidget(QLabel("👤", styleSheet="border:none; background:transparent;"))
+        icon_lbl = QLabel("👤")
+        icon_lbl.setFont(QFont("Segoe UI", 12))
+        icon_lbl.setStyleSheet("border:none; background:transparent;")
+        bfl.addWidget(icon_lbl)
         self.client_name_label = QLabel("—")
         self.client_name_label.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.client_name_label.setStyleSheet(f"color:{C['amber']}; border:none;")
@@ -659,7 +660,6 @@ class SalesPage(QWidget):
         layout.addWidget(summary_card)
 
         self.update_totals()
-        self.showEvent = self.refresh_page()
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -775,6 +775,8 @@ class SalesPage(QWidget):
         self.total_label.setText(fmt_da(total))
 
     def _on_client_changed(self, index):
+        if not hasattr(self, 'client_name_label'):
+            return
         if index > 0:
             self.client_combo.setStyleSheet(INPUT_STYLE)
             self.client_required_label.setVisible(False)
