@@ -11,6 +11,7 @@ try:
     _RETURNS_AVAILABLE = True
 except ImportError:
     _RETURNS_AVAILABLE = False
+from auth import session
 from datetime import datetime, timedelta
 
 # ── Palette Midnight Amber ────────────────────────────────────────────────
@@ -313,20 +314,63 @@ class InvoiceDetailsDialog(QDialog):
             lay.addWidget(addr)
         return frame
 
+    def _get_returned_quantities(self) -> dict:
+        """
+        Retourne un dict {product_id: qty_totale_retournée}
+        pour la vente courante, en lisant la table return_items.
+        """
+        returned = {}
+        try:
+            db = get_database()
+            db.cursor.execute("""
+                SELECT ri.product_id, SUM(ri.quantity) as qty_returned
+                FROM return_items ri
+                JOIN returns r ON ri.return_id = r.id
+                WHERE r.original_sale_id = ?
+                GROUP BY ri.product_id
+            """, (self.sale['id'],))
+            for row in db.cursor.fetchall():
+                pid = row[0] if not hasattr(row, 'keys') else row['product_id']
+                qty = int(row[1] if not hasattr(row, 'keys') else row['qty_returned'])
+                returned[pid] = qty
+        except Exception:
+            pass
+        return returned
+
     def _make_items_table(self):
         from currency import fmt_da
+        from PyQt6.QtWidgets import QWidget as _QW
         items = self.sale.get('items', [])
 
-        table = QTableWidget(len(items), 6)
-        table.setHorizontalHeaderLabels(["Qté", "Nom", "Description", "Prix Unit.", "TVA %", "Total"])
+        # Récupérer les quantités retournées par produit
+        returned = self._get_returned_quantities()
+        has_returns = bool(returned)
+
+        # Colonnes : +1 colonne "Retourné" si il y a des avoirs
+        col_count = 7 if has_returns else 6
+        headers = ["Qté vendue", "Nom", "Description", "Prix Unit.", "TVA %", "Total"]
+        if has_returns:
+            headers = ["Qté vendue", "Retourné", "Qté nette", "Nom", "Prix Unit.", "TVA %", "Total net"]
+
+        table = QTableWidget(len(items), col_count)
+        table.setHorizontalHeaderLabels(headers)
 
         hdr = table.horizontalHeader()
-        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-        hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
-        hdr.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+        if has_returns:
+            hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+            hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        else:
+            hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+            hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+            hdr.setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
 
         table.verticalHeader().setVisible(False)
         table.setAlternatingRowColors(True)
@@ -366,35 +410,103 @@ class InvoiceDetailsDialog(QDialog):
             return it
 
         tax_rate = float(self.sale.get('tax_rate', 0))
+
         for r, item in enumerate(items):
             try:
-                qty = int(item.get('quantity', 0) or 0)
+                qty_sold = int(item.get('quantity', 0) or 0)
             except:
-                qty = 0
-            ref = str(item.get('product_name') or '')
+                qty_sold = 0
+
+            product_id = item.get('product_id')
+            qty_ret = returned.get(product_id, 0)
+            qty_net = max(qty_sold - qty_ret, 0)
+
+            ref  = str(item.get('product_name') or '')
             desc = str(item.get('product_reference') or '')
             try:
                 price = float(item.get('unit_price', 0) or 0)
             except:
                 price = 0.0
-            try:
-                total = float(item.get('total', 0) or 0)
-            except:
-                total = 0.0
 
-            table.setItem(r, 0, make_cell(qty))
-            table.setItem(r, 1, make_cell(ref if ref else '—'))
-            table.setItem(r, 2, make_cell(desc if desc else '—', Qt.AlignmentFlag.AlignLeft))
-            table.setItem(r, 3, make_cell(fmt_da(price), Qt.AlignmentFlag.AlignRight))
-            table.setItem(r, 4, make_cell(f"{tax_rate:.0f}%"))
-            table.setItem(r, 5, make_cell(
-                fmt_da(total), Qt.AlignmentFlag.AlignRight,
-                bold=True, color=C['teal']))
-            table.setRowHeight(r, 42)
+            total_original = price * qty_sold
+            total_net      = price * qty_net
 
+            if has_returns:
+                # Col 0 : Qté vendue
+                table.setItem(r, 0, make_cell(qty_sold))
+
+                # Col 1 : Retourné  (rouge si > 0)
+                ret_color = C['coral'] if qty_ret > 0 else C['txt_dim']
+                ret_cell = make_cell(f"-{qty_ret}" if qty_ret > 0 else "0",
+                                     color=ret_color)
+                if qty_ret > 0:
+                    ret_cell.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+                table.setItem(r, 1, ret_cell)
+
+                # Col 2 : Qté nette  (ambre si réduite, teal si inchangée)
+                net_color = C['amber'] if qty_ret > 0 else C['teal']
+                table.setItem(r, 2, make_cell(qty_net, bold=qty_ret > 0, color=net_color))
+
+                # Col 3 : Nom produit
+                table.setItem(r, 3, make_cell(ref if ref else '—',
+                                               Qt.AlignmentFlag.AlignLeft))
+
+                # Col 4 : Prix unitaire
+                table.setItem(r, 4, make_cell(fmt_da(price),
+                                               Qt.AlignmentFlag.AlignRight))
+
+                # Col 5 : TVA
+                table.setItem(r, 5, make_cell(f"{tax_rate:.0f}%"))
+
+                # Col 6 : Total net  (barré visuellement si qty_net < qty_sold)
+                tot_color = C['amber'] if qty_ret > 0 else C['teal']
+                table.setItem(r, 6, make_cell(fmt_da(total_net),
+                                               Qt.AlignmentFlag.AlignRight,
+                                               bold=True, color=tot_color))
+            else:
+                # Affichage standard sans retours
+                table.setItem(r, 0, make_cell(qty_sold))
+                table.setItem(r, 1, make_cell(ref if ref else '—'))
+                table.setItem(r, 2, make_cell(desc if desc else '—',
+                                               Qt.AlignmentFlag.AlignLeft))
+                table.setItem(r, 3, make_cell(fmt_da(price),
+                                               Qt.AlignmentFlag.AlignRight))
+                table.setItem(r, 4, make_cell(f"{tax_rate:.0f}%"))
+                table.setItem(r, 5, make_cell(fmt_da(total_original),
+                                               Qt.AlignmentFlag.AlignRight,
+                                               bold=True, color=C['teal']))
+
+            table.setRowHeight(r, 44)
+
+        # Bandeau récapitulatif des avoirs si applicable
         nb = max(len(items), 1)
-        table.setMinimumHeight(min(42 * nb + 50, 420))
-        table.setMaximumHeight(min(42 * nb + 50, 420))
+        row_height = 44
+        extra = 0
+
+        if has_returns:
+            # Ligne de note récapitulative
+            note_row = table.rowCount()
+            table.insertRow(note_row)
+            total_returned_amount = sum(
+                float(item.get('unit_price', 0) or 0) *
+                returned.get(item.get('product_id'), 0)
+                for item in items
+            )
+            note_text = f"↩  Avoir appliqué : -{fmt_da(total_returned_amount)}"
+            note_cell = QTableWidgetItem(note_text)
+            note_cell.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            note_cell.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+            note_cell.setForeground(QColor(C['coral']))
+            table.setItem(note_row, col_count - 1, note_cell)
+            table.setSpan(note_row, 0, 1, col_count - 1)
+            label_cell = QTableWidgetItem("")
+            table.setItem(note_row, 0, label_cell)
+            table.setRowHeight(note_row, 38)
+            extra = 38
+
+        table.setMinimumHeight(min(row_height * nb + 50 + extra, 460))
+        table.setMaximumHeight(min(row_height * nb + 50 + extra, 460))
         return table
 
     def _make_total_row(self):
@@ -411,11 +523,25 @@ class InvoiceDetailsDialog(QDialog):
         lay.setContentsMargins(20, 16, 20, 16)
         lay.setSpacing(8)
 
-        subtotal = float(self.sale.get('subtotal', 0))
-        tax_amt = float(self.sale.get('tax_amount', 0))
-        total = float(self.sale.get('total', 0))
+        subtotal_orig = float(self.sale.get('subtotal', 0))
+        tax_rate_val  = float(self.sale.get('tax_rate', 0))
+        total_orig    = float(self.sale.get('total', 0))
 
-        def total_line(label, value, color=None, big=False):
+        # Calculer le montant total retourné
+        returned = self._get_returned_quantities()
+        items = self.sale.get('items', [])
+        returned_amount = sum(
+            float(item.get('unit_price', 0) or 0) *
+            returned.get(item.get('product_id'), 0)
+            for item in items
+        )
+        has_returns = returned_amount > 0
+
+        subtotal_net = subtotal_orig - returned_amount
+        tax_net      = subtotal_net * (tax_rate_val / 100)
+        total_net    = subtotal_net + tax_net
+
+        def total_line(label, value, color=None, big=False, strikethrough=False):
             w = QWidget()
             w.setStyleSheet("background:transparent;")
             rl = QHBoxLayout(w)
@@ -425,7 +551,9 @@ class InvoiceDetailsDialog(QDialog):
             lbl = QLabel(label)
             lbl.setFont(QFont("Segoe UI", size_lbl,
                 QFont.Weight.Bold if big else QFont.Weight.Normal))
-            lbl.setStyleSheet(f"color:{C['txt_sec'] if not big else C['txt']}; background:transparent; border:none;")
+            lbl.setStyleSheet(
+                f"color:{C['txt_sec'] if not big else C['txt']}; "
+                "background:transparent; border:none;")
             rl.addWidget(lbl)
             rl.addStretch()
             val = QLabel(value)
@@ -434,16 +562,53 @@ class InvoiceDetailsDialog(QDialog):
             rl.addWidget(val)
             return w
 
-        lay.addWidget(total_line("Sous-total HT", fmt_da(subtotal)))
-        lay.addWidget(total_line(
-            f"TVA ({self.sale.get('tax_rate', 0)}%)", fmt_da(tax_amt), C['yellow']))
+        if has_returns:
+            # Ligne original (grisée)
+            lay.addWidget(total_line(
+                "Sous-total HT (original)", fmt_da(subtotal_orig),
+                color=C['txt_dim']))
+
+            # Ligne avoir (rouge)
+            lay.addWidget(total_line(
+                "↩  Avoir (retours)", f"-{fmt_da(returned_amount)}",
+                color=C['coral']))
+
+            # Séparateur léger
+            sep1 = QFrame()
+            sep1.setFrameShape(QFrame.Shape.HLine)
+            sep1.setFixedHeight(1)
+            sep1.setStyleSheet(f"background:rgba(255,107,107,0.25); border:none;")
+            lay.addWidget(sep1)
+
+            # Sous-total net
+            lay.addWidget(total_line(
+                "Sous-total HT net", fmt_da(subtotal_net),
+                color=C['txt']))
+            lay.addWidget(total_line(
+                f"TVA ({tax_rate_val:.0f}%)", fmt_da(tax_net),
+                color=C['yellow']))
+        else:
+            lay.addWidget(total_line("Sous-total HT", fmt_da(subtotal_orig)))
+            lay.addWidget(total_line(
+                f"TVA ({tax_rate_val:.0f}%)",
+                fmt_da(float(self.sale.get('tax_amount', 0))),
+                color=C['yellow']))
 
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background:rgba(245,166,35,0.25); border:none;")
         lay.addWidget(sep)
-        lay.addWidget(total_line("TOTAL TTC", fmt_da(total), C['amber'], big=True))
+
+        if has_returns:
+            lay.addWidget(total_line(
+                "TOTAL TTC NET", fmt_da(total_net),
+                color=C['amber'], big=True))
+        else:
+            lay.addWidget(total_line(
+                "TOTAL TTC", fmt_da(total_orig),
+                color=C['amber'], big=True))
+
         return frame
 
     def _make_footer_note(self):
@@ -709,6 +874,13 @@ class SalesHistoryPage(QWidget):
         self.view_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.view_btn.setMinimumHeight(40)
 
+        self.delete_btn = QPushButton("🗑️  Supprimer")
+        self.delete_btn.setStyleSheet(BTN['danger'])
+        self.delete_btn.clicked.connect(self.delete_selected_sale)
+        self.delete_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.delete_btn.setMinimumHeight(40)
+        self.delete_btn.setFixedWidth(155)
+
         self.return_btn = QPushButton("↩  Créer un Avoir")
         self.return_btn.setStyleSheet(BTN['danger'])
         self.return_btn.clicked.connect(self.create_return)
@@ -727,6 +899,7 @@ class SalesHistoryPage(QWidget):
         actions.addWidget(self.import_btn)
         actions.addWidget(self.return_btn)
         actions.addWidget(self.view_btn)
+        actions.addWidget(self.delete_btn)
         layout.addLayout(actions)
 
         self.load_sales()
@@ -895,6 +1068,42 @@ class SalesHistoryPage(QWidget):
         dialog = ReturnDialog(sale, self)
         dialog.return_created.connect(lambda _: self.load_sales())
         dialog.exec()
+
+    def delete_selected_sale(self):
+        # Vérifier permission
+        if not session.can('delete_sale'):
+            QMessageBox.warning(self, "Accès refusé", "Action non autorisée.")
+            return
+
+        selected = self.table.currentRow()
+        if selected < 0:
+            QMessageBox.warning(self, "Attention", "Veuillez sélectionner une vente!")
+            return
+
+        sale_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
+        if not sale_id:
+            QMessageBox.critical(self, "Erreur", "Impossible de récupérer l'ID de la vente.")
+            return
+
+        invoice_no = self.table.item(selected, 0).text() if self.table.item(selected, 0) else str(sale_id)
+        reply = QMessageBox.question(
+            self,
+            "Confirmer la suppression",
+            f"Supprimer la facture {invoice_no} ?\nCette action est irréversible.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            ok = self.db.delete_sale(sale_id)
+            if ok:
+                QMessageBox.information(self, "Supprimé", "Facture supprimée avec succès.")
+                self.load_sales()
+            else:
+                QMessageBox.critical(self, "Erreur", "Impossible de supprimer la facture.")
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Erreur lors de la suppression :\n{str(e)}")
 
     def import_dat_file(self):
         import os
