@@ -130,6 +130,8 @@ class AddProductDialog(QDialog):
         self.db = get_database()
         self.selected_product = None
         self.all_products = []
+        self._preserved_quantity = None
+        self._just_created = False
 
         self.setWindowTitle("Ajouter un Article")
         self.setFixedWidth(680)
@@ -205,6 +207,15 @@ class AddProductDialog(QDialog):
         self.search_input.setMinimumHeight(40)
         self.search_input.textChanged.connect(self.filter_products)
         scl.addWidget(self.search_input)
+
+        # Bouton pour créer un nouveau produit rapidement
+        self.create_product_btn = QPushButton("＋  Créer Nouveau Produit")
+        self.create_product_btn.setStyleSheet(BTN['primary'])
+        self.create_product_btn.setFixedHeight(40)
+        self.create_product_btn.setFixedWidth(220)
+        self.create_product_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.create_product_btn.clicked.connect(self.create_new_product)
+        scl.addWidget(self.create_product_btn)
 
         self.product_table = QTableWidget(0, 3)
         self.product_table.setHorizontalHeaderLabels(["Produit", "Prix Unitaire", "Stock"])
@@ -325,9 +336,93 @@ class AddProductDialog(QDialog):
         self.all_products = []
         self.product_table.setRowCount(0)
         for p in self.db.get_all_products():
-            if p['stock_quantity'] > 0:
-                self.all_products.append(p)
+            self.all_products.append(p)
         self.display_products(self.all_products)
+
+    def create_new_product(self):
+        # Dialogue simple pour créer un produit rapide
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Nouveau Produit")
+        dlg.setModal(True)
+        dlg.setFixedWidth(420)
+        layout = QFormLayout(dlg)
+
+        name_in = QLineEdit()
+        name_in.setPlaceholderText("Nom du produit")
+        price_in = QDoubleSpinBox()
+        price_in.setRange(0, 10000000)
+        price_in.setDecimals(2)
+        price_in.setValue(0)
+        stock_in = QSpinBox()
+        stock_in.setRange(0, 1000000)
+        stock_in.setValue(0)
+        cat_in = QComboBox()
+        cat_in.addItem("Aucune", None)
+        try:
+            for c in self.db.get_all_categories():
+                cat_in.addItem(c.get('name') or str(c.get('id')), c.get('id'))
+        except Exception:
+            pass
+
+        layout.addRow(QLabel("Nom *"), name_in)
+        layout.addRow(QLabel("Prix de vente *"), price_in)
+        layout.addRow(QLabel("Catégorie"), cat_in)
+        layout.addRow(QLabel("Quantité en stock"), stock_in)
+
+        btn_row = QHBoxLayout()
+        cancel = QPushButton("Annuler")
+        ok = QPushButton("Créer")
+        cancel.clicked.connect(dlg.reject)
+        ok.clicked.connect(dlg.accept)
+        btn_row.addStretch()
+        btn_row.addWidget(cancel)
+        btn_row.addWidget(ok)
+        layout.addRow(btn_row)
+
+        if dlg.exec():
+            name = name_in.text().strip()
+            price = float(price_in.value())
+            stock = int(stock_in.value())
+            category_id = cat_in.currentData()
+            if not name or price <= 0:
+                QMessageBox.warning(self, "Erreur", "Nom et prix valides requis !")
+                return
+
+            # Vérifier si le produit existe déjà dans le stock
+            for p in self.all_products:
+                if p['name'].strip().lower() == name.lower():
+                    QMessageBox.warning(self, "Produit Existant", f"Le produit '{name}' existe déjà dans le stock !")
+                    return
+
+            new_id = self.db.add_product(name=name, selling_price=price, stock_quantity=stock, category_id=category_id)
+            if new_id:
+                p = self.db.get_product_by_id(new_id)
+                if p:
+                    # Sauvegarder la quantité actuelle
+                    current_quantity = self.quantity.text()
+                    
+                    # Ajouter à la liste locale
+                    self.all_products.insert(0, p)
+                    self.display_products(self.all_products)
+                    
+                    # Sélectionner le nouveau produit
+                    for row in range(self.product_table.rowCount()):
+                        item = self.product_table.item(row, 0)
+                        if item and item.data(Qt.ItemDataRole.UserRole)['id'] == p['id']:
+                            self.product_table.selectRow(row)
+                            self.product_table.scrollToItem(item)
+                            break
+                    
+                    # Restaurer la quantité
+                    self.quantity.setText(current_quantity)
+                    self.selected_product = p
+                    self.price_display.setText(f"{fmt_da(p['selling_price'], 2)}")
+                    self.stock_display.setText(str(p['stock_quantity']))
+                    self.update_total()
+                    
+                    # Ne pas fermer - l'utilisateur clique sur "Ajouter" quand il veut
+                    return
+            QMessageBox.warning(self, "Erreur", "Impossible de créer le produit.")
 
     def display_products(self, products):
         from currency import fmt_da
@@ -356,20 +451,35 @@ class AddProductDialog(QDialog):
             else [p for p in self.all_products if p['name'].lower().startswith(t)])
 
     def on_product_selected_from_table(self):
-        from currency import fmt_da
-        r = self.product_table.currentRow()
-        if r >= 0:
-            item = self.product_table.item(r, 0)
+        """Quand un produit est sélectionné dans la table"""
+        selected_row = self.product_table.currentRow()
+
+        if selected_row >= 0:
+            item = self.product_table.item(selected_row, 0)
             if item:
-                p = item.data(Qt.ItemDataRole.UserRole)
-                self.selected_product = p
-                self.price_display.setText(fmt_da(p['selling_price']))
-                self.stock_display.setText(str(p['stock_quantity']))
-                self.quantity.setText("1")
-                self.discount.setText("0")
+                product = item.data(Qt.ItemDataRole.UserRole)
+                
+                # Réinitialiser qté/remise SEULEMENT si c'est un nouveau produit différent
+                ancien_id = self.selected_product.get('id') if self.selected_product else None
+                nouveau_id = product.get('id')
+                
+                # Ne réinitialiser QUE si c'est un produit différent
+                if ancien_id != nouveau_id:
+                    # Ne pas écraser si on vient de créer un nouveau produit
+                    if not self._just_created:
+                        self.quantity.setText("1")
+                        self.discount.setText("0")
+                    # Réinitialiser le flag après usage
+                    self._just_created = False
+
+                self.selected_product = product
+                self.price_display.setText(f"{fmt_da(product['selling_price'], 2)}")
+                self.stock_display.setText(str(product['stock_quantity']))
                 self.update_total()
         else:
             self.selected_product = None
+            self.price_display.setText("0 DA")
+            self.stock_display.setText("0")
 
     def update_total(self):
         from currency import fmt_da
@@ -393,8 +503,12 @@ class AddProductDialog(QDialog):
             QMessageBox.warning(self, "Erreur", "La quantité doit être un nombre!")
             return
         if qty > self.selected_product['stock_quantity']:
-            QMessageBox.warning(self, "Erreur", "Stock insuffisant!")
-            return
+            reply = QMessageBox.question(
+                self, "Stock insuffisant",
+                "La quantité demandée dépasse le stock disponible. Continuer et vendre quand même ?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            if reply != QMessageBox.StandardButton.Yes:
+                return
         self.accept()
 
 
@@ -682,10 +796,22 @@ class SalesPage(QWidget):
         if dialog.exec() and dialog.selected_product:
             from currency import fmt_da
             p = dialog.selected_product
-            qty = int(dialog.quantity.text() or 1)
+            
+            # Utiliser la quantité préservée si elle existe, sinon celle du champ
+            if dialog._preserved_quantity is not None:
+                qty = dialog._preserved_quantity
+                # Nettoyer pour éviter réutilisation accidentelle
+                dialog._preserved_quantity = None
+            else:
+                try:
+                    qty = int(dialog.quantity.text() or 1)
+                except Exception:
+                    qty = 1
+            
             disc = float(dialog.discount.text() or 0)
             unit_price = p['selling_price']
             total = qty * unit_price * (1 - disc / 100)
+            
             self.cart_items.append({
                 'product_id': p['id'], 'product_name': p['name'],
                 'quantity': qty, 'unit_price': unit_price,
