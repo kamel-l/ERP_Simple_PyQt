@@ -4,10 +4,14 @@ Gère toutes les opérations CRUD pour l'application ERP
 """
 
 import sqlite3
+import logging
 from config import config
 from datetime import datetime
 from pathlib import Path
 import json
+from migrations.runner import run_migrations
+
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -25,6 +29,7 @@ class Database:
         self.cursor = None
         self.connect()
         self.create_tables()
+        run_migrations(self.conn)
     
     def connect(self):
         """Établit la connexion à la base de données"""
@@ -32,16 +37,16 @@ class Database:
             self.conn = sqlite3.connect(self.db_path)
             self.conn.row_factory = sqlite3.Row  # Pour accéder aux colonnes par nom
             self.cursor = self.conn.cursor()
-            print(f"✅ Connexion à la base de données établie: {self.db_path}")
+            logger.info("Connexion base de donnees etablie: %s", self.db_path)
         except sqlite3.Error as e:
-            print(f"❌ Erreur de connexion à la base de données: {e}")
+            logger.exception("Erreur de connexion base de donnees: %s", e)
             raise
     
     def disconnect(self):
         """Ferme la connexion à la base de données"""
         if self.conn:
             self.conn.close()
-            print("✅ Connexion à la base de données fermée")
+            logger.info("Connexion base de donnees fermee")
     
     def create_tables(self):
         """Crée toutes les tables nécessaires si elles n'existent pas"""
@@ -245,7 +250,7 @@ class Database:
         """)
         
         self.conn.commit()
-        print("✅ Tables créées avec succès")
+        logger.info("Tables creees avec succes")
 
     def _migrate_purchase_items(self):
         """
@@ -865,6 +870,58 @@ class Database:
         """, (sale_id,))
         
         return [dict(row) for row in self.cursor.fetchall()]
+
+    def delete_sale(self, sale_id):
+        """Supprime une vente et restaure le stock des articles vendus.
+
+        Effectue les opérations suivantes dans une transaction :
+        - restaure le stock des produits vendus (ajout des quantités)
+        - supprime les lignes de `return_items` et `returns` liées
+        - supprime les lignes `sale_items`
+        - supprime la ligne `sales`
+        Retourne True si succès, False sinon.
+        """
+        try:
+            # Vérifier que la vente existe
+            self.cursor.execute("SELECT invoice_number FROM sales WHERE id = ?", (sale_id,))
+            row = self.cursor.fetchone()
+            if not row:
+                print(f"⚠️  delete_sale: vente {sale_id} introuvable")
+                return False
+
+            # Restaurer le stock pour chaque article vendu
+            items = self.get_sale_items(sale_id)
+            for it in items:
+                try:
+                    pid = it.get('product_id')
+                    qty = int(it.get('quantity') or 0)
+                    if pid and qty:
+                        # Ajouter la quantité annulée au stock
+                        self.update_stock(pid, qty, 'sale_deletion', f"Annulation vente #{row['invoice_number']}")
+                except Exception:
+                    # Ne pas bloquer la suppression si la restauration échoue pour un item
+                    pass
+
+            # Supprimer les avoirs et leurs lignes associés
+            self.cursor.execute("SELECT id FROM returns WHERE original_sale_id = ?", (sale_id,))
+            return_ids = [r['id'] for r in self.cursor.fetchall()]
+            for rid in return_ids:
+                self.cursor.execute("DELETE FROM return_items WHERE return_id = ?", (rid,))
+            self.cursor.execute("DELETE FROM returns WHERE original_sale_id = ?", (sale_id,))
+
+            # Supprimer les lignes de vente
+            self.cursor.execute("DELETE FROM sale_items WHERE sale_id = ?", (sale_id,))
+
+            # Supprimer la vente
+            self.cursor.execute("DELETE FROM sales WHERE id = ?", (sale_id,))
+
+            self.conn.commit()
+            print(f"✅ Vente {sale_id} supprimée avec succès")
+            return True
+        except sqlite3.Error as e:
+            print(f"❌ Erreur lors de la suppression de la vente: {e}")
+            self.conn.rollback()
+            return False
     
     def get_sales_by_date_range(self, start_date, end_date):
         """Récupère les ventes dans une période"""

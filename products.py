@@ -1,200 +1,317 @@
 from PyQt6.QtWidgets import (
-
-
-
-
     QWidget, QVBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QDialog,
     QLineEdit, QFormLayout, QHBoxLayout, QFrame, QFileDialog, QMessageBox,
-    QSpinBox, QDoubleSpinBox, QComboBox
+    QSpinBox, QDoubleSpinBox, QComboBox, QGraphicsDropShadowEffect
 )
 from currency import fmt_da, fmt, currency_manager
 from auth import session
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt
-from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
+from repositories.product_repository import ProductRepository
+from services.product_service import ProductService
+from services.audit_service import AuditService
 import csv
+
+# ── Nouveau thème Midnight Amber ──────────────────────────────────────────
+C = {
+    'bg':        '#0D0D0F',
+    'bg_card':   '#1C1C23',
+    'bg_input':  '#12121A',
+    'bg_row':    '#141418',
+    'amber':     '#F5A623',
+    'amber_d':   '#C4841A',
+    'amber_l':   '#FFD080',
+    'teal':      '#4ECDC4',
+    'coral':     '#FF6B6B',
+    'yellow':    '#FFE66D',
+    'txt':       '#F0EDE8',
+    'txt_sec':   '#B0A99A',
+    'txt_dim':   '#6B6460',
+    'border':    '#2A2A35',
+    'border_a':  'rgba(245,166,35,0.18)',
+}
+
+BTN = {
+    'primary': f"""
+        QPushButton {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['amber']}, stop:1 {C['amber_d']});
+            color: #0D0D0F; border: none; border-radius: 6px;
+            padding: 10px 20px; font-size: 13px; font-weight: bold;
+            min-height: 36px;
+        }}
+        QPushButton:hover {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['amber_l']}, stop:1 {C['amber']});
+        }}
+        QPushButton:pressed {{ background: {C['amber_d']}; }}
+        QPushButton:disabled {{ background: #2A2A35; color: #4A4450; }}
+    """,
+    'success': f"""
+        QPushButton {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['teal']}, stop:1 #3AAA9F);
+            color: #0D0D0F; border: none; border-radius: 6px;
+            padding: 10px 20px; font-size: 13px; font-weight: bold;
+            min-height: 36px;
+        }}
+        QPushButton:hover {{ background: #7EDBD5; }}
+        QPushButton:pressed {{ background: #3AAA9F; }}
+    """,
+    'danger': f"""
+        QPushButton {{
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['coral']}, stop:1 #CC4444);
+            color: {C['txt']}; border: none; border-radius: 6px;
+            padding: 10px 20px; font-size: 13px; font-weight: bold;
+            min-height: 36px;
+        }}
+        QPushButton:hover {{ background: #FF9090; }}
+        QPushButton:pressed {{ background: #CC4444; }}
+    """,
+    'secondary': f"""
+        QPushButton {{
+            background: transparent; color: {C['amber']};
+            border: 1.5px solid rgba(245,166,35,0.4); border-radius: 6px;
+            padding: 10px 20px; font-size: 13px; font-weight: bold;
+            min-height: 36px;
+        }}
+        QPushButton:hover {{ background: rgba(245,166,35,0.10); border-color: {C['amber']}; }}
+        QPushButton:pressed {{ background: rgba(245,166,35,0.20); }}
+    """,
+}
+
+INPUT_STYLE = f"""
+    QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit {{
+        background-color: {C['bg_input']};
+        border: 1.5px solid {C['border']};
+        border-radius: 6px; padding: 8px 12px;
+        color: {C['txt']}; font-size: 13px; min-height: 36px;
+        selection-background-color: rgba(245,166,35,0.25);
+    }}
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus,
+    QDoubleSpinBox:focus, QTextEdit:focus {{
+        border: 1.5px solid {C['amber']}; background-color: {C['bg_card']};
+    }}
+    QLineEdit:hover, QComboBox:hover, QSpinBox:hover,
+    QDoubleSpinBox:hover, QTextEdit:hover {{
+        border: 1.5px solid rgba(245,166,35,0.40);
+    }}
+    QComboBox::drop-down {{ border:none; width:30px; }}
+    QComboBox::down-arrow {{
+        image:none;
+        border-left:5px solid transparent; border-right:5px solid transparent;
+        border-top:5px solid {C['amber']}; margin-right:10px;
+    }}
+    QComboBox QAbstractItemView {{
+        background-color: {C['bg_card']}; border:1px solid rgba(245,166,35,0.25);
+        selection-background-color: rgba(245,166,35,0.18); color: {C['txt']};
+    }}
+    QSpinBox::up-button, QDoubleSpinBox::up-button,
+    QSpinBox::down-button, QDoubleSpinBox::down-button {{
+        background-color: {C['bg_card']}; border:none; width:20px;
+    }}
+    QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+    QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
+        background-color: {C['amber']};
+    }}
+"""
+
+TABLE_STYLE = f"""
+    QTableWidget {{
+        background-color: {C['bg_card']};
+        alternate-background-color: {C['bg_row']};
+        border: 1px solid {C['border']}; border-radius: 8px;
+        gridline-color: rgba(255,255,255,0.04);
+        color: {C['txt']}; selection-background-color: rgba(245,166,35,0.18);
+        font-size: 13px;
+    }}
+    QTableWidget::item {{ padding: 10px 8px; border: none; }}
+    QTableWidget::item:selected {{
+        background-color: rgba(245,166,35,0.22); color: {C['txt']};
+    }}
+    QTableWidget::item:hover {{ background-color: rgba(245,166,35,0.08); }}
+    QHeaderView::section {{
+        background: {C['bg']};
+        color: {C['amber']}; padding: 10px 8px;
+        border: none; border-bottom: 2px solid rgba(245,166,35,0.30);
+        font-weight: bold; font-size: 11px; letter-spacing: 0.8px;
+    }}
+    QHeaderView::section:hover {{ background: {C['bg_card']}; color: {C['amber_l']}; }}
+    QScrollBar:vertical {{ background:{C['bg']}; width:6px; border-radius:3px; }}
+    QScrollBar::handle:vertical {{ background:rgba(245,166,35,0.35); border-radius:3px; }}
+    QScrollBar::handle:vertical:hover {{ background:{C['amber']}; }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height:0; }}
+"""
+
+
+def _lbl(text, size=11, bold=False, color=None):
+    l = QLabel(text)
+    l.setFont(QFont("Segoe UI", size, QFont.Weight.Bold if bold else QFont.Weight.Normal))
+    l.setStyleSheet(f"color:{color or C['txt']}; background:transparent; border:none;")
+    return l
+
+
+def _sep_h():
+    f = QFrame()
+    f.setFrameShape(QFrame.Shape.HLine)
+    f.setStyleSheet(f"background:{C['border']}; border:none; max-height:1px;")
+    return f
 
 
 class ProductDialog(QDialog):
-    """Dialogue pour ajouter ou modifier un produit"""
+    """Dialogue ajouter / modifier produit — thème Midnight Amber"""
+
     def __init__(self, product_data=None):
         super().__init__()
-        
         self.db = get_database()
         self.is_edit = product_data is not None
         self.product_id = product_data.get('id') if product_data else None
-        
-        self.setWindowTitle("📝 " + ("Modifier le Produit" if self.is_edit else "Ajouter un Produit"))
-        self.setMinimumWidth(550)
+
+        self.setWindowTitle("✦ " + ("Modifier le Produit" if self.is_edit else "Nouveau Produit"))
+        self.setMinimumWidth(560)
         self.setStyleSheet(f"""
-            QDialog {{
-                background-color: {COLORS['bg_medium']};
-            }}
-            QLabel {{
-                color: {COLORS['text_primary']};
-                font-size: 13px;
-            }}
+            QDialog {{ background-color: {C['bg']}; }}
+            QLabel  {{ color: {C['txt']}; font-size: 13px; }}
             {INPUT_STYLE}
         """)
 
-        main_layout = QVBoxLayout(self)
-        main_layout.setSpacing(20)
-        main_layout.setContentsMargins(25, 25, 25, 25)
+        main = QVBoxLayout(self)
+        main.setSpacing(18)
+        main.setContentsMargins(28, 28, 28, 28)
 
-        # En-tête
+        # ── En-tête dégradé ambre ──
         header = QFrame()
         header.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {COLORS['primary']}, stop:1 {COLORS['secondary']});
+                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,
+                    stop:0 #1C1408, stop:0.5 #2A1E08, stop:1 #1C1408);
                 border-radius: 10px;
-                padding: 15px;
+                border: 1px solid rgba(245,166,35,0.25);
             }}
         """)
-        header_layout = QVBoxLayout()
-        header.setLayout(header_layout)
+        hl = QVBoxLayout(header)
+        hl.setContentsMargins(20, 16, 20, 16)
 
-        title = QLabel("📦 Informations du Produit")
-        title.setFont(QFont("Segoe UI", 18, QFont.Weight.Bold))
-        title.setStyleSheet("color: white; margin-bottom: 5px; border: none;")
-        header_layout.addWidget(title)
+        top_row = QHBoxLayout()
+        badge = QLabel("📦")
+        badge.setFont(QFont("Segoe UI", 22))
+        badge.setStyleSheet("background:transparent; border:none;")
+        top_row.addWidget(badge)
 
-        subtitle = QLabel("Remplissez tous les champs obligatoires")
-        subtitle.setFont(QFont("Segoe UI", 11))
-        subtitle.setStyleSheet("color: rgba(255, 255, 255, 0.8); border: none;")
-        header_layout.addWidget(subtitle)
+        titles = QVBoxLayout()
+        t = QLabel("Modifier le Produit" if self.is_edit else "Nouveau Produit")
+        t.setFont(QFont("Segoe UI", 17, QFont.Weight.Bold))
+        t.setStyleSheet(f"color:{C['amber']}; background:transparent; border:none;")
+        titles.addWidget(t)
+        s = QLabel("Remplissez tous les champs obligatoires")
+        s.setFont(QFont("Segoe UI", 10))
+        s.setStyleSheet(f"color:{C['txt_sec']}; background:transparent; border:none;")
+        titles.addWidget(s)
+        top_row.addLayout(titles)
+        top_row.addStretch()
+        hl.addLayout(top_row)
+        main.addWidget(header)
 
-        main_layout.addWidget(header)
-
-        # Formulaire
-        form_container = QFrame()
-        form_container.setStyleSheet(f"""
+        # ── Formulaire ──
+        form_card = QFrame()
+        form_card.setStyleSheet(f"""
             QFrame {{
-                background: {COLORS['bg_card']};
+                background: {C['bg_card']};
                 border-radius: 10px;
-                padding: 20px;
+                border: 1px solid {C['border']};
             }}
         """)
-        form_layout = QFormLayout()
-        form_container.setLayout(form_layout)
-        form_layout.setSpacing(15)
-        form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        fl = QFormLayout(form_card)
+        fl.setContentsMargins(22, 20, 22, 20)
+        fl.setSpacing(14)
+        fl.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
-        
+        def mk_lbl(text):
+            l = QLabel(text)
+            l.setStyleSheet(f"color:{C['txt_sec']}; border:none; font-size:12px;")
+            return l
 
-        # Nom du produit *
-        name_label = QLabel("Nom du produit: *")
-        name_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         self.name = QLineEdit()
         self.name.setPlaceholderText("Ex: Ordinateur Portable HP")
         self.name.setStyleSheet(INPUT_STYLE)
-        self.name.setMinimumHeight(45)
-        form_layout.addRow(name_label, self.name)
+        self.name.setMinimumHeight(42)
+        fl.addRow(mk_lbl("Nom du produit *"), self.name)
 
-        # Catégorie
-        cat_label = QLabel("Catégorie:")
-        cat_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         self.category = QComboBox()
         self.category.setStyleSheet(INPUT_STYLE)
-        self.category.setMinimumHeight(45)
+        self.category.setMinimumHeight(42)
         self.category.setEditable(True)
         self.load_categories()
-        form_layout.addRow(cat_label, self.category)
+        fl.addRow(mk_lbl("Catégorie"), self.category)
 
-        # Prix d'achat
-        price_buy_label = QLabel("Prix d'achat (DA):")
-        price_buy_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         self.price_buy = QDoubleSpinBox()
-        self.price_buy.setMinimum(0.0)
-        self.price_buy.setMaximum(9999999.99)
+        self.price_buy.setRange(0, 9999999.99)
         self.price_buy.setDecimals(2)
-        self.price_buy.setValue(0.0)
         self.price_buy.setStyleSheet(INPUT_STYLE)
-        self.price_buy.setMinimumHeight(45)
-        form_layout.addRow(price_buy_label, self.price_buy)
+        self.price_buy.setMinimumHeight(42)
+        self.price_buy.setSuffix(" DA")
+        fl.addRow(mk_lbl("Prix d'achat"), self.price_buy)
 
-        # Prix de vente *
-        price_label = QLabel("Prix de vente (DA): *")
-        price_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         self.price = QDoubleSpinBox()
-        self.price.setMinimum(0.0)
-        self.price.setMaximum(9999999.99)
+        self.price.setRange(0, 9999999.99)
         self.price.setDecimals(2)
-        self.price.setValue(0.0)
         self.price.setStyleSheet(INPUT_STYLE)
-        self.price.setMinimumHeight(45)
-        form_layout.addRow(price_label, self.price)
+        self.price.setMinimumHeight(42)
+        self.price.setSuffix(" DA")
+        fl.addRow(mk_lbl("Prix de vente *"), self.price)
 
-        # Quantité *
-        qty_label = QLabel("Quantité en stock: *")
-        qty_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         self.quantity = QSpinBox()
-        self.quantity.setMinimum(0)
-        self.quantity.setMaximum(999999)
-        self.quantity.setValue(0)
+        self.quantity.setRange(0, 999999)
         self.quantity.setStyleSheet(INPUT_STYLE)
-        self.quantity.setMinimumHeight(45)
-        form_layout.addRow(qty_label, self.quantity)
+        self.quantity.setMinimumHeight(42)
+        fl.addRow(mk_lbl("Quantité en stock *"), self.quantity)
 
-        # Stock minimum
-        min_stock_label = QLabel("Stock minimum:")
-        min_stock_label.setStyleSheet(f"color: {COLORS['text_primary']}; border: none;")
         self.min_stock = QSpinBox()
-        self.min_stock.setMinimum(0)
-        self.min_stock.setMaximum(999999)
+        self.min_stock.setRange(0, 999999)
         self.min_stock.setValue(5)
         self.min_stock.setStyleSheet(INPUT_STYLE)
-        self.min_stock.setMinimumHeight(45)
-        form_layout.addRow(min_stock_label, self.min_stock)
+        self.min_stock.setMinimumHeight(42)
+        fl.addRow(mk_lbl("Stock minimum"), self.min_stock)
 
-        main_layout.addWidget(form_container)
+        main.addWidget(form_card)
 
-        # Note
-        note = QLabel("* Champs obligatoires")
-        note.setFont(QFont("Segoe UI", 10))
-        note.setStyleSheet(f"color: {COLORS['text_tertiary']};")
-        main_layout.addWidget(note)
+        note = _lbl("* Champs obligatoires", 10, color=C['txt_dim'])
+        main.addWidget(note)
 
-        # Boutons d'action
-        btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(10)
-        
-        cancel_btn = QPushButton("❌ Annuler")
-        cancel_btn.setStyleSheet(BUTTON_STYLES['secondary'])
-        cancel_btn.setMinimumHeight(50)
+        # ── Boutons ──
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+        cancel_btn = QPushButton("Annuler")
+        cancel_btn.setStyleSheet(BTN['secondary'])
+        cancel_btn.setMinimumHeight(44)
         cancel_btn.clicked.connect(self.reject)
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        save_btn = QPushButton("💾 Enregistrer")
-        save_btn.setStyleSheet(BUTTON_STYLES['success'])
-        save_btn.setMinimumHeight(50)
+
+        save_btn = QPushButton("✦  Enregistrer")
+        save_btn.setStyleSheet(BTN['success'])
+        save_btn.setMinimumHeight(44)
         save_btn.setFixedWidth(180)
         save_btn.clicked.connect(self.validate_and_accept)
         save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        btn_layout.addWidget(cancel_btn)
-        btn_layout.addStretch()
-        btn_layout.addWidget(save_btn)
-        
-        main_layout.addLayout(btn_layout)
+        btn_row.addWidget(cancel_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(save_btn)
+        main.addLayout(btn_row)
 
-        # Si modification, remplir les champs
         if self.is_edit and product_data:
             self.load_product_data(product_data)
 
     def load_categories(self):
-        """Charge les catégories depuis la base de données"""
         self.category.clear()
         self.category.addItem("")
-        categories = self.db.get_all_categories()
-        for cat in categories:
+        for cat in get_database().get_all_categories():
             self.category.addItem(cat['name'])
 
     def load_product_data(self, product):
-        """Charge les données du produit pour modification"""
-       
         self.name.setText(product.get("name", ""))
         self.category.setCurrentText(product.get("category_name", ""))
         self.quantity.setValue(product.get("stock_quantity", 0))
@@ -203,271 +320,269 @@ class ProductDialog(QDialog):
         self.min_stock.setValue(product.get("min_stock", 5))
 
     def validate_and_accept(self):
-        """Valide les données avant d'accepter"""
-        
         if not self.name.text().strip():
             QMessageBox.warning(self, "Erreur", "Le nom du produit est obligatoire!")
             return
-        
         if self.price.value() <= 0:
             QMessageBox.warning(self, "Erreur", "Le prix de vente doit être supérieur à 0!")
             return
-        
         self.accept()
 
+
+# ══════════════════════════════════════════════════════════════════════════
+#  PAGE PRODUITS
+# ══════════════════════════════════════════════════════════════════════════
 
 class ProductsPage(QWidget):
     def __init__(self):
         super().__init__()
-        
         self.db = get_database()
-       
-        layout = QVBoxLayout(self)
-        layout.setSpacing(20)
-        layout.setContentsMargins(20, 20, 20, 20)
+        self.product_service = ProductService(ProductRepository(self.db), audit_service=AuditService(self.db))
 
-        # Header
-        title = QLabel("📦 Gestion des Produits")
-        title.setFont(QFont("Segoe UI", 28, QFont.Weight.Bold))
-        title.setStyleSheet(f"color: {COLORS['text_primary']}; margin-bottom: 5px;")
-        layout.addWidget(title)
+        self.setStyleSheet(f"background-color:{C['bg']};")
+        layout = QVBoxLayout(self)
+        layout.setSpacing(18)
+        layout.setContentsMargins(24, 22, 24, 22)
+
+        # ── En-tête ──────────────────────────────────────────────────────
+        hdr = QHBoxLayout()
+        title_col = QVBoxLayout()
+        title_col.setSpacing(3)
+
+        title = QLabel("Gestion des Produits")
+        title.setFont(QFont("Segoe UI", 26, QFont.Weight.Bold))
+        title.setStyleSheet(f"color:{C['txt']}; background:transparent;")
+        title_col.addWidget(title)
 
         subtitle = QLabel("Gérez votre inventaire et vos produits")
-        subtitle.setFont(QFont("Segoe UI", 14))
-        subtitle.setStyleSheet(f"color: {COLORS['text_tertiary']}; margin-bottom: 15px;")
-        layout.addWidget(subtitle)
+        subtitle.setFont(QFont("Segoe UI", 12))
+        subtitle.setStyleSheet(f"color:{C['txt_dim']}; background:transparent;")
+        title_col.addWidget(subtitle)
 
-        # Statistics
+        hdr.addLayout(title_col)
+        hdr.addStretch()
+
+        # Accent bar vertical couleur
+        accent = QFrame()
+        accent.setFixedSize(4, 52)
+        accent.setStyleSheet(f"""
+            background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+                stop:0 {C['amber']}, stop:1 {C['teal']});
+            border-radius: 2px;
+        """)
+        hdr.insertWidget(0, accent)
+        layout.addLayout(hdr)
+
+        # ── Cartes statistiques ───────────────────────────────────────────
         self.stats_layout = QHBoxLayout()
-        self.stats_layout.setSpacing(15)
+        self.stats_layout.setSpacing(12)
         layout.addLayout(self.stats_layout)
-        
         self.update_statistics()
         self.stats_layout.addStretch()
 
-        # Search & Actions
-        search_layout = QHBoxLayout()
-        search_layout.setSpacing(15)
-        layout.addLayout(search_layout)
+        # ── Barre recherche + bouton ──────────────────────────────────────
+        search_row = QHBoxLayout()
+        search_row.setSpacing(12)
 
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("🔍 Rechercher un produit...")
+        self.search_input.setPlaceholderText("  Rechercher un produit...")
         self.search_input.setStyleSheet(INPUT_STYLE)
         self.search_input.textChanged.connect(self.filter_products)
-        self.search_input.setMinimumHeight(45)
-        search_layout.addWidget(self.search_input)
+        self.search_input.setMinimumHeight(44)
+        search_row.addWidget(self.search_input)
 
-        self.add_btn = QPushButton("➕ Nouveau Produit")
-        self.add_btn.setStyleSheet(BUTTON_STYLES['primary'])
-        self.add_btn.setFixedWidth(180)
-        self.add_btn.setMinimumHeight(45)
+        self.add_btn = QPushButton("＋  Nouveau Produit")
+        self.add_btn.setStyleSheet(BTN['primary'])
+        self.add_btn.setFixedWidth(185)
+        self.add_btn.setMinimumHeight(44)
         self.add_btn.clicked.connect(self.add_product)
         self.add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        search_layout.addWidget(self.add_btn)
+        search_row.addWidget(self.add_btn)
+        layout.addLayout(search_row)
 
-
-        # Table
-        table_container = QFrame()
-        table_container.setStyleSheet(f"""
+        # ── Tableau ───────────────────────────────────────────────────────
+        tbl_card = QFrame()
+        tbl_card.setStyleSheet(f"""
             QFrame {{
-                background: {COLORS['bg_card']};
+                background:{C['bg_card']};
                 border-radius: 12px;
-                border: 1px solid {COLORS['border']};
-                padding: 0px;
+                border: 1px solid {C['border']};
             }}
         """)
-        table_layout = QVBoxLayout()
-        table_layout.setContentsMargins(0, 0, 0, 0)
-        table_layout.setSpacing(0)
-        table_container.setLayout(table_layout)
- 
+        tbl_lay = QVBoxLayout(tbl_card)
+        tbl_lay.setContentsMargins(0, 0, 0, 0)
+        tbl_lay.setSpacing(0)
+
         self.table = QTableWidget(0, 7)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Nom", "Description", "Stock", 
+            "ID", "Nom", "Description", "Stock",
             "Prix Achat", "Prix Vente", "Valeur Stock"
         ])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.verticalHeader().setVisible(False)
-        
-        # Appliquer TABLE_STYLE en DERNIER pour que le header soit visible
+        self.table.setShowGrid(False)
         self.table.setStyleSheet(TABLE_STYLE + f"""
             QHeaderView::section {{
-                background-color: {COLORS['bg_light']};
-                color: {COLORS['text_primary']};
-                font-size: 13px;
-                font-weight: bold;
-                padding: 10px 8px;
+                background-color: {C['bg']};
+                color: {C['amber']};
+                font-size: 11px; font-weight: bold;
+                padding: 12px 8px;
                 border: none;
-                border-right: 1px solid {COLORS['border']};
-                border-bottom: 2px solid {COLORS['primary']};
+                border-bottom: 2px solid rgba(245,166,35,0.30);
+                letter-spacing: 0.8px;
             }}
-            QHeaderView::section:first {{
-                border-top-left-radius: 8px;
-            }}
-            QHeaderView::section:last {{
-                border-top-right-radius: 8px;
-                border-right: none;
-            }}
+            QHeaderView::section:first {{ border-top-left-radius: 12px; }}
+            QHeaderView::section:last  {{ border-top-right-radius: 12px; }}
         """)
-        
-        table_layout.addWidget(self.table)
-        layout.addWidget(table_container)
+        tbl_lay.addWidget(self.table)
+        layout.addWidget(tbl_card)
 
-        # Action Buttons
-        actions_layout = QHBoxLayout()
-        actions_layout.setSpacing(10)
-        layout.addLayout(actions_layout)
+        # ── Boutons d'action ──────────────────────────────────────────────
+        actions = QHBoxLayout()
+        actions.setSpacing(10)
 
-        self.edit_btn = QPushButton("✏️ Modifier")
-        self.edit_btn.setStyleSheet(BUTTON_STYLES['secondary'])
+        self.edit_btn = QPushButton("✎  Modifier")
+        self.edit_btn.setStyleSheet(BTN['secondary'])
         self.edit_btn.clicked.connect(self.edit_product)
         self.edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.edit_btn.setMinimumHeight(40)
-        
-        self.delete_btn = QPushButton("🗑️ Supprimer")
-        self.delete_btn.setStyleSheet(BUTTON_STYLES['danger'])
+
+        self.delete_btn = QPushButton("✕  Supprimer")
+        self.delete_btn.setStyleSheet(BTN['danger'])
         self.delete_btn.clicked.connect(self.delete_product)
         self.delete_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.delete_btn.setMinimumHeight(40)
 
-        self.import_btn = QPushButton("📥 Importer CSV")
-        self.import_btn.setStyleSheet(BUTTON_STYLES['primary'])
+        self.import_btn = QPushButton("↓  Importer CSV")
+        self.import_btn.setStyleSheet(BTN['primary'])
         self.import_btn.clicked.connect(self.import_csv)
         self.import_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.import_btn.setMinimumHeight(40)
 
-        self.export_btn = QPushButton("📤 Exporter CSV")
-        self.export_btn.setStyleSheet(BUTTON_STYLES['primary'])
+        self.export_btn = QPushButton("↑  Exporter CSV")
+        self.export_btn.setStyleSheet(BTN['primary'])
         self.export_btn.clicked.connect(self.export_csv)
         self.export_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.export_btn.setMinimumHeight(40)
 
-        self.delete_all_btn = QPushButton("🗑️ Tout Supprimer")
-        self.delete_all_btn.setStyleSheet(BUTTON_STYLES['danger'])
+        self.delete_all_btn = QPushButton("✕  Tout Supprimer")
+        self.delete_all_btn.setStyleSheet(BTN['danger'])
         self.delete_all_btn.clicked.connect(self.delete_all_products)
         self.delete_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.delete_all_btn.setMinimumHeight(40)
 
-        actions_layout.addWidget(self.import_btn)
-        actions_layout.addWidget(self.export_btn)
-        actions_layout.addStretch()
-        actions_layout.addWidget(self.edit_btn)
-        actions_layout.addWidget(self.delete_btn)
-        actions_layout.addWidget(self.delete_all_btn)
+        actions.addWidget(self.import_btn)
+        actions.addWidget(self.export_btn)
+        actions.addStretch()
+        actions.addWidget(self.edit_btn)
+        actions.addWidget(self.delete_btn)
+        actions.addWidget(self.delete_all_btn)
+        layout.addLayout(actions)
 
         self.load_products()
-        self.showEvent = self.refresh_page()  # Rafraîchir à chaque affichage
+        self.showEvent = self.refresh_page()
 
     def build_stat_card(self, title, value, color):
-        """Construit une carte de statistique"""
         card = QFrame()
         card.setStyleSheet(f"""
             QFrame {{
-                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
-                    stop:0 {COLORS['bg_card']}, stop:1 #242424);
+                background: {C['bg_card']};
                 border-radius: 10px;
-                border: 1px solid {COLORS['border']};
-               
+                border: 1px solid {C['border']};
+                border-left: 3px solid {color};
             }}
         """)
-        card.setFixedHeight(80)
-        card.setMinimumWidth(180)
-
-        card_layout = QVBoxLayout()
-        card.setLayout(card_layout)
-        card_layout.setSpacing(5)
-        card_layout.setContentsMargins(15, 10, 15, 10)
-
-        title_label = QLabel(title)
-        title_label.setFont(QFont("Segoe UI", 11))
-        title_label.setStyleSheet(f"color: {COLORS['text_tertiary']}; border: none;")
-        card_layout.addWidget(title_label)
-
-        value_label = QLabel(str(value))
-        value_label.setFont(QFont("Segoe UI", 24, QFont.Weight.Bold))
-        value_label.setStyleSheet(f"color: {color}; border: none;")
-        card_layout.addWidget(value_label)
-
+        card.setFixedHeight(78)
+        card.setMinimumWidth(185)
+        cl = QVBoxLayout(card)
+        cl.setSpacing(3)
+        cl.setContentsMargins(14, 10, 14, 10)
+        tl = QLabel(title)
+        tl.setFont(QFont("Segoe UI", 10))
+        tl.setStyleSheet(f"color:{C['txt_dim']}; border:none; background:transparent;")
+        cl.addWidget(tl)
+        vl = QLabel(str(value))
+        vl.setFont(QFont("Segoe UI", 22, QFont.Weight.Bold))
+        vl.setStyleSheet(f"color:{color}; border:none; background:transparent;")
+        cl.addWidget(vl)
         return card
 
     def update_statistics(self):
-        """Met à jour les statistiques"""
         while self.stats_layout.count():
             child = self.stats_layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
-        
         stats = self.db.get_statistics()
         low_stock = self.db.get_low_stock_products()
-        
         self.stats_layout.addWidget(
-            self.build_stat_card("Total Produits", stats['total_products'], COLORS['primary'])
-        )
+            self.build_stat_card("Total Produits", stats['total_products'], C['amber']))
         self.stats_layout.addWidget(
-            self.build_stat_card("Valeur Stock", f"{fmt_da(stats['stock_value'])}", COLORS['success'])
-        )
+            self.build_stat_card("Valeur Stock", f"{fmt_da(stats['stock_value'])}", C['teal']))
         self.stats_layout.addWidget(
-            self.build_stat_card("Stock Faible", len(low_stock), COLORS['danger'])
-        )
+            self.build_stat_card("Stock Faible", len(low_stock), C['coral']))
 
     def load_products(self):
-        """Charge les produits depuis la base"""
         self.table.setRowCount(0)
-        products = self.db.get_all_products()
-        
-        for product in products:
+        for product in self.product_service.list_products():
             self.add_product_to_table(product)
 
     def add_product_to_table(self, product):
-        """Ajoute un produit au tableau"""
         row = self.table.rowCount()
         self.table.insertRow(row)
-        
+        self.table.setRowHeight(row, 46)
+
         id_item = QTableWidgetItem(str(product["id"]))
         id_item.setData(Qt.ItemDataRole.UserRole, product["id"])
+        id_item.setForeground(QColor(C['txt_dim']))
         self.table.setItem(row, 0, id_item)
 
         name_item = QTableWidgetItem(product["name"])
+        name_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         self.table.setItem(row, 1, name_item)
-        
-        cat_item = QTableWidgetItem(product.get("description", "-"))
+
+        cat_item = QTableWidgetItem(product.get("description", "—"))
+        cat_item.setForeground(QColor(C['txt_sec']))
         self.table.setItem(row, 2, cat_item)
-        
-        qty_item = QTableWidgetItem(str(product["stock_quantity"]))
+
+        qty = product["stock_quantity"]
+        qty_item = QTableWidgetItem(str(qty))
         qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-        if product["stock_quantity"] <= product.get("min_stock", 0):
-            qty_item.setForeground(Qt.GlobalColor.red)
+        if qty <= product.get("min_stock", 0):
+            qty_item.setForeground(QColor(C['coral']))
+            qty_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        else:
+            qty_item.setForeground(QColor(C['teal']))
         self.table.setItem(row, 3, qty_item)
-        
-        price_buy_item = QTableWidgetItem(fmt_da(product.get('purchase_price')))
-        price_buy_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+
+        price_buy_item = QTableWidgetItem(fmt_da(product.get('purchase_price', 0)))
+        price_buy_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        price_buy_item.setForeground(QColor(C['txt_sec']))
         self.table.setItem(row, 4, price_buy_item)
-        
+
         price_item = QTableWidgetItem(fmt_da(product['selling_price']))
-        price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
+        price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        price_item.setForeground(QColor(C['amber']))
         self.table.setItem(row, 5, price_item)
-        
+
         total_value = product["stock_quantity"] * product["selling_price"]
         value_item = QTableWidgetItem(fmt_da(total_value))
-        value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight)
-        value_item.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        value_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        value_item.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        value_item.setForeground(QColor(C['teal']))
         self.table.setItem(row, 6, value_item)
-    
+
     def showEvent(self, event):
         super().showEvent(event)
         self.refresh_page()
-        
-        
+
     def refresh_page(self):
-        """Actualise la liste des produits et les statistiques"""
         self.search_input.clear()
         self.load_products()
         self.update_statistics()
 
     def add_product(self):
-        """Ajoute un nouveau produit"""
         if not session.can('add_product'):
             QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas d'ajouter des produits.")
             return
@@ -475,16 +590,11 @@ class ProductsPage(QWidget):
         if dialog.exec():
             category_name = dialog.category.currentText().strip()
             category_id = None
-
             if category_name:
-                categories = self.db.get_all_categories()
-                category = next((c for c in categories if c['name'] == category_name), None)
-                if not category:
-                    category_id = self.db.add_category(category_name)
-                else:
-                    category_id = category['id']
-
-            product_id = self.db.add_product(
+                category_id = self.product_service.resolve_category_id(category_name)
+            actor = {"id": session.user_id, "username": session.username}
+            product_id = self.product_service.create_product(
+                actor=actor,
                 name=dialog.name.text().strip(),
                 selling_price=dialog.price.value(),
                 category_id=category_id,
@@ -493,7 +603,6 @@ class ProductsPage(QWidget):
                 stock_quantity=dialog.quantity.value(),
                 min_stock=dialog.min_stock.value()
             )
-
             if product_id:
                 QMessageBox.information(self, "Succès", "Produit ajouté avec succès!")
                 self.load_products()
@@ -502,7 +611,6 @@ class ProductsPage(QWidget):
                 QMessageBox.critical(self, "Erreur", "Impossible d'ajouter le produit!")
 
     def edit_product(self):
-        """Modifie un produit"""
         if not session.can('edit_product'):
             QMessageBox.warning(self, "Accès refusé", "Votre rôle ne permet pas de modifier des produits.")
             return
@@ -510,28 +618,20 @@ class ProductsPage(QWidget):
         if selected < 0:
             QMessageBox.warning(self, "Attention", "Veuillez sélectionner un produit!")
             return
-        
         product_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
-        product = self.db.get_product_by_id(product_id)
-        
+        product = self.product_service.get_product(product_id)
         if not product:
             QMessageBox.critical(self, "Erreur", "Produit introuvable!")
             return
-        
         dialog = ProductDialog(product)
         if dialog.exec():
             category_name = dialog.category.currentText().strip()
             category_id = None
-            
             if category_name:
-                categories = self.db.get_all_categories()
-                category = next((c for c in categories if c['name'] == category_name), None)
-                if not category:
-                    category_id = self.db.add_category(category_name)
-                else:
-                    category_id = category['id']
-            
-            if self.db.update_product(
+                category_id = self.product_service.resolve_category_id(category_name)
+            actor = {"id": session.user_id, "username": session.username}
+            if self.product_service.update_product(
+                actor=actor,
                 product_id=product_id,
                 name=dialog.name.text().strip(),
                 selling_price=dialog.price.value(),
@@ -547,7 +647,6 @@ class ProductsPage(QWidget):
                 QMessageBox.critical(self, "Erreur", "Impossible de modifier le produit!")
 
     def delete_product(self):
-        """Supprime un produit"""
         if not session.can('delete_product'):
             QMessageBox.warning(self, "Accès refusé", "Seul un administrateur peut supprimer des produits.")
             return
@@ -555,19 +654,14 @@ class ProductsPage(QWidget):
         if selected < 0:
             QMessageBox.warning(self, "Attention", "Veuillez sélectionner un produit!")
             return
-        
         product_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
         product_name = self.table.item(selected, 1).text()
-        
-        reply = QMessageBox.question(
-            self,
-            "Confirmation",
+        reply = QMessageBox.question(self, "Confirmation",
             f"Voulez-vous vraiment supprimer '{product_name}'?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            if self.db.delete_product(product_id):
+            actor = {"id": session.user_id, "username": session.username}
+            if self.product_service.delete_product(product_id, actor=actor):
                 QMessageBox.information(self, "Succès", "Produit supprimé!")
                 self.load_products()
                 self.update_statistics()
@@ -575,199 +669,138 @@ class ProductsPage(QWidget):
                 QMessageBox.critical(self, "Erreur", "Impossible de supprimer!")
 
     def delete_all_products(self):
-        """Supprime tous les produits après double confirmation"""
         count = self.table.rowCount()
         if count == 0:
             QMessageBox.information(self, "Info", "Aucun produit à supprimer.")
             return
-
-        reply = QMessageBox.question(
-            self,
-            "⚠️ Confirmation",
+        reply = QMessageBox.question(self, "⚠️ Confirmation",
             f"Vous êtes sur le point de supprimer TOUS les {count} produits.\nCette action est irréversible !\n\nVoulez-vous continuer ?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-
+            QMessageBox.StandardButton.No)
         if reply != QMessageBox.StandardButton.Yes:
             return
-
-        # Deuxième confirmation de sécurité
-        reply2 = QMessageBox.warning(
-            self,
-            "⚠️ Dernière confirmation",
+        reply2 = QMessageBox.warning(self, "⚠️ Dernière confirmation",
             f"Êtes-vous ABSOLUMENT sûr de vouloir supprimer les {count} produits ?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-
+            QMessageBox.StandardButton.No)
         if reply2 != QMessageBox.StandardButton.Yes:
             return
-
         errors = 0
         for row in range(self.table.rowCount()):
             product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-            if not self.db.delete_product(product_id):
+            actor = {"id": session.user_id, "username": session.username}
+            if not self.product_service.delete_product(product_id, actor=actor):
                 errors += 1
-
         self.load_products()
         self.update_statistics()
-
         if errors == 0:
             QMessageBox.information(self, "Succès", f"{count} produit(s) supprimé(s) avec succès!")
         else:
             QMessageBox.warning(self, "Attention", f"{count - errors} supprimé(s), {errors} échec(s).")
 
     def filter_products(self, text):
-        """Filtre les produits (ceux qui commencent par le texte saisi)"""
         if not text:
             self.load_products()
             return
-        
-        search_text = text.strip()
         self.table.setRowCount(0)
-        
-        # Utiliser starts_with=True pour la recherche par début
-        products = self.db.search_products(search_text, starts_with=True)
-        
-        for product in products:
+        for product in self.product_service.search_products(text.strip()):
             self.add_product_to_table(product)
 
     def import_csv(self):
-        """Importe des produits depuis un CSV"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Sélectionner le fichier CSV", "", "Fichiers CSV (*.csv)"
-        )
-        
+            self, "Sélectionner le fichier CSV", "", "Fichiers CSV (*.csv)")
         if not file_path:
             return
-        
         try:
-            imported = 0
-            updated = 0
+            imported = updated = 0
             errors = []
-            
             with open(file_path, 'r', encoding='utf-8-sig') as file:
-                csv_reader = csv.DictReader(file)
-                
-                for row_num, row in enumerate(csv_reader, start=2):
-                    print(row.get('quantity'))
+                for row_num, row in enumerate(csv.DictReader(file), start=2):
                     try:
                         name = row.get('name', '').strip()
-                        
-                        # Vérifier que le nom est présent (obligatoire)
                         if not name:
                             errors.append(f"Ligne {row_num}: Nom manquant")
                             continue
                         
-                        # Nettoyer et convertir les prix (gérer les formats avec espaces et "DA")
+                        # Prix de vente
                         try:
-                            selling_price_str = row.get('price', row.get('selling_price', '0'))
-                            selling_price_str = selling_price_str.replace(' ', '').replace('DA', '').replace(',', '.')
-                            selling_price = float(selling_price_str) if selling_price_str else 0.0
+                            sp = row.get('selling_price', '0')
+                            selling_price = float(str(sp).replace(' ', '').replace('DA', '').replace(',', '.') or 0)
                         except:
                             selling_price = 0.0
                         
+                        # Prix d'achat
                         try:
-                            purchase_price_str = row.get('price_buy', row.get('purchase_price', '0'))
-                            purchase_price_str = purchase_price_str.replace(' ', '').replace('DA', '').replace(',', '.')
-                            purchase_price = float(purchase_price_str) if purchase_price_str else 0.0
+                            pp = row.get('purchase_price', '0')
+                            purchase_price = float(str(pp).replace(' ', '').replace('DA', '').replace(',', '.') or 0)
                         except:
                             purchase_price = 0.0
                         
+                        # Stock quantity - CORRECTION ICI
                         try:
-                            stock = int(row.get('quantity'))
+                            stock_val = row.get('stock_quantity', '0')
+                            stock = int(float(str(stock_val).strip())) if str(stock_val).strip() else 0
                         except:
-                            stock = 100
+                            stock = 0
                         
+                        # Stock minimum
                         try:
-                            min_stock = int(row.get('min_stock', 5))
+                            min_stock = int(row.get('min_stock', 0))
                         except:
-                            min_stock = 5
+                            min_stock = 0
                         
-                        # Récupérer la catégorie
-                        category_name = row.get('category', row.get('category_name', '')).strip()
+                        category_name = row.get('category', '').strip()
                         category_id = None
-                        
                         if category_name:
                             categories = self.db.get_all_categories()
-                            category = next((c for c in categories if c['name'] == category_name), None)
-                            if not category:
-                                category_id = self.db.add_category(category_name)
-                            else:
-                                category_id = category['id']
+                            cat = next((c for c in categories if c['name'] == category_name), None)
+                            category_id = cat['id'] if cat else self.db.add_category(category_name)
                         
-                        # Vérifier si le produit existe déjà (par nom exact)
-                        existing = self.db.search_products(name)
-                        existing = [p for p in existing if p["name"].strip().lower() == name.lower()]
-
+                        existing = [p for p in self.db.search_products(name)
+                                    if p["name"].strip().lower() == name.lower()]
                         if existing:
-                            # Produit existant → mise à jour
-                            self.db.update_product(
-                                product_id=existing[0]["id"],
-                                name=name,
-                                selling_price=selling_price,
-                                category_id=category_id,
-                                purchase_price=purchase_price,
-                                stock_quantity=stock,
-                                min_stock=min_stock
-                            )
+                            self.db.update_product(existing[0]["id"], name, selling_price,
+                                                category_id, purchase_price=purchase_price,
+                                                stock_quantity=stock, min_stock=min_stock)
                             updated += 1
                         else:
-                            # Nouveau produit → insertion
-                            self.db.add_product(
-                                name, selling_price,
-                                category_id, "", purchase_price, stock, min_stock
-                            )
+                            self.db.add_product(name, selling_price, category_id, "",
+                                            purchase_price, stock, min_stock)
                             imported += 1
-                            
                     except Exception as e:
                         errors.append(f"Ligne {row_num}: {str(e)}")
             
             self.load_products()
             self.update_statistics()
             
-            message = f"✅ Importés: {imported}\n🔄 Mis à jour: {updated}"
+            msg = f"✅ Importés: {imported}\n🔄 Mis à jour: {updated}"
             if errors:
-                message += f"\n❌ Erreurs: {len(errors)}\n\nPremières erreurs:\n"
-                message += "\n".join(errors[:5])
-            
-            QMessageBox.information(self, "Import terminé", message)
-            
+                msg += f"\n❌ Erreurs: {len(errors)}\n\n" + "\n".join(errors[:5])
+            QMessageBox.information(self, "Import terminé", msg)
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur d'import:\n{str(e)}")
 
     def export_csv(self):
-        """Exporte les produits vers un CSV"""
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Enregistrer le fichier CSV", "produits.csv", "Fichiers CSV (*.csv)"
-        )
-        
+            self, "Enregistrer le fichier CSV", "produits.csv", "Fichiers CSV (*.csv)")
         if not file_path:
             return
-        
         try:
             products = self.db.get_all_products()
-            
             with open(file_path, 'w', newline='', encoding='utf-8') as file:
                 fieldnames = ['id', 'name', 'category', 'stock_quantity',
-                            'purchase_price', 'selling_price', 'min_stock']
+                              'purchase_price', 'selling_price', 'min_stock']
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
-                
                 writer.writeheader()
                 for product in products:
                     writer.writerow({
-                        'id': product['id'],
-                        'name': product['name'],
+                        'id': product['id'], 'name': product['name'],
                         'category': product.get('category_name', ''),
                         'stock_quantity': product['stock_quantity'],
                         'purchase_price': product['purchase_price'],
                         'selling_price': product['selling_price'],
                         'min_stock': product.get('min_stock', 0)
                     })
-            
-            QMessageBox.information(self, "Succès", 
-                f"✅ {len(products)} produit(s) exporté(s)!")
-        
+            QMessageBox.information(self, "Succès", f"✅ {len(products)} produit(s) exporté(s)!")
         except Exception as e:
             QMessageBox.critical(self, "Erreur", f"Erreur d'export:\n{str(e)}")

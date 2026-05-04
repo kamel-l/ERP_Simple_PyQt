@@ -525,3 +525,69 @@ REQUIRED_ERROR_STYLE = f"""
         background-color: rgba(248, 113, 113, 0.15);
     }}
 """
+
+# Ajoutez ceci dans votre fichier styles.py ou dans le style principal
+
+SCROLLBAR_STYLE = """
+/* Scrollbar vertical */
+QScrollBar:vertical {
+    background: #1E1E2E;
+    width: 8px;
+    border-radius: 4px;
+    margin: 2px 0px 2px 0px;
+}
+
+QScrollBar::handle:vertical {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #6366F1,
+        stop:1 #A855F7);
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #818CF8,
+        stop:1 #C084FC);
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+    border: none;
+}
+
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+
+/* Scrollbar horizontal */
+QScrollBar:horizontal {
+    background: #1E1E2E;
+    height: 8px;
+    border-radius: 4px;
+    margin: 0px 2px 0px 2px;
+}
+
+QScrollBar::handle:horizontal {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #6366F1,
+        stop:1 #A855F7);
+    border-radius: 4px;
+    min-width: 30px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 #818CF8,
+        stop:1 #C084FC);
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+    border: none;
+}
+
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
+}
+"""
