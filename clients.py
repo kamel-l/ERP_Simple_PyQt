@@ -10,6 +10,9 @@ from auth import session
 from styles import COLORS, BUTTON_STYLES, INPUT_STYLE, TABLE_STYLE
 from db_manager import get_database
 from currency import fmt_da, fmt, currency_manager  # IMPORT DE LA FONCTION DE FORMATAGE
+from repositories.client_repository import ClientRepository
+from services.client_service import ClientService
+from services.audit_service import AuditService
 
 # ------------------ DIALOG POUR AJOUTER / MODIFIER CLIENT ------------------
 class ClientDialog(QDialog):
@@ -101,6 +104,7 @@ class ClientsPage(QWidget):
     def __init__(self):
         super().__init__()
         self.db = get_database()
+        self.client_service = ClientService(ClientRepository(self.db), audit_service=AuditService(self.db))
         self._all_clients = []   # cache complet pour filtre/tri
 
         # ── Layout racine ──────────────────────────────────────
@@ -473,11 +477,9 @@ class ClientsPage(QWidget):
     def load_clients(self):
         self._selected_id = None
         try:
-            clients = self.db.get_all_clients() or []
+            clients = self.client_service.list_clients()
         except Exception:
             clients = []
-        # Tri par défaut A→Z
-        clients.sort(key=lambda c: c.get("name","").lower())
         self._all_clients = clients
         self._apply_filter()
 
@@ -491,7 +493,7 @@ class ClientsPage(QWidget):
 
     # ── Fiche ──────────────────────────────────────────────────
     def open_fiche(self, client_id: int):
-        client = self.db.get_client_by_id(client_id)
+        client = self.client_service.get_client(client_id)
         if not client:
             QMessageBox.warning(self, "Erreur", "Client introuvable.")
             return
@@ -513,7 +515,8 @@ class ClientsPage(QWidget):
             if not name:
                 QMessageBox.warning(self, "Erreur", "Le nom du client est obligatoire!")
                 return
-            client_id = self.db.add_client(name, phone, email, address)
+            actor = {"id": session.user_id, "username": session.username}
+            client_id = self.client_service.create_client(name, phone, email, address, actor=actor)
             if client_id:
                 QMessageBox.information(self, "Succès", f"Client '{name}' ajouté avec succès!")
                 self.load_clients()
@@ -530,7 +533,7 @@ class ClientsPage(QWidget):
         if not cid:
             QMessageBox.warning(self, "Attention", "Cliquez d'abord sur une carte client pour la sélectionner.")
             return
-        client = self.db.get_client_by_id(cid)
+        client = self.client_service.get_client(cid)
         if not client:
             QMessageBox.critical(self, "Erreur", "Client introuvable!")
             return
@@ -546,7 +549,8 @@ class ClientsPage(QWidget):
             if not name:
                 QMessageBox.warning(self, "Erreur", "Le nom est obligatoire!")
                 return
-            if self.db.update_client(cid, name, phone, email, address):
+            actor = {"id": session.user_id, "username": session.username}
+            if self.client_service.update_client(cid, name, phone, email, address, actor=actor):
                 QMessageBox.information(self, "Succès", f"Client '{name}' modifié!")
                 self.load_clients()
                 self.client_added.emit()
@@ -561,7 +565,7 @@ class ClientsPage(QWidget):
         if not cid:
             QMessageBox.warning(self, "Attention", "Cliquez d'abord sur une carte client.")
             return
-        client = self.db.get_client_by_id(cid)
+        client = self.client_service.get_client(cid)
         client_name = client["name"] if client else "ce client"
         reply = QMessageBox.question(
             self, "Confirmation",
@@ -569,7 +573,8 @@ class ClientsPage(QWidget):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            if self.db.delete_client(cid):
+            actor = {"id": session.user_id, "username": session.username}
+            if self.client_service.delete_client(cid, actor=actor):
                 QMessageBox.information(self, "Succès", "Client supprimé!")
                 self._selected_id = None
                 self.load_clients()

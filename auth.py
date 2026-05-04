@@ -32,7 +32,17 @@ import hashlib
 import secrets
 from dataclasses import dataclass, field
 from typing import Optional
-from PyQt6.QtCore import Qt, pyqtSignal
+
+# PyQt6 n'est pas requis pour l'API serveur. Import facultatif pour
+# permettre d'exécuter `api_server.py` dans un environnement sans GUI.
+try:
+    from PyQt6.QtCore import Qt, pyqtSignal
+except Exception:
+    class _DummyQt:
+        pass
+    Qt = _DummyQt()
+    def pyqtSignal(*args, **kwargs):
+        return None
 
 
 # ──────────────────────────────────────────────────────────────────

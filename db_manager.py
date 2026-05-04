@@ -4,10 +4,14 @@ Gère toutes les opérations CRUD pour l'application ERP
 """
 
 import sqlite3
+import logging
 from config import config
 from datetime import datetime
 from pathlib import Path
 import json
+from migrations.runner import run_migrations
+
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -25,6 +29,7 @@ class Database:
         self.cursor = None
         self.connect()
         self.create_tables()
+        run_migrations(self.conn)
     
     def connect(self):
         """Établit la connexion à la base de données"""
@@ -32,16 +37,16 @@ class Database:
             self.conn = sqlite3.connect(self.db_path)
             self.conn.row_factory = sqlite3.Row  # Pour accéder aux colonnes par nom
             self.cursor = self.conn.cursor()
-            print(f"✅ Connexion à la base de données établie: {self.db_path}")
+            logger.info("Connexion base de donnees etablie: %s", self.db_path)
         except sqlite3.Error as e:
-            print(f"❌ Erreur de connexion à la base de données: {e}")
+            logger.exception("Erreur de connexion base de donnees: %s", e)
             raise
     
     def disconnect(self):
         """Ferme la connexion à la base de données"""
         if self.conn:
             self.conn.close()
-            print("✅ Connexion à la base de données fermée")
+            logger.info("Connexion base de donnees fermee")
     
     def create_tables(self):
         """Crée toutes les tables nécessaires si elles n'existent pas"""
@@ -245,7 +250,7 @@ class Database:
         """)
         
         self.conn.commit()
-        print("✅ Tables créées avec succès")
+        logger.info("Tables creees avec succes")
 
     def _migrate_purchase_items(self):
         """

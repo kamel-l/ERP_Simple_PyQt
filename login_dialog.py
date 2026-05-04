@@ -106,9 +106,9 @@ class LoginDialog(QDialog):
                     VALUES (?, ?, 'admin', 1)
                 """, ("admin", default_hash))
                 self.db.conn.commit()
-                print("✅ Compte admin par défaut créé (admin / admin123)")
+                print("[OK] Compte admin par défaut créé (admin / admin123)")
         except Exception as e:
-            print(f"⚠️ _ensure_admin_exists: {e}")
+            print(f"[ERROR] _ensure_admin_exists: {e}")
 
     def _build_ui(self) -> None:
         """Construit l'interface de la fenêtre de connexion."""

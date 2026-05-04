@@ -9,6 +9,9 @@ from auth import session
 from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt
 from db_manager import get_database
+from repositories.product_repository import ProductRepository
+from services.product_service import ProductService
+from services.audit_service import AuditService
 import csv
 
 # ── Nouveau thème Midnight Amber ──────────────────────────────────────────
@@ -334,6 +337,7 @@ class ProductsPage(QWidget):
     def __init__(self):
         super().__init__()
         self.db = get_database()
+        self.product_service = ProductService(ProductRepository(self.db), audit_service=AuditService(self.db))
 
         self.setStyleSheet(f"background-color:{C['bg']};")
         layout = QVBoxLayout(self)
@@ -521,7 +525,7 @@ class ProductsPage(QWidget):
 
     def load_products(self):
         self.table.setRowCount(0)
-        for product in self.db.get_all_products():
+        for product in self.product_service.list_products():
             self.add_product_to_table(product)
 
     def add_product_to_table(self, product):
@@ -587,10 +591,10 @@ class ProductsPage(QWidget):
             category_name = dialog.category.currentText().strip()
             category_id = None
             if category_name:
-                categories = self.db.get_all_categories()
-                category = next((c for c in categories if c['name'] == category_name), None)
-                category_id = category['id'] if category else self.db.add_category(category_name)
-            product_id = self.db.add_product(
+                category_id = self.product_service.resolve_category_id(category_name)
+            actor = {"id": session.user_id, "username": session.username}
+            product_id = self.product_service.create_product(
+                actor=actor,
                 name=dialog.name.text().strip(),
                 selling_price=dialog.price.value(),
                 category_id=category_id,
@@ -615,7 +619,7 @@ class ProductsPage(QWidget):
             QMessageBox.warning(self, "Attention", "Veuillez sélectionner un produit!")
             return
         product_id = self.table.item(selected, 0).data(Qt.ItemDataRole.UserRole)
-        product = self.db.get_product_by_id(product_id)
+        product = self.product_service.get_product(product_id)
         if not product:
             QMessageBox.critical(self, "Erreur", "Produit introuvable!")
             return
@@ -624,10 +628,10 @@ class ProductsPage(QWidget):
             category_name = dialog.category.currentText().strip()
             category_id = None
             if category_name:
-                categories = self.db.get_all_categories()
-                category = next((c for c in categories if c['name'] == category_name), None)
-                category_id = category['id'] if category else self.db.add_category(category_name)
-            if self.db.update_product(
+                category_id = self.product_service.resolve_category_id(category_name)
+            actor = {"id": session.user_id, "username": session.username}
+            if self.product_service.update_product(
+                actor=actor,
                 product_id=product_id,
                 name=dialog.name.text().strip(),
                 selling_price=dialog.price.value(),
@@ -656,7 +660,8 @@ class ProductsPage(QWidget):
             f"Voulez-vous vraiment supprimer '{product_name}'?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
-            if self.db.delete_product(product_id):
+            actor = {"id": session.user_id, "username": session.username}
+            if self.product_service.delete_product(product_id, actor=actor):
                 QMessageBox.information(self, "Succès", "Produit supprimé!")
                 self.load_products()
                 self.update_statistics()
@@ -683,7 +688,8 @@ class ProductsPage(QWidget):
         errors = 0
         for row in range(self.table.rowCount()):
             product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
-            if not self.db.delete_product(product_id):
+            actor = {"id": session.user_id, "username": session.username}
+            if not self.product_service.delete_product(product_id, actor=actor):
                 errors += 1
         self.load_products()
         self.update_statistics()
@@ -697,7 +703,7 @@ class ProductsPage(QWidget):
             self.load_products()
             return
         self.table.setRowCount(0)
-        for product in self.db.search_products(text.strip(), starts_with=True):
+        for product in self.product_service.search_products(text.strip()):
             self.add_product_to_table(product)
 
     def import_csv(self):

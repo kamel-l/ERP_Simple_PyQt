@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect
 from PyQt6.QtGui import QFont, QIcon, QColor, QPixmap, QLinearGradient, QPainter, QBrush
 
+
 from styles import COLORS, BUTTON_STYLES
 from dashboard import DashboardPage
 from clients import ClientsPage
@@ -29,6 +30,8 @@ from db_manager import get_database
 from auth import session
 from login_dialog import LoginDialog, UsersPage, UserBadge
 from currency import currency_manager
+from api_server import start_api_server
+
 try:
     from advanced_analytics_view import AdvancedAnalyticsPage
 except ImportError:
@@ -81,6 +84,9 @@ class MainWindow(QMainWindow):
         self.add_page("statistics", StatisticsPage(),   "📈 Statistiques")
         self.add_page("settings",   SettingsPage(),     "⚙️ Paramètres")
         self.add_page("users",      self.users_page,    "👥 Utilisateurs")
+       
+        #start_api_server(port=5000) # Déplacé dans main() pour être dispo dès le login
+
 
         # ══════════════════════════════════════════════════════════════
         #  MENU ERP TOOLS
@@ -182,6 +188,8 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(self.stack)
         self.show_page("dashboard")
+
+        
 
     # ─────────────────────────────────────────────────────────────────────
     #  Navigation
@@ -1147,6 +1155,9 @@ def main():
     app.setApplicationName("ERP Pro")
     app.setOrganizationName("DAR ELSSALEM")
     app.setApplicationVersion("2.0.0")
+    
+    # Démarrer le serveur API dès maintenant (pour le mobile)
+    start_api_server(port=5000)
 
     login = LoginDialog()
     if login.exec() != QDialog.DialogCode.Accepted:
