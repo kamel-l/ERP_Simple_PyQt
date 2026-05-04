@@ -1,0 +1,1998 @@
+2026-05-01 23:38:07 [ERROR] api_server: Exception on /api/ping [GET]
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\env\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\env\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\env\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\env\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "d:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 84, in ping
+    company = db.get_setting("company_name", "DAR ELSSALEM")
+  File "d:\Downloads\PycharmProjects\ERP_Simple_PyQt\db_manager.py", line 1250, in get_setting
+    self.cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17364 and this is thread id 16132.
+2026-05-01 23:56:13 [ERROR] api_server: Exception on /api/ping [GET]
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\env\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\env\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\env\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\env\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "d:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 84, in ping
+    company = db.get_setting("company_name", "DAR ELSSALEM")
+  File "d:\Downloads\PycharmProjects\ERP_Simple_PyQt\db_manager.py", line 1250, in get_setting
+    self.cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 22240 and this is thread id 14700.
+2026-05-03 12:28:05 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-03 12:28:05 [INFO] db_manager: Tables creees avec succes
+2026-05-03 23:19:12 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-03 23:19:12 [INFO] db_manager: Tables creees avec succes
+2026-05-03 23:19:12 [INFO] migrations.runner: Migration appliquee: V001__audit_log
+2026-05-03 23:19:12 [INFO] migrations.runner: Migration appliquee: V002__api_tokens
+2026-05-04 05:19:58 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 05:19:58 [INFO] db_manager: Tables creees avec succes
+2026-05-04 05:38:21 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 05:38:21 [INFO] db_manager: Tables creees avec succes
+2026-05-04 05:43:27 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 05:43:27 [INFO] db_manager: Tables creees avec succes
+2026-05-04 05:44:57 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 05:44:57 [INFO] db_manager: Tables creees avec succes
+2026-05-04 06:14:16 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 06:14:16 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 06:14:16 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 06:14:16 [INFO] db_manager: Tables creees avec succes
+2026-05-04 06:14:16 [INFO] db_manager: Tables creees avec succes
+2026-05-04 06:14:16 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 06:14:16 [INFO] db_manager: Tables creees avec succes
+2026-05-04 06:14:16 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 14256 and this is thread id 5296.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 14256 and this is thread id 5296.
+2026-05-04 06:14:16 [INFO] db_manager: Tables creees avec succes
+2026-05-04 06:14:19 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16792.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16792.
+2026-05-04 06:14:19 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 15756.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 15756.
+2026-05-04 06:14:19 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7284.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7284.
+2026-05-04 06:14:19 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6408.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6408.
+2026-05-04 06:14:19 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12944.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12944.
+2026-05-04 06:15:41 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11940.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11940.
+2026-05-04 06:15:41 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5224.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5224.
+2026-05-04 06:15:41 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 15104.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 15104.
+2026-05-04 06:15:41 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12000.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12000.
+2026-05-04 06:15:41 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 15008.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 15008.
+2026-05-04 06:15:54 [ERROR] api_server: API error in auth.login: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18768.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 336, in login
+    db.cursor.execute("""
+    ~~~~~~~~~~~~~~~~~^^^^
+        SELECT id, username, password_hash, role, is_active
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        FROM users WHERE username = ?
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    """, (username,))
+    ^^^^^^^^^^^^^^^^^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18768.
+2026-05-04 06:16:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4672.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4672.
+2026-05-04 06:16:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 3892.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 3892.
+2026-05-04 06:16:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10600.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10600.
+2026-05-04 06:16:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11924.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11924.
+2026-05-04 06:16:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12328.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12328.
+2026-05-04 06:16:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7620.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7620.
+2026-05-04 06:16:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11304.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11304.
+2026-05-04 06:16:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5312.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5312.
+2026-05-04 06:16:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9756.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9756.
+2026-05-04 06:16:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9636.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9636.
+2026-05-04 06:20:49 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 1868.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 1868.
+2026-05-04 06:20:49 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2712.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2712.
+2026-05-04 06:20:49 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13244.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13244.
+2026-05-04 06:20:50 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7204.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7204.
+2026-05-04 06:20:50 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19292.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19292.
+2026-05-04 06:20:51 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2624.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2624.
+2026-05-04 06:20:51 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 784.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 784.
+2026-05-04 06:20:51 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12520.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12520.
+2026-05-04 06:20:52 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4220.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4220.
+2026-05-04 06:20:52 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5168.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5168.
+2026-05-04 06:21:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7844.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7844.
+2026-05-04 06:21:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12952.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12952.
+2026-05-04 06:21:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16788.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16788.
+2026-05-04 06:21:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14156.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14156.
+2026-05-04 06:21:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 3116.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 3116.
+2026-05-04 06:24:54 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8172.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8172.
+2026-05-04 06:24:54 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2376.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2376.
+2026-05-04 06:24:54 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17352.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17352.
+2026-05-04 06:24:54 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6296.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6296.
+2026-05-04 06:24:54 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7632.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7632.
+2026-05-04 06:25:07 [ERROR] api_server: API error in auth.login: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2632.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 336, in login
+    db.cursor.execute("""
+    ~~~~~~~~~~~~~~~~~^^^^
+        SELECT id, username, password_hash, role, is_active
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        FROM users WHERE username = ?
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    """, (username,))
+    ^^^^^^^^^^^^^^^^^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2632.
+2026-05-04 06:25:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17812.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17812.
+2026-05-04 06:25:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16400.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16400.
+2026-05-04 06:25:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11400.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11400.
+2026-05-04 06:25:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14392.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14392.
+2026-05-04 06:25:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9732.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9732.
+2026-05-04 06:25:25 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10564.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10564.
+2026-05-04 06:25:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11720.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11720.
+2026-05-04 06:25:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10048.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10048.
+2026-05-04 06:25:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9988.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9988.
+2026-05-04 06:25:26 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19384.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19384.
+2026-05-04 06:26:30 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13492.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13492.
+2026-05-04 06:26:30 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17728.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17728.
+2026-05-04 06:26:30 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18124.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18124.
+2026-05-04 06:26:30 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4480.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4480.
+2026-05-04 06:26:30 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7664.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7664.
+2026-05-04 06:31:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8296.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8296.
+2026-05-04 06:31:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12780.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12780.
+2026-05-04 06:31:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5048.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5048.
+2026-05-04 06:31:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9140.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9140.
+2026-05-04 06:31:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11212.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11212.
+2026-05-04 06:31:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11796.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11796.
+2026-05-04 06:31:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9508.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9508.
+2026-05-04 06:31:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4820.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4820.
+2026-05-04 06:31:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18396.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18396.
+2026-05-04 06:31:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9236.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9236.
+2026-05-04 06:31:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18916.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18916.
+2026-05-04 06:31:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19252.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19252.
+2026-05-04 06:31:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7404.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7404.
+2026-05-04 06:31:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12716.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12716.
+2026-05-04 06:31:15 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16060.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16060.
+2026-05-04 06:33:18 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2376.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2376.
+2026-05-04 06:33:18 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8172.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8172.
+2026-05-04 06:33:18 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13400.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13400.
+2026-05-04 06:33:18 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7856.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7856.
+2026-05-04 06:33:18 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17028.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17028.
+2026-05-04 06:33:34 [ERROR] api_server: API error in auth.login: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 1284.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 336, in login
+    db.cursor.execute("""
+    ~~~~~~~~~~~~~~~~~^^^^
+        SELECT id, username, password_hash, role, is_active
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        FROM users WHERE username = ?
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    """, (username,))
+    ^^^^^^^^^^^^^^^^^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 1284.
+2026-05-04 06:33:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16884.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16884.
+2026-05-04 06:33:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4248.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4248.
+2026-05-04 06:33:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13204.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13204.
+2026-05-04 06:33:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17024.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17024.
+2026-05-04 06:33:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18648.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18648.
+2026-05-04 06:34:10 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10800.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10800.
+2026-05-04 06:34:10 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14180.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14180.
+2026-05-04 06:34:10 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9556.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9556.
+2026-05-04 06:34:10 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17696.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17696.
+2026-05-04 06:34:10 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 1096.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 1096.
+2026-05-04 06:34:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9144.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9144.
+2026-05-04 06:34:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6488.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6488.
+2026-05-04 06:34:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6360.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6360.
+2026-05-04 06:34:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10228.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10228.
+2026-05-04 06:34:46 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14392.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14392.
+2026-05-04 06:35:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6284.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6284.
+2026-05-04 06:35:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9864.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9864.
+2026-05-04 06:35:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2264.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 2264.
+2026-05-04 06:35:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6636.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 6636.
+2026-05-04 06:35:03 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13244.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13244.
+2026-05-04 06:38:09 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 06:38:09 [INFO] db_manager: Tables creees avec succes
+2026-05-04 06:38:58 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5908.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5908.
+2026-05-04 06:38:58 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8752.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8752.
+2026-05-04 06:38:58 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18572.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18572.
+2026-05-04 06:38:58 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19392.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19392.
+2026-05-04 06:38:58 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18844.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18844.
+2026-05-04 06:39:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9032.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9032.
+2026-05-04 06:39:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5836.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5836.
+2026-05-04 06:39:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11412.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11412.
+2026-05-04 06:39:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7196.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7196.
+2026-05-04 06:39:01 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8368.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8368.
+2026-05-04 06:39:12 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19276.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 19276.
+2026-05-04 06:39:12 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7016.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 7016.
+2026-05-04 06:39:12 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16324.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 16324.
+2026-05-04 06:39:12 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11864.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11864.
+2026-05-04 06:39:12 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 868.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 868.
+2026-05-04 06:41:37 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17888.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17888.
+2026-05-04 06:41:37 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5996.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5996.
+2026-05-04 06:41:37 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 1160.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 1160.
+2026-05-04 06:41:37 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18860.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 18860.
+2026-05-04 06:41:37 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17756.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 17756.
+2026-05-04 06:41:53 [ERROR] api_server: API error in auth.login: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5656.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 336, in login
+    db.cursor.execute("""
+    ~~~~~~~~~~~~~~~~~^^^^
+        SELECT id, username, password_hash, role, is_active
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        FROM users WHERE username = ?
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    """, (username,))
+    ^^^^^^^^^^^^^^^^^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 5656.
+2026-05-04 06:42:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4296.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 4296.
+2026-05-04 06:42:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9448.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 9448.
+2026-05-04 06:42:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12172.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 12172.
+2026-05-04 06:42:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8200.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8200.
+2026-05-04 06:42:02 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 3116.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 3116.
+2026-05-04 06:42:11 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10152.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 10152.
+2026-05-04 06:42:11 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8176.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 8176.
+2026-05-04 06:42:11 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13984.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 13984.
+2026-05-04 06:42:12 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14904.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 14904.
+2026-05-04 06:42:12 [ERROR] api_server: API error in auth.require_token: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11228.
+Traceback (most recent call last):
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 219, in decorated
+    token_row = _validate_dynamic_token(db, token)
+  File "D:\Downloads\PycharmProjects\ERP_Simple_PyQt\api_server.py", line 160, in _validate_dynamic_token
+    db.cursor.execute(
+    ~~~~~~~~~~~~~~~~~^
+        """
+        ^^^
+    ...<5 lines>...
+        (token_hash,),
+        ^^^^^^^^^^^^^^
+    )
+    ^
+sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11228.
+2026-05-04 22:25:17 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-04 22:25:17 [INFO] db_manager: Tables creees avec succes

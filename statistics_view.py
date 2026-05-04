@@ -14,6 +14,7 @@ from PyQt6.QtGui import QFont, QColor
 from PyQt6.QtCore import Qt
 import pyqtgraph as pg
 import csv
+import datetime as _dt
 from datetime import datetime
 from db_manager import get_database
 from currency import fmt_da, fmt, currency_manager
@@ -469,35 +470,97 @@ class StatisticsPage(QWidget):
     # ─────────────────────────────────────────────────────────
 
     def _build_quick_info_card(self):
-        """Construit la carte des infos rapides style dashboard"""
+        """
+        Carte Infos Rapides avec sélecteur de période dynamique :
+          • Semaine  → jours (Lundi … Dimanche)
+          • Mois     → semaines (Sem. 1 … Sem. 4/5)
+          • Année    → mois (Jan … Déc)
+        """
         card = _card()
         layout = QVBoxLayout(card)
         layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(10)
-        
-        # Titre
+
+        # ── En-tête : titre + sélecteur de période ────────────
         hdr = QHBoxLayout()
-        hdr.addWidget(_lbl("📌 Informations Rapides", 13, bold=True))
+        hdr.setSpacing(8)
+        hdr.addWidget(_lbl("⚡  Infos Rapides", 13, bold=True))
         hdr.addStretch()
+
+        self._period_combo = QComboBox()
+        self._period_combo.addItems(["📅  Semaine", "🗓  Mois", "📆  Année"])
+        self._period_combo.setFixedHeight(28)
+        self._period_combo.setFixedWidth(120)
+        self._period_combo.setStyleSheet(f"""
+            QComboBox {{
+                background:{BG_DEEP};
+                color:{TXT_PRI};
+                border:1px solid {C_BLUE}55;
+                border-radius:8px;
+                padding:2px 10px;
+                font-size:11px;
+                font-family:'Segoe UI';
+            }}
+            QComboBox:focus {{ border:1px solid {C_BLUE}; }}
+            QComboBox::drop-down {{ border:none; width:22px; }}
+            QComboBox QAbstractItemView {{
+                background:{BG_CARD};
+                color:{TXT_PRI};
+                selection-background-color:{C_BLUE}44;
+                border:1px solid {C_BLUE}33;
+                font-size:11px;
+            }}
+        """)
+        self._period_combo.currentIndexChanged.connect(self._load_period_info)
+        hdr.addWidget(self._period_combo)
         layout.addLayout(hdr)
+
+        # ── Sous-titre dynamique (plage de dates) ─────────────
+        self._period_subtitle_lbl = QLabel("")
+        self._period_subtitle_lbl.setFont(QFont("Segoe UI", 9))
+        self._period_subtitle_lbl.setStyleSheet(
+            f"color:{TXT_SEC}; background:transparent; border:none;")
+        layout.addWidget(self._period_subtitle_lbl)
+
         layout.addWidget(_sep())
-        layout.addSpacing(8)
-        
-        # Grille d'infos
+        layout.addSpacing(4)
+
+        # ── Zone des barres (remplie dynamiquement) ───────────
+        self._period_bars_layout = QVBoxLayout()
+        self._period_bars_layout.setSpacing(4)
+        layout.addLayout(self._period_bars_layout)
+
+        # ── Total de la période ───────────────────────────────
+        layout.addSpacing(4)
+        self._period_total_lbl = QLabel("")
+        self._period_total_lbl.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        self._period_total_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+        self._period_total_lbl.setStyleSheet(
+            f"color:{C_GREEN}; background:transparent; border:none;")
+        layout.addWidget(self._period_total_lbl)
+
+        layout.addWidget(_sep())
+        layout.addSpacing(6)
+
+        # ── Section complémentaire : 4 métriques fixes ────────
+        hdr2 = QHBoxLayout()
+        hdr2.addWidget(_lbl("📌 Métriques Clés", 11, bold=True, color=TXT_SEC))
+        hdr2.addStretch()
+        layout.addLayout(hdr2)
+        layout.addSpacing(6)
+
         infos = [
-            ("Stock Faible", "0 produit", C_RED, "⚠️"),
-            ("Panier Moyen", "0 DA", C_CYAN, "💳"),
-            ("Meilleur Jour (Ventes)", "—", C_GREEN, "📅"),
-            ("Meilleur Jour (Recette)", "—", C_AMBER, "💰"),
+            ("Stock Faible",         "0 produit", C_RED,   "⚠️"),
+            ("Panier Moyen",         "0 DA",      C_CYAN,  "💳"),
+            ("Meilleur Jour Ventes", "—",         C_GREEN, "📅"),
+            ("Meilleur Jour CA",     "—",         C_AMBER, "💰"),
         ]
-        
         self._info_cards = []
-        
         for info_title, val, color, icon in infos:
-            info_widget = self._make_info_card(icon, info_title, val, color)
-            layout.addWidget(info_widget)
-            self._info_cards.append(info_widget)
-        
+            w = self._make_info_card(icon, info_title, val, color)
+            layout.addWidget(w)
+            self._info_cards.append(w)
+
         return card
 
     def _make_info_card(self, icon, title, value, color):
@@ -742,7 +805,8 @@ class StatisticsPage(QWidget):
         self._load_profit_chart()
         self._load_top_products()
         self._load_top_clients()
-        self._load_quick_info()
+        self._load_period_info()      # ← barres dynamiques par période
+        self._load_quick_info()       # ← 4 métriques fixes (stock, panier, etc.)
         self._load_advanced_kpis()
 
     # ─────────────────────────────────────────────────────────
@@ -879,6 +943,238 @@ class StatisticsPage(QWidget):
 
         self.clients_chart.getAxis("bottom").setTicks([list(zip(range(len(names)), names))])
         self.clients_chart.setXRange(-0.5, len(values) - 0.5)
+
+    # ─────────────────────────────────────────────────────────
+    #  Chargement des barres par période (NOUVEAU)
+    # ─────────────────────────────────────────────────────────
+
+    def _load_period_info(self):
+        """
+        Charge les barres selon la période sélectionnée :
+          0 = Semaine  → affiche chaque jour (Lun → Dim)
+          1 = Mois     → affiche chaque semaine (Sem. 1 … 4/5)
+          2 = Année    → affiche chaque mois (Jan → Déc)
+        """
+        _clear_layout(self._period_bars_layout)
+
+        idx   = self._period_combo.currentIndex()
+        today = _dt.date.today()
+        sym   = currency_manager.primary.symbol
+
+        BAR_COLORS = [C_BLUE, C_VIOLET, C_CYAN, C_GREEN, C_AMBER]
+
+        # ══════════════════════════════════════════════════════
+        #  SEMAINE — un point par jour
+        # ══════════════════════════════════════════════════════
+        if idx == 0:
+            debut = today - _dt.timedelta(days=today.weekday())
+            fin   = debut + _dt.timedelta(days=6)
+            self._period_subtitle_lbl.setText(
+                f"{debut.strftime('%d/%m')} — {fin.strftime('%d/%m/%Y')}")
+
+            JOURS  = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"]
+            JICONS = ["💼","💼","💼","💼","💼","🌤","🌤"]
+
+            totaux, rows = [], []
+            for i in range(7):
+                d = debut + _dt.timedelta(days=i)
+                try:
+                    self.db.cursor.execute(
+                        "SELECT COALESCE(SUM(total),0), COUNT(*) "
+                        "FROM sales WHERE DATE(sale_date)=?", (str(d),))
+                    r = self.db.cursor.fetchone()
+                    total, nb = float(r[0] or 0), int(r[1] or 0)
+                except Exception:
+                    total, nb = 0.0, 0
+                rows.append((JICONS[i]+" "+JOURS[i], d.strftime("%d/%m"),
+                             total, nb, d == today))
+                totaux.append(total)
+
+            max_v = max(totaux, default=1) or 1
+            for label, sublbl, total, nb, is_cur in rows:
+                self._add_info_bar(
+                    label, sublbl, total, nb, max_v, is_cur,
+                    BAR_COLORS[0] if is_cur else BAR_COLORS[2], sym)
+
+            grand = sum(totaux)
+            self._period_total_lbl.setText(
+                f"Total semaine : {fmt_da(grand, 0)}" if grand else "Aucune vente cette semaine")
+            if not grand:
+                self._period_total_lbl.setStyleSheet(
+                    f"color:{TXT_SEC}; background:transparent; border:none; font-size:10px;")
+            else:
+                self._period_total_lbl.setStyleSheet(
+                    f"color:{C_GREEN}; background:transparent; border:none; font-weight:bold;")
+
+        # ══════════════════════════════════════════════════════
+        #  MOIS — un point par semaine
+        # ══════════════════════════════════════════════════════
+        elif idx == 1:
+            debut_mois = today.replace(day=1)
+            if today.month == 12:
+                fin_mois = _dt.date(today.year + 1, 1, 1) - _dt.timedelta(days=1)
+            else:
+                fin_mois = _dt.date(today.year, today.month + 1, 1) - _dt.timedelta(days=1)
+
+            MOIS_FR = ["Janvier","Février","Mars","Avril","Mai","Juin",
+                       "Juillet","Août","Septembre","Octobre","Novembre","Décembre"]
+            self._period_subtitle_lbl.setText(
+                f"{MOIS_FR[today.month-1]} {today.year}")
+
+            semaines, c, num = [], debut_mois, 1
+            while c <= fin_mois:
+                d_deb = c
+                d_fin = min(d_deb + _dt.timedelta(days=6 - d_deb.weekday()), fin_mois)
+                semaines.append((num, d_deb, d_fin))
+                c = d_fin + _dt.timedelta(days=1)
+                num += 1
+
+            totaux, rows = [], []
+            for num, d_deb, d_fin in semaines:
+                try:
+                    self.db.cursor.execute(
+                        "SELECT COALESCE(SUM(total),0), COUNT(*) "
+                        "FROM sales WHERE DATE(sale_date) BETWEEN ? AND ?",
+                        (str(d_deb), str(d_fin)))
+                    r = self.db.cursor.fetchone()
+                    total, nb = float(r[0] or 0), int(r[1] or 0)
+                except Exception:
+                    total, nb = 0.0, 0
+                is_cur = (d_deb <= today <= d_fin)
+                rows.append((f"Sem. {num}",
+                             f"{d_deb.strftime('%d/%m')} → {d_fin.strftime('%d/%m')}",
+                             total, nb, is_cur, (num-1) % len(BAR_COLORS)))
+                totaux.append(total)
+
+            max_v = max(totaux, default=1) or 1
+            for label, sublbl, total, nb, is_cur, ci in rows:
+                self._add_info_bar(
+                    label, sublbl, total, nb, max_v, is_cur,
+                    BAR_COLORS[0] if is_cur else BAR_COLORS[ci], sym)
+
+            grand = sum(totaux)
+            self._period_total_lbl.setText(
+                f"Total mois : {fmt_da(grand, 0)}" if grand else "Aucune vente ce mois")
+            if not grand:
+                self._period_total_lbl.setStyleSheet(
+                    f"color:{TXT_SEC}; background:transparent; border:none; font-size:10px;")
+            else:
+                self._period_total_lbl.setStyleSheet(
+                    f"color:{C_GREEN}; background:transparent; border:none; font-weight:bold;")
+
+        # ══════════════════════════════════════════════════════
+        #  ANNÉE — un point par mois
+        # ══════════════════════════════════════════════════════
+        elif idx == 2:
+            annee = self._get_year()
+            self._period_subtitle_lbl.setText(f"Année {annee}")
+
+            MOIS_C = ["Jan","Fév","Mar","Avr","Mai","Jun",
+                      "Jul","Aoû","Sep","Oct","Nov","Déc"]
+            MOIS_I = ["❄️","❄️","🌸","🌸","🌺","☀️",
+                      "☀️","🌤","🍂","🍂","🌧","❄️"]
+
+            totaux, rows = [], []
+            for m in range(1, 13):
+                d_deb = _dt.date(annee, m, 1)
+                d_fin = (_dt.date(annee+1, 1, 1) if m == 12
+                         else _dt.date(annee, m+1, 1)) - _dt.timedelta(days=1)
+                try:
+                    self.db.cursor.execute(
+                        "SELECT COALESCE(SUM(total),0), COUNT(*) "
+                        "FROM sales WHERE DATE(sale_date) BETWEEN ? AND ?",
+                        (str(d_deb), str(d_fin)))
+                    r = self.db.cursor.fetchone()
+                    total, nb = float(r[0] or 0), int(r[1] or 0)
+                except Exception:
+                    total, nb = 0.0, 0
+                is_cur = (m == today.month and annee == today.year)
+                rows.append((f"{MOIS_I[m-1]} {MOIS_C[m-1]}",
+                             str(annee), total, nb, is_cur,
+                             (m-1) % len(BAR_COLORS)))
+                totaux.append(total)
+
+            max_v = max(totaux, default=1) or 1
+            for label, sublbl, total, nb, is_cur, ci in rows:
+                self._add_info_bar(
+                    label, sublbl, total, nb, max_v, is_cur,
+                    BAR_COLORS[0] if is_cur else BAR_COLORS[ci], sym)
+
+            grand = sum(totaux)
+            self._period_total_lbl.setText(
+                f"Total année : {fmt_da(grand, 0)}" if grand else "Aucune vente cette année")
+            if not grand:
+                self._period_total_lbl.setStyleSheet(
+                    f"color:{TXT_SEC}; background:transparent; border:none; font-size:10px;")
+            else:
+                self._period_total_lbl.setStyleSheet(
+                    f"color:{C_GREEN}; background:transparent; border:none; font-weight:bold;")
+
+    def _add_info_bar(self, label, sublabel, total, nb,
+                      max_val, is_current, bar_color, sym):
+        """Ajoute une ligne label + barre proportionnelle + montant."""
+        row_frame = QFrame()
+        row_frame.setStyleSheet(
+            f"background:{'rgba(59,130,246,0.08)' if is_current else 'transparent'};"
+            "border-radius:7px; border:none;")
+        rh = QHBoxLayout(row_frame)
+        rh.setContentsMargins(6, 2, 6, 2)
+        rh.setSpacing(8)
+
+        # Label
+        lbl = QLabel(label)
+        lbl.setFont(QFont("Segoe UI", 10,
+                          QFont.Weight.Bold if is_current else QFont.Weight.Normal))
+        lbl.setFixedWidth(90)
+        lbl.setStyleSheet(
+            f"color:{'#F0F4FF' if is_current else TXT_SEC}; "
+            "background:transparent; border:none;")
+        rh.addWidget(lbl)
+
+        # Barre
+        bar = QProgressBar()
+        bar.setRange(0, 1000)
+        bar.setValue(int((total / max_val) * 1000) if total > 0 else 0)
+        bar.setTextVisible(False)
+        bar.setFixedHeight(10)
+
+        if total == 0:
+            chunk = "background:rgba(255,255,255,0.06); border-radius:4px;"
+        elif is_current:
+            chunk = (f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+                     f"stop:0 {C_BLUE},stop:1 {C_VIOLET});"
+                     "border-radius:4px;")
+        else:
+            chunk = (f"background:qlineargradient(x1:0,y1:0,x2:1,y2:0,"
+                     f"stop:0 {bar_color}99,stop:1 {bar_color}55);"
+                     "border-radius:4px;")
+
+        bar.setStyleSheet(f"""
+            QProgressBar {{background:{BG_DEEP};border-radius:4px;border:none;}}
+            QProgressBar::chunk {{ {chunk} }}
+        """)
+        rh.addWidget(bar, 1)
+
+        # Montant
+        amt_color = C_GREEN if total > 0 else "rgba(160,170,204,0.30)"
+        amt = QLabel(fmt_da(total, 0) if total > 0 else "—")
+        amt.setFont(QFont("Segoe UI", 10,
+                          QFont.Weight.Bold if total > 0 else QFont.Weight.Normal))
+        amt.setFixedWidth(110)
+        amt.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        amt.setStyleSheet(f"color:{amt_color}; background:transparent; border:none;")
+        rh.addWidget(amt)
+
+        # Nb ventes
+        if nb > 0:
+            nbl = QLabel(f"({nb})")
+            nbl.setFont(QFont("Segoe UI", 9))
+            nbl.setFixedWidth(32)
+            nbl.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            nbl.setStyleSheet("color:rgba(160,170,204,0.55); background:transparent; border:none;")
+            rh.addWidget(nbl)
+
+        self._period_bars_layout.addWidget(row_frame)
 
     # ─────────────────────────────────────────────────────────
     #  Info rapide
