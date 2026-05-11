@@ -20,6 +20,8 @@ class _DummyDB:
 
 def _create_user(username="api_tester", password="secret123", role="admin"):
     db = get_database()
+    # Idempotent pour éviter les collisions entre tests/reruns.
+    db.cursor.execute("DELETE FROM users WHERE username = ?", (username,))
     db.cursor.execute(
         """
         INSERT INTO users (username, password_hash, role, is_active)
@@ -207,3 +209,49 @@ def test_failed_login_writes_security_audit():
 
     assert response.status_code == 401
     assert after >= before + 1
+
+
+def test_strict_mode_rejects_static_token(monkeypatch):
+    monkeypatch.setattr(api_server, "API_STRICT_DYNAMIC_TOKENS", True)
+    monkeypatch.setattr(api_server, "API_ALLOWED_SUBNETS", [])
+    monkeypatch.setattr(api_server, "API_TOKEN", "test-static-token")
+    api_server._rate_limit_state.clear()
+    monkeypatch.setattr(api_server, "get_database", lambda: _DummyDB())
+    client = api_server.app.test_client()
+
+    response = client.get(
+        "/api/status",
+        headers={"Authorization": "Bearer test-static-token"},
+        environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+    )
+    assert response.status_code == 401
+
+
+def test_security_maintenance_endpoint_deletes_expired_tokens(monkeypatch):
+    db = _create_user(username="u_maint", password="pw_maint")
+    token_hash = api_server._hash_token("expired-to-delete")
+    db.cursor.execute(
+        """
+        INSERT INTO api_tokens(token_hash, expires_at, is_revoked, created_by_user_id)
+        VALUES (?, ?, 0, 1)
+        """,
+        (token_hash, "2000-01-01 00:00:00"),
+    )
+    db.conn.commit()
+
+    monkeypatch.setattr(api_server, "API_ALLOWED_SUBNETS", [])
+    monkeypatch.setattr(api_server, "API_STRICT_DYNAMIC_TOKENS", False)
+    monkeypatch.setattr(api_server, "API_TOKEN", "admin-static-token")
+    api_server._rate_limit_state.clear()
+    client = api_server.app.test_client()
+
+    response = client.post(
+        "/api/admin/security/maintenance",
+        json={"purge_expired_tokens": True, "audit_retention_days": 3650},
+        headers={"Authorization": "Bearer admin-static-token"},
+        environ_overrides={"REMOTE_ADDR": "127.0.0.1"},
+    )
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["success"] is True
+    assert payload["data"]["tokens_deleted"] >= 1

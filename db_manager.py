@@ -10,6 +10,8 @@ from datetime import datetime
 from pathlib import Path
 import json
 from migrations.runner import run_migrations
+import threading
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,21 +34,29 @@ class Database:
         run_migrations(self.conn)
     
     def connect(self):
-        """Établit la connexion à la base de données"""
+        """Établit la connexion à la base de données."""
         try:
-            self.conn = sqlite3.connect(self.db_path)
-            self.conn.row_factory = sqlite3.Row  # Pour accéder aux colonnes par nom
+            # check_same_thread=False est OBLIGATOIRE pour permettre l'utilisation
+            # de cette connexion dans un thread différent de celui de sa création.
+            # En pratique, chaque thread aura sa propre instance Database,
+            # donc cette option reste sans danger.
+            self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self.conn.row_factory = sqlite3.Row
             self.cursor = self.conn.cursor()
-            logger.info("Connexion base de donnees etablie: %s", self.db_path)
+            logger.info("Connexion base de données établie: %s (thread %s)",
+                        self.db_path, threading.get_ident())
         except sqlite3.Error as e:
-            logger.exception("Erreur de connexion base de donnees: %s", e)
+            logger.exception("Erreur de connexion base de données: %s", e)
             raise
     
     def disconnect(self):
-        """Ferme la connexion à la base de données"""
+        """Ferme la connexion à la base de données."""
         if self.conn:
             self.conn.close()
-            logger.info("Connexion base de donnees fermee")
+            logger.info("Connexion base de données fermée (thread %s)",
+                        threading.get_ident())
+    
+    
     
     def create_tables(self):
         """Crée toutes les tables nécessaires si elles n'existent pas"""
@@ -248,6 +258,19 @@ class Database:
                 FOREIGN KEY (product_id) REFERENCES products(id)
             )
         """)
+        
+        self.cursor.execute("""
+    CREATE TABLE IF NOT EXISTS mobile_tokens (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        token TEXT UNIQUE NOT NULL,
+        device_name TEXT,
+        user_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_active INTEGER DEFAULT 1,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+""")
         
         self.conn.commit()
         logger.info("Tables creees avec succes")
@@ -1868,6 +1891,44 @@ def get_database(db_path=None):
     return _db_instance
 
 
+# ==================== THREAD‑LOCAL SINGLETON ====================
+# Chaque thread possède sa propre instance de Database.
+
+_thread_local = threading.local()
+
+def get_database(db_path=None):
+    """
+    Retourne une instance de Database propre au thread courant.
+    Si aucune instance n'existe pour ce thread, elle est créée.
+    """
+    if not hasattr(_thread_local, 'db'):
+        _thread_local.db = Database(db_path or config.db_path)
+    return _thread_local.db
+
+
+def register_mobile_token(self, token, device_name=None, user_id=None):
+    try:
+        self.cursor.execute("""
+            INSERT INTO mobile_tokens (token, device_name, user_id, last_used)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(token) DO UPDATE SET
+                last_used = CURRENT_TIMESTAMP,
+                is_active = 1
+        """, (token, device_name, user_id))
+        self.conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erreur enregistrement token: {e}")
+        return False
+
+def unregister_mobile_token(self, token):
+    try:
+        self.cursor.execute("UPDATE mobile_tokens SET is_active = 0 WHERE token = ?", (token,))
+        self.conn.commit()
+        return True
+    except Exception as e:
+        print(f"Erreur désactivation token: {e}")
+        return False
 # ==================== EXEMPLE D'UTILISATION ====================
 
 if __name__ == "__main__":

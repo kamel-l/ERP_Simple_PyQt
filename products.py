@@ -491,7 +491,6 @@ class ProductsPage(QWidget):
                 background: {C['bg_card']};
                 border-radius: 10px;
                 border: 1px solid {C['border']};
-                border-left: 3px solid {color};
             }}
         """)
         card.setFixedHeight(78)
