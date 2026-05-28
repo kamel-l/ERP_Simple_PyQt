@@ -1996,3 +1996,49 @@ Traceback (most recent call last):
 sqlite3.ProgrammingError: SQLite objects created in a thread can only be used in that same thread. The object was created in thread id 17804 and this is thread id 11228.
 2026-05-04 22:25:17 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
 2026-05-04 22:25:17 [INFO] db_manager: Tables creees avec succes
+2026-05-26 04:49:58 [INFO] db_manager: Connexion base de donnees etablie: erp_database.db
+2026-05-26 04:49:58 [INFO] db_manager: Tables creees avec succes
+2026-05-26 04:49:58 [INFO] migrations.runner: Migration appliquee: V001__audit_log
+2026-05-26 04:49:58 [INFO] migrations.runner: Migration appliquee: V002__api_tokens
+2026-05-26 04:55:39 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 12120)
+2026-05-26 04:55:39 [INFO] db_manager: Tables creees avec succes
+2026-05-26 05:11:09 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 10960)
+2026-05-26 05:11:09 [INFO] db_manager: Tables creees avec succes
+2026-05-28 08:11:39 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 19240)
+2026-05-28 08:11:39 [INFO] db_manager: Tables creees avec succes
+2026-05-28 08:11:40 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 5404)
+2026-05-28 08:11:40 [INFO] db_manager: Tables creees avec succes
+2026-05-28 08:33:49 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 12632)
+2026-05-28 08:33:49 [INFO] db_manager: Tables creees avec succes
+2026-05-28 08:34:24 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 10392)
+2026-05-28 08:34:24 [INFO] db_manager: Tables creees avec succes
+2026-05-28 08:48:42 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 2972)
+2026-05-28 08:48:42 [INFO] db_manager: Tables creees avec succes
+2026-05-28 08:48:55 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 19360)
+2026-05-28 08:48:55 [INFO] db_manager: Tables creees avec succes
+2026-05-28 08:52:22 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 7948)
+2026-05-28 08:52:22 [INFO] db_manager: Tables creees avec succes
+2026-05-28 08:52:43 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 3460)
+2026-05-28 08:52:43 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:29:05 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 6568)
+2026-05-28 10:29:05 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:30:22 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 4904)
+2026-05-28 10:30:22 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:39:22 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 13380)
+2026-05-28 10:39:22 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:39:40 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 2844)
+2026-05-28 10:39:40 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:43:24 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 7048)
+2026-05-28 10:43:24 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:43:41 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 13344)
+2026-05-28 10:43:41 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:44:21 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 7216)
+2026-05-28 10:44:21 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:52:14 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 7720)
+2026-05-28 10:52:14 [INFO] db_manager: Tables creees avec succes
+2026-05-28 10:52:29 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 10876)
+2026-05-28 10:52:29 [INFO] db_manager: Tables creees avec succes
+2026-05-28 11:09:56 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 4872)
+2026-05-28 11:09:56 [INFO] db_manager: Tables creees avec succes
+2026-05-28 11:10:53 [INFO] db_manager: Connexion base de données établie: erp_database.db (thread 5912)
+2026-05-28 11:10:53 [INFO] db_manager: Tables creees avec succes

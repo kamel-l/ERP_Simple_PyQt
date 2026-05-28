@@ -345,6 +345,12 @@ def health():
 def status():
     db = get_database()
     stats = db.get_statistics()
+    db.cursor.execute("""
+        SELECT COUNT(*) as count FROM sales
+        WHERE payment_method = 'credit' OR payment_status = 'pending'
+    """)
+    pending_invoices = db.cursor.fetchone()['count']
+    
     return ok({
         "total_produits":  stats.get("total_products", 0),
         "total_clients":   stats.get("total_clients",  0),
@@ -352,6 +358,7 @@ def status():
         "total_achats":    stats.get("total_purchases",0),
         "ca_total":        float(stats.get("sales_total", 0)),
         "valeur_stock":    float(stats.get("stock_value", 0)),
+        "factures_en_attente": pending_invoices,
         "derniere_sync":   datetime.now().isoformat(),
     })
 
@@ -847,13 +854,34 @@ def full_sync():
             "currency": db.get_setting("currency", "DA"),
         }
 
+        db.cursor.execute("SELECT COUNT(*) as count FROM clients")
+        total_clients = db.cursor.fetchone()['count']
+        db.cursor.execute("SELECT COUNT(*) as count FROM products")
+        total_products = db.cursor.fetchone()['count']
+        yr = str(datetime.now().year)
+        db.cursor.execute("""
+            SELECT COUNT(*) as count FROM sales
+            WHERE strftime('%Y', sale_date) = ?
+        """, (yr,))
+        total_ventes = db.cursor.fetchone()['count']
+        db.cursor.execute("""
+            SELECT COUNT(*) as count FROM sales
+            WHERE payment_method = 'credit' OR payment_status = 'pending'
+        """)
+        pending_invoices = db.cursor.fetchone()['count']
+
         return ok({
             "produits": products,
             "clients": clients,
             "ventes": ventes,
             "settings": settings,
             "sync_time": datetime.now().isoformat(),
-            "counts": {"produits": len(products), "clients": len(clients), "ventes": len(ventes)}
+            "counts": {
+                "produits": total_products,
+                "clients": total_clients,
+                "ventes": total_ventes,
+                "pending_invoices": pending_invoices
+            }
         }, "Synchronisation complète")
     except Exception as e:
         log_api_exception("sync.full", e)

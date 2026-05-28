@@ -769,23 +769,25 @@ class Database:
             tax_amount = subtotal * (tax_rate / 100)
             total = subtotal + tax_amount - discount
             
+            payment_status = 'pending' if payment_method == 'credit' else 'paid'
+
             # Créer la vente
             if sale_date:
                 self.cursor.execute("""
                     INSERT INTO sales 
                     (invoice_number, client_id, subtotal, tax_rate, tax_amount, 
-                     discount, total, payment_method, notes, sale_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     discount, total, payment_method, payment_status, notes, sale_date)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (invoice_number, client_id, subtotal, tax_rate, tax_amount,
-                      discount, total, payment_method, notes, sale_date))
+                      discount, total, payment_method, payment_status, notes, sale_date))
             else:
                 self.cursor.execute("""
                     INSERT INTO sales 
                     (invoice_number, client_id, subtotal, tax_rate, tax_amount, 
-                     discount, total, payment_method, notes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     discount, total, payment_method, payment_status, notes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (invoice_number, client_id, subtotal, tax_rate, tax_amount,
-                      discount, total, payment_method, notes))
+                      discount, total, payment_method, payment_status, notes))
             
             sale_id = self.cursor.lastrowid
             
